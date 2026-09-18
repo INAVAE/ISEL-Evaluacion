@@ -288,6 +288,12 @@ h3{font-family:var(--sans);font-weight:600;font-size:17px;line-height:1.3}
 /* ---------- print ---------- */
 @media print{
   body{background:#fff;font-size:11pt}
+  /* El plan de 30/60/90 se partía entre páginas y las columnas quedaban
+     separadas de su encabezado. Cada bloque se mantiene entero. */
+  .plan-col, .grid, .ol li, .chk, .bar-r, .alert{break-inside:avoid}
+  .sect-h, .panel-h{break-after:avoid}
+  .sect{break-inside:auto}
+  .panel{break-inside:avoid-page}
   .topbar,.no-print{display:none!important}
   .shell{max-width:100%;padding:0}
   .panel,.res-hero{break-inside:avoid;border-color:#999}
@@ -437,6 +443,22 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
   .gauge-bands{flex-wrap:wrap}
   .gauge-band{flex:1 1 45%}
 }
+
+/* ---------- detalle de respuestas ---------- */
+.anslist{border-top:var(--line)}
+.ansrow{display:flex;gap:12px;align-items:flex-start;padding:9px 10px;border-bottom:var(--line);font-size:14.5px;line-height:1.45}
+.ansrow .ansv{flex:none;width:44px;text-align:right;font-family:var(--cond);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums}
+.ansrow .ansv em{font-style:normal;font-size:12px;color:var(--ink-3)}
+.ansrow.sel{background:var(--blue-l);box-shadow:inset 3px 0 0 var(--blue)}
+.ansrow.best{background:#F1F8F4;box-shadow:inset 3px 0 0 var(--r-green)}
+.ansrow.bad{background:#FCF2F0;box-shadow:inset 3px 0 0 var(--r-red)}
+.ansrow.miss{background:var(--steel-50)}
+.tagc,.tagb,.tagf,.tagm{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.03em;
+  padding:1px 6px;margin-left:8px;vertical-align:1px;border:1px solid;white-space:nowrap}
+.tagc{color:var(--blue);border-color:var(--blue)}
+.tagb{color:var(--r-green);border-color:var(--r-green)}
+.tagf{color:var(--r-red);border-color:var(--r-red)}
+.tagm{color:var(--amber);border-color:var(--amber)}
 </style>
 <div id="app"></div>
 <script>
@@ -1708,6 +1730,23 @@ const DB = {
     return true;
   },
 
+  async deleteCandidates(recs){
+    if(!DB.remote){
+      const ids = recs.map(r=>r.id);
+      const all = (await DB.listCandidates()).filter(c=>!ids.includes(c.id));
+      return LS.set('isel:candidates', all);
+    }
+    /* Basta borrar el candidato: las llaves foráneas en cascada se llevan
+       la evaluación, sus respuestas, puntajes, banderas, recomendación y plan. */
+    for(const r of recs){
+      if(r.candidateId)
+        await sbFetch('/rest/v1/isel_candidates?id=eq.' + encodeURIComponent(r.candidateId), {method:'DELETE'});
+      else
+        await sbFetch('/rest/v1/isel_assessments?id=eq.' + encodeURIComponent(r.id), {method:'DELETE'});
+    }
+    return DB.listCandidates();
+  },
+
   async resetAll(){
     if(DB.remote) throw new Error('Los datos de demostración solo se generan en modo local.');
     MEM['isel:candidates']=[]; MEM['isel:instruments']=[]; MEM['isel:invites']=[];
@@ -1726,7 +1765,7 @@ function buildRecord(profile, answers, ins){
     version: I.version,
     instrumentId: I.id,
     dimsDef: I.dims.map(d=>({id:d.id, short:d.short, n:d.n, w:d.w, min:d.min, crit:d.crit})),
-    profile, answers, result: r
+    profile, answers, shuffle: (S && S.shuffle) || null, result: r
   };
   rec.level = levelOf(r.index).k;
   rec.narrative = narrative(rec);
@@ -1800,6 +1839,26 @@ async function bootstrap(){
   return {ins, cands};
 }
 
+/* Orden aleatorio de opciones.
+   Las respuestas se guardan SIEMPRE con el índice original del banco, así que
+   revolver solo afecta lo que ve el candidato: puntuación, análisis y comparación
+   entre candidatos siguen siendo idénticos. */
+function buildShuffle(ins){
+  const map = {};
+  (ins.items||[]).forEach(q=>{
+    if(q.type==='likert' || !q.opts) return;
+    const idx = q.opts.map((_,i)=>i);
+    if(ins.shuffleOptions === false){ map[q.id] = idx; return; }
+    for(let i=idx.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [idx[i],idx[j]] = [idx[j],idx[i]];
+    }
+    map[q.id] = idx;
+  });
+  return map;
+}
+const displayOrder = q => (S.shuffle && S.shuffle[q.id]) || q.opts.map((_,i)=>i);
+
 /* ============================================================
    MÓDULO 6 — INTERFAZ
    ============================================================ */
@@ -1815,6 +1874,7 @@ const S = {
   instruments:[], activeIns:null, draft:null, dirty:false, tab:'items',
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
+  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r',
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -1825,9 +1885,9 @@ function topbar(){
   if(S.candidateMode) return `<div class="topbar no-print"><div class="shell topbar-in">
     <span class="brand"><span class="brand-mark">ISEL</span>
     <span class="brand-txt">Evaluación de competencias comerciales</span></span></div></div>`;
-  const dot = DB.remote
-    ? (DB.signedIn ? 'var(--r-green)' : 'var(--amber)')
-    : 'var(--steel-300)';
+  const estado = !DB.remote ? {c:'var(--steel-300)', t:'Local'}
+    : DB.signedIn ? {c:'var(--r-green)', t:'Online'}
+    : {c:'var(--amber)', t:'Login'};
   return `<div class="topbar no-print"><div class="shell topbar-in">
     <a class="brand" href="#" data-go="home"><span class="brand-mark">ISEL</span>
     <span class="brand-txt">Evaluación de competencias comerciales</span></a>
@@ -1835,7 +1895,7 @@ function topbar(){
     <button class="tlink ${S.view==='admin'||S.view==='compare'?'on':''}" data-go="admin">Candidatos</button>
     <button class="tlink ${inEd?'on':''}" data-go="versions">Evaluaciones</button>
     <button class="tlink ${S.view==='settings'?'on':''}" data-go="settings">
-      <span class="statdot" style="background:${dot}"></span>${DB.remote?'Supabase':'Local'}</button>
+      <span class="statdot" style="background:${estado.c}"></span>${estado.t}</button>
   </div></div>`;
 }
 
@@ -1940,22 +2000,23 @@ function viewQuiz(){
   const done = BANK.filter(x=>S.answers[x.id]!==undefined).length;
   const segs = BANK.map((x,i)=>`<div class="seg ${S.answers[x.id]!==undefined?'done':''} ${i===S.page?'now':''}"></div>`).join('');
   let body='';
+  const ord = q.type==='likert' ? [] : displayOrder(q);
   if(q.type==='scenario'||q.type==='technical'){
-    body = `<div class="opts">`+q.opts.map((o,i)=>
-      `<button class="opt ${a===i?'sel':''}" data-pick="${i}"><span class="opt-k">${'ABCDEFGH'[i]||i+1}</span><span class="opt-t">${esc(o.t)}</span></button>`).join('')+`</div>`;
+    body = `<div class="opts">`+ord.map((oi,pos)=>
+      `<button class="opt ${a===oi?'sel':''}" data-pick="${oi}"><span class="opt-k">${'ABCDEFGHI'[pos]||pos+1}</span><span class="opt-t">${esc(q.opts[oi].t)}</span></button>`).join('')+`</div>`;
   } else if(q.type==='likert'){
     body = `<div class="lik">`+[1,2,3,4,5].map(v=>`<button class="${a===v?'sel':''}" data-lik="${v}">${v}</button>`).join('')+
       `</div><div class="lik-lab"><span>1 · ${esc(q.labs[0])}</span><span>${esc(q.labs[1])} · 5</span></div>`;
   } else if(q.type==='multi'){
     const sel = a||[];
-    body = `<div class="opts">`+q.opts.map((o,i)=>
-      `<button class="opt ${sel.includes(i)?'sel':''}" data-multi="${i}"><span class="opt-k">${sel.includes(i)?'✓':''}</span><span class="opt-t">${esc(o.t)}</span></button>`).join('')+
+    body = `<div class="opts">`+ord.map(oi=>
+      `<button class="opt ${sel.includes(oi)?'sel':''}" data-multi="${oi}"><span class="opt-k">${sel.includes(oi)?'✓':''}</span><span class="opt-t">${esc(q.opts[oi].t)}</span></button>`).join('')+
       `</div><p class="note">Selecciona hasta ${q.max}. Seleccionar de más resta puntos.</p>`;
   } else if(q.type==='ranking'){
-    const ord = a||[];
-    body = `<div class="opts">`+q.opts.map((o,i)=>{
-      const p = ord.indexOf(i);
-      return `<button class="opt ${p>=0?'sel':''}" data-rank="${i}"><span class="opt-k ${p>=0?'rank-n':''}">${p>=0?p+1:''}</span><span class="opt-t">${esc(o.t)}</span></button>`;
+    const chosen = a||[];
+    body = `<div class="opts">`+ord.map(oi=>{
+      const p = chosen.indexOf(oi);
+      return `<button class="opt ${p>=0?'sel':''}" data-rank="${oi}"><span class="opt-k ${p>=0?'rank-n':''}">${p>=0?p+1:''}</span><span class="opt-t">${esc(q.opts[oi].t)}</span></button>`;
     }).join('')+`</div><div class="navrow" style="margin-top:12px"><button class="btn btn-ghost btn-sm" data-rankreset>Reiniciar orden</button>
       <span class="sub">Toca las opciones en el orden que consideres correcto.</span></div>`;
   }
@@ -2112,6 +2173,7 @@ function viewResults(){
     ${resultsBody(S.rec,false)}
     <div class="navrow no-print">
       <button class="btn" data-go="report">Generar reporte del candidato</button>
+      <button class="btn btn-ghost" data-go="answers">Ver respuestas una por una</button>
       <button class="btn btn-ghost" data-go="admin">Ver todos los candidatos</button>
       <span class="sp"></span><button class="btn btn-ghost" data-restart>Nueva evaluación</button></div>
   </div>`;
@@ -2161,6 +2223,13 @@ function viewAdmin(){
   return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Candidatos evaluados</h2><span class="sub">${rows.length} de ${S.list.length}</span></div>
     ${S.msg?`<div class="alert warn" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
+    ${S.confirmDel?`<div class="alert" style="margin-bottom:16px"><h3>Confirmar eliminación</h3>
+      Se van a borrar ${S.confirmDel.length} evaluación${S.confirmDel.length>1?'es':''} junto con todas sus respuestas,
+      puntajes y banderas. La acción no se puede deshacer.
+      <ul style="margin:8px 0 0 18px;font-size:14px">${S.confirmDel.map(r=>`<li>${esc(r.profile.nombre||'Sin nombre')} · ${r.result.index}/100 · ${fdate(r.createdAt)}</li>`).join('')}</ul>
+      <div class="navrow" style="margin-top:12px">
+        <button class="btn btn-sm" style="background:var(--r-red);border-color:var(--r-red)" data-confirmdel>Sí, eliminar</button>
+        <button class="btn btn-ghost btn-sm" data-canceldel>Cancelar</button></div></div>`:''}
     ${S.pendingCount?`<div class="alert" style="margin-bottom:16px"><h3>${S.pendingCount} evaluación${S.pendingCount>1?'es':''} sin enviar</h3>
       Se completaron pero el servidor no las aceptó. Están guardadas en este navegador y no se han perdido.
       <div class="navrow" style="margin-top:10px"><button class="btn btn-sm" data-retrysave>Enviar ahora</button></div></div>`:''}
@@ -2172,6 +2241,9 @@ function viewAdmin(){
         <div class="field"><label for="f-dat">Evaluados desde</label><input id="f-dat" type="date" data-filter="date" value="${S.fDate}"></div>
         <span style="flex:1"></span>
         <button class="btn btn-ghost btn-sm" data-compare ${S.sel.length<2?'disabled':''}>Comparar candidatos (${S.sel.length})</button>
+        <button class="btn btn-ghost btn-sm" data-delcands ${S.sel.length?'':'disabled'}
+          style="${S.sel.length?'color:var(--r-red);border-color:var(--r-red)':''}">Eliminar (${S.sel.length})</button>
+        <button class="btn btn-ghost btn-sm" data-go="analysis">Análisis de reactivos</button>
         <button class="btn btn-ghost btn-sm" data-go="form">Evaluar nuevo candidato</button>
       </div></div>
       <div class="panel-b">${rows.length? `<div class="tbl-scroll"><table class="tbl"><thead><tr>
@@ -2537,6 +2609,11 @@ function tabMeta(ins){
     <div class="full"><label class="fl">Puesto evaluado</label><input class="fi" data-meta="name" value="${esc(ins.name)}" ${ro}></div>
     <div class="full"><label class="fl">Área</label><input class="fi" data-meta="area" value="${esc(ins.area||'')}" ${ro}></div>
     <div><label class="fl">Clave de versión</label><input class="fi" data-meta="version" value="${esc(ins.version)}" ${ro}></div>
+    <div><label class="fl">Orden de las opciones</label>
+      <label class="sw ${ins.shuffleOptions!==false?'on':''}" data-shuffle style="margin-top:9px" ${ro}><i></i>
+        ${ins.shuffleOptions!==false?'Aleatorio en cada aplicación':'Fijo, como están capturadas'}</label>
+      <p class="mini" style="margin-top:6px">Evita que el candidato deduzca la respuesta por su posición.
+      Las respuestas se guardan con el índice original, así que el puntaje no cambia.</p></div>
     <div class="full"><label class="fl">Notas internas</label><textarea class="fi" rows="4" data-meta="notes" ${ro}>${esc(ins.notes||'')}</textarea></div>
   </div>
   <div style="margin-top:20px"><div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">Pares de control de consistencia</h2></div>
@@ -2848,10 +2925,183 @@ function viewThanks(){
     hazlo por el medio donde recibiste la invitación.</p></div>`;
 }
 
+
+/* ============================================================
+   MÓDULO 9 — DETALLE DE RESPUESTAS Y ANÁLISIS DE REACTIVOS
+   ============================================================ */
+const scoreColor = v => v>=80?'var(--r-green)': v>=60?'var(--r-yellow)': v>=40?'var(--r-orange)':'var(--r-red)';
+
+function answerDetail(q, ans, score){
+  const best = i => q.opts.reduce((b,o,k)=> o.s>q.opts[b].s ? k : b, 0);
+  let body = '';
+  if(q.type==='likert'){
+    body = `<div class="ansrow sel"><span class="ansv" style="color:${scoreColor(score)}">${ans||'—'}</span>
+      <span>Se calificó ${ans||'—'} de 5 en la escala “${esc(q.labs[0])}” a “${esc(q.labs[1])}”.</span></div>`;
+  }
+  else if(q.type==='scenario' || q.type==='technical'){
+    const b = best();
+    body = q.opts.map((o,i)=>{
+      const chosen = ans===i;
+      const cls = chosen ? 'sel' : (i===b ? 'best' : '');
+      return `<div class="ansrow ${cls}">
+        <span class="ansv" style="color:${scoreColor(o.s)}">${o.s}</span>
+        <span>${esc(o.t)}
+          ${chosen?'<b class="tagc">Elegida</b>':''}${i===b && !chosen?'<b class="tagb">Mejor opción</b>':''}
+          ${o.flag?'<b class="tagf">Bandera crítica</b>':''}</span></div>`;
+    }).join('');
+  }
+  else if(q.type==='multi'){
+    const sel = ans||[];
+    body = q.opts.map((o,i)=>{
+      const chosen = sel.includes(i);
+      const cls = chosen ? (o.p<0?'bad':'sel') : (o.p>0 ? 'miss' : '');
+      return `<div class="ansrow ${cls}">
+        <span class="ansv" style="color:${o.p>0?'var(--r-green)':o.p<0?'var(--r-red)':'var(--ink-3)'}">${o.p>0?'+'+o.p:o.p}</span>
+        <span>${esc(o.t)}
+          ${chosen?'<b class="tagc">Elegida</b>':''}${!chosen && o.p>0?'<b class="tagm">No la vio</b>':''}</span></div>`;
+    }).join('');
+  }
+  else if(q.type==='ranking'){
+    const chosen = ans||[];
+    body = q.opts.map((o,i)=>{
+      const pos = chosen.indexOf(i)+1;
+      const ok = pos===o.r;
+      return `<div class="ansrow ${ok?'sel':'bad'}">
+        <span class="ansv">${pos||'—'}<em>/${o.r}</em></span>
+        <span>${esc(o.t)}${ok?'':`<b class="tagm">Debía ir en ${o.r}</b>`}</span></div>`;
+    }).join('');
+  }
+  return body;
+}
+
+function viewAnswers(){
+  const rec = S.rec;
+  const ins = S.instruments.find(i=>i.id===rec.instrumentId);
+  if(!ins) return topbar()+`<div class="shell" style="padding-top:40px">
+    <div class="empty"><b>No se encontró la versión ${esc(rec.version)}</b>
+    El detalle de respuestas necesita la definición del instrumento con el que se aplicó la evaluación.</div>
+    <div class="navrow"><button class="btn" data-go="results">Volver</button></div></div>`;
+  const defs = rec.dimsDef || ins.dims;
+  const items = ins.items.filter(i=>i.active!==false);
+  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+    <div class="sect-h"><h2>Respuestas de ${esc(rec.profile.nombre||'el candidato')}</h2>
+      <span class="sub">${esc(rec.version)} · ${fdate(rec.createdAt)}</span></div>
+    <p class="note" style="margin:0 0 18px">Cada reactivo muestra lo que eligió el candidato, cuántos puntos otorgó esa opción
+    y por qué. Sirve para preparar la entrevista: en vez de preguntar en abstracto, se puede confrontar una decisión concreta.
+    ${rec.shuffle?'Las opciones se le presentaron en orden aleatorio; aquí aparecen en el orden del banco.':''}</p>
+    <div class="navrow no-print" style="margin:0 0 18px">
+      <button class="btn btn-ghost btn-sm" data-go="results">Volver al tablero</button>
+      <button class="btn btn-ghost btn-sm" data-print>Imprimir</button></div>
+    ${defs.map(d=>{
+      const qs = items.filter(q=>q.dim===d.id);
+      if(!qs.length) return '';
+      const v = rec.result.dims[d.id];
+      return `<div class="sect" style="padding-top:6px">
+        <div class="sect-h"><h2>${esc(d.short)}</h2>
+          <span class="num" style="font-size:24px;color:${scoreColor(v)}">${v}</span>
+          <span class="sub">de 100 · mínimo ${d.min}</span></div>
+        ${qs.map(q=>{
+          const sc = rec.result.perQ[q.id];
+          const open = S.answersOpen[q.id];
+          return `<div class="qb-item">
+            <button class="qb-h" data-ansopen="${q.id}">
+              <span class="qid">${esc(q.id)}</span>
+              <span class="qq">${esc(q.q)}<em class="tiny">${TYPES[q.type]} · peso ${q.w}${q.crit?' · crítica':''}</em></span>
+              <span class="num" style="font-size:19px;color:${scoreColor(sc)}">${sc===null||sc===undefined?'—':sc}</span>
+              <span class="tiny">${open?'−':'+'}</span></button>
+            ${open?`<div class="qb-b" style="padding-left:16px">
+              ${q.case?`<div class="qcase" style="margin-bottom:12px">${esc(q.case)}</div>`:''}
+              <div class="anslist">${answerDetail(q, rec.answers[q.id], sc)}</div>
+              ${q.just?`<div class="qb-just"><b>Por qué se puntúa así.</b> ${esc(q.just)}</div>`:''}
+            </div>`:''}
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ---- análisis de reactivos ---- */
+function itemStats(){
+  const rows = [];
+  const recs = S.list.filter(r=>r.result && r.result.perQ);
+  const byIns = {};
+  S.instruments.forEach(i=>{ i.items.forEach(q=>{ byIns[q.id] = byIns[q.id] || {q, dim:q.dim}; }); });
+  Object.values(byIns).forEach(({q})=>{
+    const pares = [];
+    recs.forEach(r=>{
+      const v = r.result.perQ[q.id];
+      if(v!==null && v!==undefined) pares.push([v, r.result.index]);
+    });
+    const n = pares.length;
+    if(!n) return;
+    const mx = pares.reduce((a,p)=>a+p[0],0)/n;
+    const my = pares.reduce((a,p)=>a+p[1],0)/n;
+    const sx = Math.sqrt(pares.reduce((a,p)=>a+(p[0]-mx)**2,0)/n);
+    const sy = Math.sqrt(pares.reduce((a,p)=>a+(p[1]-my)**2,0)/n);
+    const cov = pares.reduce((a,p)=>a+(p[0]-mx)*(p[1]-my),0)/n;
+    const r = (sx>0 && sy>0) ? cov/(sx*sy) : null;
+    let veredicto, color;
+    if(sx < 8){ veredicto='Todos responden igual'; color='var(--r-red)'; }
+    else if(r===null){ veredicto='Sin datos suficientes'; color='var(--ink-3)'; }
+    else if(r >= .35){ veredicto='Discrimina bien'; color='var(--r-green)'; }
+    else if(r >= .15){ veredicto='Discrimina poco'; color='var(--amber)'; }
+    else { veredicto='No discrimina'; color='var(--r-red)'; }
+    if(mx >= 92) veredicto = 'Demasiado fácil';
+    if(mx <= 20) veredicto = 'Demasiado difícil';
+    rows.push({q, n, media:R(mx), sd:R(sx), r: r===null?null:Math.round(r*100)/100, veredicto, color});
+  });
+  return rows;
+}
+
+function viewAnalysis(){
+  const rows = itemStats();
+  const n = S.list.length;
+  const key = {r:'r', media:'media', sd:'sd', id:'id'}[S.analysisSort] || 'r';
+  rows.sort((a,b)=>{
+    if(key==='id') return a.q.id < b.q.id ? -1 : 1;
+    const x = a[key]===null?-2:a[key], y = b[key]===null?-2:b[key];
+    return x - y;
+  });
+  const malos = rows.filter(x=>x.color==='var(--r-red)').length;
+  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+    <div class="sect-h"><h2>Análisis de reactivos</h2><span class="sub">${rows.length} reactivos · ${n} evaluaciones</span></div>
+    ${n < 15 ? `<div class="alert warn" style="margin-bottom:16px"><h3>Muestra insuficiente</h3>
+      Con ${n} evaluación${n===1?'':'es'} los números son ruido. Estas cifras empiezan a significar algo a partir de unos
+      15 candidatos y se vuelven confiables cerca de 30. Déjalo correr y vuelve cuando tengas historial.</div>`
+      : malos ? `<div class="alert" style="margin-bottom:16px"><h3>${malos} reactivo${malos>1?'s':''} para revisar</h3>
+      Aparecen abajo en rojo. O todos los candidatos responden igual, o la respuesta no se relaciona con el desempeño general.</div>`
+      : `<div class="alert warn" style="margin-bottom:16px"><h3>Sin reactivos problemáticos</h3>
+      Todos separan razonablemente entre candidatos.</div>`}
+    <p class="note" style="margin:0 0 16px"><b>Media</b>: puntaje promedio del reactivo.
+    <b>Dispersión</b>: qué tanto varían las respuestas; cerca de cero significa que todos contestan lo mismo y el reactivo no aporta.
+    <b>Correlación</b>: relación entre lo que se obtiene en este reactivo y el índice global. Alta significa que quienes
+    responden bien aquí suelen ser los mejores candidatos, que es justo lo que debe hacer una buena pregunta.</p>
+    <div class="panel"><div class="panel-b tbl-scroll"><table class="tbl">
+      <thead><tr><th data-asort="id">Reactivo</th><th>Dimensión</th><th>Tipo</th><th>n</th>
+        <th data-asort="media">Media</th><th data-asort="sd">Dispersión</th><th data-asort="r">Correlación</th><th>Lectura</th></tr></thead>
+      <tbody>${rows.map(x=>`<tr>
+        <td class="nmc"><span class="num" style="color:var(--blue)">${esc(x.q.id)}</span>
+          <div class="tiny" style="max-width:42ch">${esc(x.q.q)}</div></td>
+        <td class="tiny">${esc((DIM[x.q.dim]||{short:x.q.dim}).short)}</td>
+        <td class="tiny">${TYPES[x.q.type]}</td>
+        <td>${x.n}</td>
+        <td class="idx" style="font-size:16px;color:${scoreColor(x.media)}">${x.media}</td>
+        <td>${x.sd}</td>
+        <td class="idx" style="font-size:16px">${x.r===null?'—':x.r.toFixed(2)}</td>
+        <td>${pill(x.veredicto, x.color)}</td></tr>`).join('')}
+      </tbody></table></div></div>
+    <p class="note">Un reactivo que “no discrimina” no siempre está mal escrito: puede medir algo que este puesto no exige,
+    o tener una respuesta correcta demasiado evidente. Ábrelo en el editor y compáralo con los que sí discriminan.</p>
+    <div class="navrow"><button class="btn btn-ghost" data-go="admin">Volver a candidatos</button>
+      <button class="btn btn-ghost" data-go="versions">Editar reactivos</button></div>
+  </div>`;
+}
+
 /* ============================================================
    ROUTER Y EVENTOS
    ============================================================ */
-const GATED = ['admin','compare','versions','editor','itemedit'];
+const GATED = ['admin','compare','versions','editor','itemedit','answers','analysis'];
 function accessOk(){
   if(S.candidateMode) return false;
   if(DB.remote) return DB.signedIn;
@@ -2860,7 +3110,8 @@ function accessOk(){
 function render(){
   const V={home:viewHome,form:viewForm,quiz:viewQuiz,done:viewDone,results:viewResults,report:viewReport,
            admin:viewAdmin,compare:viewCompare,versions:viewVersions,editor:viewEditor,itemedit:viewItemEdit,
-           settings:viewSettings,login:viewLogin,invite:viewInvite,thanks:viewThanks};
+           settings:viewSettings,login:viewLogin,invite:viewInvite,thanks:viewThanks,
+           answers:viewAnswers,analysis:viewAnalysis};
   if(GATED.includes(S.view) && !accessOk()) S.view = 'login';
   APP.innerHTML = (V[S.view]||viewHome)();
   if(S._last !== S.view){ window.scrollTo(0,0); S._last = S.view; }
@@ -2875,8 +3126,8 @@ async function go(v){
   if(S.candidateMode && !['invite','form','quiz','thanks'].includes(v)) v = 'invite';
   if(GATED.includes(v) && !accessOk()){ S.view='login'; return render(); }
   try{
-    if(['admin','compare','versions','editor'].includes(v)) S.list = await DB.listCandidates();
-    if(v==='versions' || v==='admin'){ S.instruments = await DB.listInstruments(); }
+    if(['admin','compare','versions','editor','answers','analysis'].includes(v)) S.list = await DB.listCandidates();
+    if(['versions','admin','answers','analysis'].includes(v)){ S.instruments = await DB.listInstruments(); }
     if(v==='admin'){
       S.invites = await DB.listInvites();
       const r = await DB.flushPending();
@@ -2919,7 +3170,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-startinvite],[data-recalc],[data-retrysave]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -3028,7 +3279,7 @@ APP.addEventListener('click', async e=>{
   if(d.start!==undefined){
     const miss = PROFILE_Q.filter(f=>f.req && !S.profile[f.k]);
     if(miss.length){ $('#form-msg').textContent='Faltan campos obligatorios: '+miss.map(m=>m.l).join(', ')+'.'; return; }
-    S.answers={}; S.page=0; return go('quiz');
+    S.answers={}; S.page=0; S.shuffle = buildShuffle(INS); return go('quiz');
   }
   if(d.pick!==undefined){ S.answers[q.id]=+d.pick; return render(); }
   if(d.lik!==undefined){ S.answers[q.id]=+d.lik; return render(); }
@@ -3065,6 +3316,17 @@ APP.addEventListener('click', async e=>{
   if(d.restart!==undefined){ S.profile={}; S.answers={}; S.page=0; S.rec=null; return go('home'); }
   if(d.open!==undefined){ S.rec = S.list.find(r=>r.id===d.open); return go('results'); }
   if(d.compare!==undefined) return go('compare');
+  if(d.delcands!==undefined){ S.confirmDel = S.list.filter(r=>S.sel.includes(r.id)); S.msg=''; return render(); }
+  if(d.canceldel!==undefined){ S.confirmDel = null; return render(); }
+  if(d.confirmdel!==undefined){
+    const n = S.confirmDel.length;
+    try{
+      S.list = await DB.deleteCandidates(S.confirmDel);
+      S.sel = []; S.confirmDel = null;
+      S.msg = n + ' evaluación' + (n>1?'es eliminadas':' eliminada') + '.';
+    }catch(e){ S.msg = 'No se pudo eliminar: ' + e.message; S.confirmDel = null; }
+    return render();
+  }
   if(d.seed!==undefined){
     try{ await DB.resetAll(); }catch(e){ S.msg=e.message; return render(); }
     S.activeIns=null; const b=await bootstrap(); S.instruments=b.ins; S.list=b.cands; S.sel=[]; S.lastInvite=null;
@@ -3073,6 +3335,8 @@ APP.addEventListener('click', async e=>{
   if(d.print!==undefined) return window.print();
   if(d.sort!==undefined){ if(S.sortK===d.sort) S.sortD*=-1; else { S.sortK=d.sort; S.sortD=-1; } return render(); }
   if(d.qb!==undefined){ S.qbOpen[d.qb]=!S.qbOpen[d.qb]; return render(); }
+  if(d.ansopen!==undefined){ S.answersOpen[d.ansopen]=!S.answersOpen[d.ansopen]; return render(); }
+  if(d.asort!==undefined){ S.analysisSort = d.asort; return render(); }
 
   /* --- versiones --- */
   if(d.tab!==undefined){ S.tab=d.tab; S.msg=''; return render(); }
@@ -3117,6 +3381,7 @@ APP.addEventListener('click', async e=>{
   }
 
   /* --- dimensiones --- */
+  if(d.shuffle!==undefined){ ins.shuffleOptions = ins.shuffleOptions===false; touch(); return render(); }
   if(d.adddim!==undefined){
     ins.dims.push({id:uid('d'), code:'X', n:'Nueva dimensión', short:'Nueva', w:0, crit:false, min:55, strength:'', gap:'', probe:''});
     touch(); return render();
