@@ -545,537 +545,1536 @@ const LEVELS_Q = ['basico','medio','avanzado'];
    MÓDULO 2 — BANCO SEMILLA (47 reactivos)
    ============================================================ */
 const BANK_SEED = [
-
-/* ---------- D1 · PROSPECCIÓN (5) ---------- */
-{id:'P01',dim:'prospeccion',comp:'Generación autónoma de oportunidades',type:'scenario',level:'medio',w:1.4,crit:true,
- case:'Tu cartera está estable, pero llevas dos semanas sin recibir una sola solicitud nueva de cotización.',
- q:'¿Qué haces primero?',
- opts:[
-  {t:'Reviso el historial de compras de la cartera, identifico cuentas con caída de consumo y proyectos detenidos, y armo una agenda de visitas para entender qué cambió en sus procesos.',s:100},
-  {t:'Salgo a visitar plantas del corredor industrial que no son clientes todavía, aunque no tenga contacto previo, para levantar información y detectar proyectos.',s:85},
-  {t:'Mando un correo masivo a toda la base con promociones y novedades del portafolio para reactivar solicitudes.',s:45},
-  {t:'Aviso a mi gerente que el mercado está lento y pido que se refuercen las campañas de marketing para generar más leads.',s:15},
-  {t:'Aprovecho para ponerme al día con cotizaciones pendientes y administración, ya que en dos semanas seguramente entrarán solicitudes nuevas.',s:25}
- ],
- just:'La respuesta ideal genera actividad desde información propia (consumo, proyectos, cambios en el proceso del cliente). La prospección en frío también es válida pero sin la ventaja del dato histórico. Esperar leads o delegar la generación de demanda a marketing es el indicador más claro de perfil transaccional.'},
-
-{id:'P02',dim:'prospeccion',comp:'Planeación de territorio nuevo',type:'scenario',level:'medio',w:1.2,crit:false,
- case:'Te asignan un territorio nuevo con aproximadamente 40 plantas industriales y sin historial de compras.',
- q:'¿Cómo usas las dos primeras semanas?',
- opts:[
-  {t:'Segmento las 40 plantas por giro, tamaño y tecnología probable, priorizo 12 con mayor potencial y armo rutas para llegar a mantenimiento e ingeniería.',s:100},
-  {t:'Visito la mayor cantidad posible de plantas en orden geográfico para conocer a todos y luego decido dónde enfocarme.',s:65},
-  {t:'Investigo cada planta en internet y LinkedIn, preparo una lista de contactos y empiezo a enviar correos de presentación antes de salir a campo.',s:60},
-  {t:'Pido a la empresa el listado de clientes que compraron alguna vez en la zona y me concentro en reactivarlos.',s:50},
-  {t:'Espero a que se definan metas y cuotas del territorio para saber qué nivel de esfuerzo se espera de mí.',s:10}
- ],
- just:'Se premia la segmentación y priorización antes del esfuerzo físico. Visitar todo sin criterio o quedarse en escritorio son intentos válidos pero ineficientes. Esperar instrucciones indica falta de autonomía.'},
-
-{id:'P03',dim:'prospeccion',comp:'Tolerancia al rechazo',type:'scenario',level:'basico',w:1.2,crit:true,
- case:'Llegas a una planta que te interesa y en recepción te dicen: "aquí no recibimos proveedores sin cita y compras no atiende visitas".',
- q:'¿Qué haces?',
- opts:[
-  {t:'Dejo información, pido el nombre y correo del responsable de mantenimiento o ingeniería, y regreso con una cita agendada apoyándome en un caso de aplicación similar.',s:100},
-  {t:'Pregunto si puedo esperar un momento por si alguien de mantenimiento baja, y aprovecho para observar y platicar con quien salga.',s:70},
-  {t:'Dejo mi tarjeta y un folleto del portafolio y regreso en unas semanas a insistir.',s:45},
-  {t:'Marco a la planta por teléfono los siguientes días hasta que alguien me pase con un área técnica.',s:60},
-  {t:'Registro que la planta es cerrada a proveedores y priorizo cuentas más accesibles.',s:15}
- ],
- just:'El rechazo en filtro es normal. Lo distintivo es convertir la visita fallida en un dato útil (nombre, área, correo) y volver con una razón técnica. Descartar la cuenta por un filtro administrativo es baja tolerancia al rechazo.'},
-
-{id:'P04',dim:'prospeccion',comp:'Autopercepción de prospección',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Qué tan cómodo te sientes contactando por teléfono a una planta donde todavía no conoces a nadie?',
- labs:['Muy incómodo','Muy cómodo'],
- just:'Autoevaluación con peso reducido por sesgo de deseabilidad social. Se usa principalmente para el índice de consistencia contra P01 y P03.'},
-
-{id:'P05',dim:'prospeccion',comp:'Reactivación de cuentas',type:'ranking',level:'medio',w:1.2,crit:false,
- case:'Un cliente que compraba de forma constante dejó de hacerlo hace 14 meses. No hubo queja formal.',
- q:'Ordena las acciones de la más apropiada a la menos apropiada.',
- opts:[
-  {t:'Reviso qué compraba, en qué líneas se usaba, y busco al usuario técnico para entender si cambió el proceso, el proveedor o la persona responsable.',r:1},
-  {t:'Solicito una visita presencial con mantenimiento y compras para revisar juntos el histórico y las necesidades actuales.',r:2},
-  {t:'Le hago llegar una propuesta con precios preferenciales en los productos que solía comprar.',r:3},
-  {t:'Le escribo un correo preguntando si sigue interesado en trabajar con nosotros.',r:4}
- ],
- just:'Primero diagnóstico (por qué se perdió), luego contacto presencial, luego oferta comercial. Iniciar con descuento o con un correo genérico invierte el orden y desperdicia margen sin conocer la causa real.'},
-
-/* ---------- D2 · VENTA CONSULTIVA (7) ---------- */
-{id:'C01',dim:'consultiva',comp:'Descubrimiento antes de recomendar',type:'scenario',level:'medio',w:1.8,crit:true,
- case:'Un jefe de mantenimiento te pide por WhatsApp el precio de un sensor fotoeléctrico porque "el actual falla constantemente".',
- q:'¿Qué haces primero?',
- opts:[
-  {t:'Pregunto qué detecta, a qué distancia, material y acabado de la pieza, ambiente (polvo, humedad, vibración), tipo de montaje, desde cuándo falla y qué le pasa a la línea cuando falla.',s:100},
-  {t:'Le pido el número de parte actual y una foto de la instalación, y le mando el equivalente junto con dos alternativas de mayor desempeño.',s:65},
-  {t:'Le envío de inmediato el equivalente más económico para no perder la venta y luego reviso si hay algo mejor.',s:5},
-  {t:'Le envío la cotización del sensor equivalente y le comento que puedo pasar a revisar la aplicación cuando lo requiera.',s:40},
-  {t:'Le explico que un sensor que falla constantemente suele ser un problema de selección y le propongo una visita antes de cotizar nada.',s:80}
- ],
- just:'La falla repetida es un síntoma, no una especificación. La respuesta de máximo puntaje reúne aplicación, ambiente, montaje, causa e impacto en producción. Proponer visita sin datos es correcto pero menos completo. Cotizar el equivalente más barato reproduce el problema del cliente.'},
-
-{id:'C02',dim:'consultiva',comp:'Diagnóstico de causa raíz',type:'multi',level:'medio',w:1.8,crit:true,max:6,
- case:'Una línea se detiene unas tres veces por semana porque un sensor deja de detectar correctamente una pieza. El cliente pide simplemente reemplazarlo por uno igual.',
- q:'¿Qué información investigarías antes de recomendar una solución? Selecciona todas las que apliquen.',
- opts:[
-  {t:'Qué cambia justo antes de la falla: producto, velocidad, turno, limpieza, temperatura',p:3},
-  {t:'Costo por minuto de paro de esa línea y minutos perdidos por evento',p:3},
-  {t:'Material, color, acabado y variabilidad de la pieza detectada',p:3},
-  {t:'Condiciones de montaje, alineación, vibración y distancia real de trabajo',p:3},
-  {t:'Ambiente: polvo, aceite, agua, lavados químicos, temperatura, grado de protección requerido',p:2},
-  {t:'Si el sensor actual ya fue reemplazado antes y cuántas veces',p:2},
-  {t:'El presupuesto disponible del cliente para reemplazar el sensor',p:0},
-  {t:'Qué marca prefiere el cliente para poder cotizar rápido',p:-2},
-  {t:'Si la orden puede salir esta misma semana para cerrar el mes',p:-3}
- ],
- just:'El caso premia información que explica la causa (variabilidad, montaje, ambiente, recurrencia) y que cuantifica el impacto (costo del paro). Presupuesto es neutro en esta etapa; marca y urgencia de cierre son señales de venta transaccional y restan.'},
-
-{id:'C03',dim:'consultiva',comp:'Lectura de una RFQ',type:'scenario',level:'medio',w:1.5,crit:false,
- case:'Compras te envía una lista para cotizar: tres variadores de frecuencia con número de parte, sin más información.',
- q:'¿Cómo procedes?',
- opts:[
-  {t:'Cotizo lo solicitado en tiempo y, en paralelo, busco al área técnica para entender la aplicación, la carga y si hay un proyecto detrás que pueda ampliar el alcance.',s:100},
-  {t:'Cotizo exactamente lo pedido y lo envío rápido; si quisieran algo más, lo habrían indicado.',s:30},
-  {t:'Antes de cotizar, le pido a compras que me conecte con ingeniería para validar la selección.',s:65},
-  {t:'Cotizo lo pedido y agrego opciones superiores con mejores prestaciones para que el cliente compare.',s:55},
-  {t:'Respondo que necesito datos de la aplicación antes de poder cotizar cualquier cosa.',s:35}
- ],
- just:'La mejor respuesta cumple el compromiso de servicio (cotizar a tiempo) y además abre el diagnóstico por otra vía. Condicionar la cotización a la información suele quemar la oportunidad con compras; cotizar y callar renuncia al proyecto detrás de la lista.'},
-
-{id:'C04',dim:'consultiva',comp:'Estructura de la entrevista de descubrimiento',type:'ranking',level:'avanzado',w:1.4,crit:false,
- case:'Primera visita a una planta de alimentos. Tienes 30 minutos con el jefe de mantenimiento.',
- q:'Ordena los temas del primero al último.',
- opts:[
-  {t:'Entender el proceso, las líneas críticas y dónde tienen paros o retrabajos',r:1},
-  {t:'Cuantificar el impacto: frecuencia, minutos perdidos, mermas, costo',r:2},
-  {t:'Identificar quién decide, quién especifica y cómo se aprueban las inversiones',r:3},
-  {t:'Presentar el portafolio, las marcas que representamos y casos de éxito',r:4}
- ],
- just:'El orden consultivo va de proceso a impacto a proceso de decisión, y deja la presentación de portafolio al final, cuando ya se puede conectar con algo concreto. Abrir con el catálogo es el patrón del vendedor transaccional.'},
-
-{id:'C05',dim:'consultiva',comp:'Manejo de la presión por precio inmediato',type:'scenario',level:'avanzado',w:1.5,crit:false,
- case:'Un gerente de producción te corta: "no tengo tiempo para diagnósticos, solo dame precio y disponibilidad".',
- q:'¿Cuál es la mejor respuesta?',
- opts:[
-  {t:'"Te doy precio hoy mismo. Solo dime una cosa: ¿qué te está costando el problema por semana? Con ese dato te mando la opción correcta y no solo la más barata."',s:100},
-  {t:'"Perfecto, te lo mando en una hora" y envío la cotización tal como la pidió, sin más preguntas.',s:35},
-  {t:'"Entiendo, pero para cotizar bien necesito primero entender la aplicación, ¿podemos agendar 20 minutos?"',s:55},
-  {t:'"Te mando tres opciones: económica, intermedia y premium, para que elijas la que prefieras."',s:45},
-  {t:'"Claro" y aprovecho para preguntarle al operador o al técnico de la línea los datos que me faltan.',s:70}
- ],
- just:'La mejor respuesta respeta la restricción de tiempo del cliente y aun así obtiene el dato de mayor valor: el costo del problema. Insistir en agendar ignora la señal del cliente; el menú de tres opciones traslada al cliente una decisión técnica que corresponde al vendedor.'},
-
-{id:'C06',dim:'consultiva',comp:'Detección de oportunidades no solicitadas',type:'scenario',level:'avanzado',w:1.4,crit:false,
- case:'Durante un recorrido, el gerente de planta comenta de pasada que están rechazando producto por etiquetas mal colocadas y que "ya se acostumbraron a revisarlo a mano al final de la línea".',
- q:'¿Qué haces?',
- opts:[
-  {t:'Pregunto cuánto producto se rechaza, cuántas personas dedican a revisar y qué pasa cuando un rechazo llega al cliente final, para dimensionar el costo antes de proponer nada.',s:100},
-  {t:'Le comento que existen sistemas de visión e identificación industrial que resuelven eso y le ofrezco traer a un especialista para revisar la línea.',s:80},
-  {t:'Tomo nota y lo reporto internamente como una posible oportunidad futura de visión artificial.',s:45},
-  {t:'Le explico las ventajas de la inspección automática y le mando información técnica del sistema por correo.',s:55},
-  {t:'No insisto: no lo plantearon como un problema a resolver y mi visita era por otro tema.',s:10}
- ],
- just:'Una molestia normalizada es la oportunidad más rentable y la que un vendedor transaccional no ve. Primero cuantificar, después involucrar especialista. Enviar información técnica sin dimensionar el problema rara vez avanza.'},
-
-{id:'C07',dim:'consultiva',comp:'Justificación económica',type:'scenario',level:'avanzado',w:1.4,crit:false,
- case:'Tu solución cuesta 180,000 pesos. La alternativa del cliente es seguir como está. La línea para 3 veces por semana, 25 minutos por evento, y cada minuto de paro le cuesta aproximadamente 900 pesos.',
- q:'¿Cómo presentas la propuesta?',
- opts:[
-  {t:'Muestro que los paros representan cerca de 67,500 pesos por semana y que la inversión se recupera en menos de un mes, con el supuesto validado con su gente.',s:100},
-  {t:'Explico que la solución elimina la causa de los paros y presento el detalle técnico que lo respalda.',s:55},
-  {t:'Comparo mi propuesta contra la competencia para demostrar que tenemos la mejor relación precio-desempeño.',s:35},
-  {t:'Presento el precio junto con una opción de menor alcance por si el presupuesto es una limitante.',s:40},
-  {t:'Explico el costo de los paros de forma general y dejo que el cliente calcule su propio retorno.',s:60}
- ],
- just:'La cifra propia del cliente, validada con su gente, es el argumento más difícil de rebatir. Cuando el retorno se sustenta, el precio deja de ser el eje de la conversación.'},
-
-/* ---------- D3 · TÉCNICA (6) ---------- */
-{id:'T01',dim:'tecnica',comp:'Selección de sensores',type:'technical',level:'basico',w:1.3,crit:false,
- q:'Necesitas detectar la presencia de un envase de vidrio transparente en una banda transportadora. ¿Qué tecnología es la más adecuada como primera opción?',
- opts:[
-  {t:'Sensor fotoeléctrico de barrera (emisor y receptor separados) o un modelo específico para objetos transparentes',s:100},
-  {t:'Sensor fotoeléctrico réflex estándar con reflector',s:55},
-  {t:'Sensor inductivo',s:0},
-  {t:'Sensor capacitivo montado bajo la banda',s:45},
-  {t:'Sensor ultrasónico',s:60}
- ],
- just:'El vidrio transparente deja pasar la luz: la barrera o un modelo con supresión para transparentes es lo correcto. El capacitivo y el ultrasónico pueden funcionar en algunos casos pero son más sensibles al ambiente. El inductivo solo detecta metal.'},
-
-{id:'T02',dim:'tecnica',comp:'Variadores de frecuencia',type:'technical',level:'basico',w:1.2,crit:false,
- q:'Un cliente quiere reducir el consumo eléctrico de una bomba centrífuga que hoy trabaja a velocidad fija con una válvula estrangulando el flujo. ¿Cuál es el argumento técnico correcto?',
- opts:[
-  {t:'Con un variador se regula el flujo por velocidad; como en cargas centrífugas la potencia varía aproximadamente con el cubo de la velocidad, el ahorro puede ser muy significativo',s:100},
-  {t:'El variador reduce el consumo porque disminuye la corriente de arranque del motor',s:40},
-  {t:'El variador ahorra energía porque mejora el factor de potencia de la instalación',s:25},
-  {t:'El ahorro proviene de que el variador permite usar un motor de menor potencia',s:20},
-  {t:'No habría ahorro relevante: el trabajo hidráulico requerido es el mismo',s:5}
- ],
- just:'La ley de afinidad en cargas centrífugas es el fundamento del ahorro. El arranque suave y el factor de potencia son beneficios reales pero secundarios y no explican el ahorro principal.'},
-
-{id:'T03',dim:'tecnica',comp:'Seguridad de maquinaria',type:'technical',level:'medio',w:1.3,crit:false,
- q:'Un cliente quiere "ahorrar" conectando el paro de emergencia directamente a un contactor estándar, sin relé ni controlador de seguridad. ¿Cuál es la respuesta correcta?',
- opts:[
-  {t:'No es adecuado: una función de paro de emergencia requiere un circuito con el nivel de desempeño que arroje la evaluación de riesgo, con diagnóstico de fallas y componentes certificados',s:100},
-  {t:'Es aceptable siempre que el contactor sea de mayor capacidad y se use cableado redundante',s:25},
-  {t:'Es aceptable en máquinas antiguas, que no están obligadas a cumplir la normativa vigente',s:10},
-  {t:'Es válido si se documenta como una excepción firmada por el cliente',s:15},
-  {t:'Depende: habría que revisar la evaluación de riesgo, la categoría requerida y la normativa aplicable antes de opinar',s:85}
- ],
- just:'La seguridad de maquinaria no se negocia por costo. La respuesta prudente (revisar evaluación de riesgo) también es aceptable; aceptar la instalación insegura por acuerdo con el cliente es un error grave de criterio.'},
-
-{id:'T04',dim:'tecnica',comp:'Instrumentación y señales',type:'technical',level:'medio',w:1.1,crit:false,
- q:'¿Por qué en instrumentación industrial suele preferirse una señal de 4–20 mA sobre una de 0–10 V en distancias largas?',
- opts:[
-  {t:'La señal de corriente no se degrada por caída de tensión en el cable y el cero vivo permite distinguir una falla de un valor de cero real',s:100},
-  {t:'Porque 4–20 mA es una señal digital y por lo tanto más inmune al ruido',s:15},
-  {t:'Porque permite conectar más instrumentos en paralelo sobre el mismo par',s:20},
-  {t:'Porque tiene mayor resolución que una señal de voltaje',s:25},
-  {t:'Porque es la única señal compatible con la mayoría de los PLC',s:10}
- ],
- just:'Inmunidad a la caída de tensión y detección de cable roto por el cero vivo son las razones reales. La opción "digital" es un error conceptual frecuente.'},
-
-{id:'T05',dim:'tecnica',comp:'Criterio ante información insuficiente',type:'scenario',level:'medio',w:1.4,crit:true,
- case:'Un cliente te pide "un PLC equivalente al que ya tiene" para una ampliación. No conoces la aplicación ni las señales involucradas.',
- q:'¿Qué respondes?',
- opts:[
-  {t:'No tengo suficiente información. Necesito cantidad y tipo de entradas y salidas, protocolo de comunicación, entorno, si debe integrarse al programa existente y quién dará el soporte; lo valido antes de proponer algo.',s:100},
-  {t:'Le ofrezco el modelo de la misma familia con capacidad superior, que difícilmente se quedará corto.',s:35},
-  {t:'Le pido la marca y modelo actual y busco la tabla de equivalencias del fabricante.',s:55},
-  {t:'Le propongo involucrar al ingeniero de aplicaciones para levantar los requerimientos en sitio.',s:85},
-  {t:'Le cotizo la opción más económica que cumpla con el conteo de puntos y lo dejo a su criterio.',s:15}
- ],
- just:'Reconocer que falta información y saber exactamente qué falta vale más que una respuesta rápida. Involucrar al especialista es una respuesta madura. Sobredimensionar "por si acaso" o resolver por conteo de puntos ignora integración y soporte.'},
-
-{id:'T06',dim:'tecnica',comp:'Redes y protección industrial',type:'technical',level:'basico',w:1.0,crit:false,
- q:'Un equipo se instalará en una zona que se lava con manguera a presión al terminar cada turno. ¿Qué grado de protección debes exigir como mínimo?',
- opts:[
-  {t:'IP65 o superior; si hay chorro fuerte o inmersión ocasional, IP67 o IP69K',s:100},
-  {t:'IP54 es suficiente porque el lavado es solo al final del turno',s:25},
-  {t:'IP20 con un gabinete estándar alrededor del equipo',s:10},
-  {t:'El grado IP no aplica a este caso; lo relevante es la clase térmica',s:5},
-  {t:'Depende del químico usado en el lavado, habría que revisar compatibilidad de materiales además del grado IP',s:80}
- ],
- just:'El primer dígito es polvo y el segundo agua; el lavado a presión exige al menos IP65. La opción que además considera compatibilidad química muestra criterio, aunque no responde el mínimo requerido.'},
-
-/* ---------- D4 · COMUNICACIÓN (5) ---------- */
-{id:'M01',dim:'comunicacion',comp:'Adaptación al interlocutor',type:'scenario',level:'medio',w:1.5,crit:true,
- case:'Presentaste una solución de seguridad de maquinaria a mantenimiento y les gustó. Ahora tienes 15 minutos con el director de planta.',
- q:'¿Cómo enfocas la conversación?',
- opts:[
-  {t:'Hablo de riesgo de accidente, exposición legal, disponibilidad de la línea y retorno de la inversión, y dejo el detalle técnico como respaldo.',s:100},
-  {t:'Presento la misma explicación técnica, ya que fue la que convenció a mantenimiento.',s:20},
-  {t:'Resumo la parte técnica y me enfoco en precio y condiciones de pago, que es lo que suele interesar a dirección.',s:40},
-  {t:'Pido que mantenimiento presente la parte técnica y yo cierro con la propuesta comercial.',s:70},
-  {t:'Explico las marcas que representamos y el respaldo de ISEL como proveedor.',s:25}
- ],
- just:'Dirección compra riesgo, productividad y retorno. Repetir el argumento técnico es el error más común. Que el usuario técnico respalde internamente es una buena táctica, pero el vendedor debe traducir el valor él mismo.'},
-
-{id:'M02',dim:'comunicacion',comp:'Argumentación por área',type:'multi',level:'medio',w:1.2,crit:false,max:4,
- q:'Estás frente al área de compras de una planta. ¿Qué argumentos son los más pertinentes con ese interlocutor? Selecciona todos los que apliquen.',
- opts:[
-  {t:'Costo total de propiedad, no solo precio unitario',p:3},
-  {t:'Tiempos de entrega comprometidos y disponibilidad en inventario',p:3},
-  {t:'Condiciones comerciales, alta como proveedor y respaldo de garantía',p:2},
-  {t:'Consolidación de proveedores y reducción de partidas administrativas',p:2},
-  {t:'Detalle de la arquitectura de comunicación del equipo',p:-1},
-  {t:'Diagramas de conexión y hojas de datos completas',p:-1},
-  {t:'Que nuestra marca es la mejor del mercado',p:-2}
- ],
- just:'Compras valora costo total, entrega, condiciones y simplificación administrativa. El detalle técnico profundo pertenece a ingeniería y satura la conversación. Las afirmaciones de superioridad sin sustento restan credibilidad.'},
-
-{id:'M03',dim:'comunicacion',comp:'Manejo de un error propio en público',type:'scenario',level:'medio',w:1.3,crit:true,
- case:'En una junta, el ingeniero de proceso te corrige frente a su jefe: el dato técnico que acabas de dar es incorrecto.',
- q:'¿Cómo reaccionas?',
- opts:[
-  {t:'Reconozco el error, agradezco la corrección, confirmo el dato correcto con él y me comprometo a enviar la información verificada ese mismo día.',s:100},
-  {t:'Explico que ese dato me lo dio el fabricante y ofrezco confirmarlo después.',s:35},
-  {t:'Aclaro que puede variar según la configuración y continúo con la presentación.',s:40},
-  {t:'Reconozco el error brevemente y redirijo la conversación al beneficio para el proceso.',s:70},
-  {t:'Sostengo mi versión para no perder credibilidad frente a su jefe y lo aclaro después en privado.',s:0}
- ],
- just:'Reconocer, corregir y comprometerse a verificar construye credibilidad. Sostener un dato falso frente al cliente es un riesgo de confiabilidad, no solo de comunicación.'},
-
-{id:'M04',dim:'comunicacion',comp:'Autopercepción de comunicación',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Qué tan cómodo te sientes presentando una propuesta ante un grupo mixto de ingeniería, producción y dirección?',
- labs:['Muy incómodo','Muy cómodo'],
- just:'Autoevaluación de peso reducido. Se contrasta con M01 y M03 en el índice de consistencia.'},
-
-{id:'M05',dim:'comunicacion',comp:'Comunicación escrita de seguimiento',type:'scenario',level:'basico',w:1.1,crit:false,
- q:'Después de una visita técnica de dos horas, ¿qué debe contener el correo de seguimiento que envías ese mismo día?',
- opts:[
-  {t:'Lo que entendí del problema, los datos que faltan, lo que yo me comprometí a hacer con fecha, y lo que el cliente quedó de enviarme',s:100},
-  {t:'Un agradecimiento por el tiempo y la cotización de lo que se revisó',s:45},
-  {t:'Un resumen de la visita y las fichas técnicas de los productos que mostré',s:60},
-  {t:'Un agradecimiento y la confirmación de la fecha de la siguiente visita',s:50},
-  {t:'La presentación institucional de ISEL y el catálogo de líneas que representamos',s:15}
- ],
- just:'El correo de seguimiento sirve para validar el entendimiento y dejar por escrito compromisos con fecha de ambas partes. Es la base del control del pipeline y la mayor fuente de malentendidos cuando falta.'},
-
-/* ---------- D5 · NEGOCIACIÓN (5) ---------- */
-{id:'N01',dim:'negociacion',comp:'Defensa de valor ante competencia',type:'scenario',level:'medio',w:1.6,crit:false,
- case:'El cliente te dice que un competidor ofrece un producto 12% más barato y te pide que iguales el precio de inmediato.',
- q:'¿Qué haces primero?',
- opts:[
-  {t:'Pido ver el alcance de la otra propuesta: modelo exacto, prestaciones, garantía, tiempo de entrega, soporte y qué incluye y qué no, antes de hablar de precio.',s:100},
-  {t:'Explico las ventajas técnicas de mi propuesta y sostengo el precio.',s:60},
-  {t:'Ofrezco igualar el precio a cambio de una condición: volumen, plazo de pago o el resto de la línea.',s:75},
-  {t:'Autorizo el descuento de inmediato para cerrar y no arriesgar la venta.',s:0},
-  {t:'Ofrezco un descuento menor, del 5 o 6%, como punto intermedio.',s:25}
- ],
- just:'Un 12% de diferencia casi siempre esconde una diferencia de alcance. Primero comparar manzanas con manzanas; si hay que ceder, se intercambia, nunca se regala. Igualar de inmediato destruye margen y enseña al cliente a pedir descuento siempre.'},
-
-{id:'N02',dim:'negociacion',comp:'Concesión de última hora',type:'scenario',level:'avanzado',w:1.4,crit:false,
- case:'Todo está acordado. Al momento de liberar la orden, compras te dice: "solo falta un 4% adicional y lo firmamos hoy".',
- q:'¿Cuál es la mejor respuesta?',
- opts:[
-  {t:'"Puedo revisar ese 4% si movemos el plazo de pago a contado o incluimos las otras dos líneas del proyecto." Condiciono cualquier concesión a un intercambio.',s:100},
-  {t:'"El precio ya está en su mínimo autorizado" y sostengo la propuesta tal cual.',s:70},
-  {t:'"Déjame consultarlo" y regreso con el 4% autorizado para cerrar hoy.',s:15},
-  {t:'Ofrezco 2% como gesto de cierre.',s:30},
-  {t:'Ofrezco mantener el precio pero agregar servicio de puesta en marcha sin costo.',s:55}
- ],
- just:'La concesión de última hora es una táctica estándar. Ceder sin contrapartida confirma que había margen escondido y compromete todas las negociaciones futuras con esa cuenta. Sostener el precio es aceptable; intercambiar es mejor.'},
-
-{id:'N03',dim:'negociacion',comp:'Monedas de intercambio',type:'multi',level:'medio',w:1.2,crit:false,max:5,
- q:'¿Qué puedes intercambiar en una negociación sin comprometer el margen del negocio? Selecciona todas las que apliquen.',
- opts:[
-  {t:'Plazo de pago o pago anticipado',p:3},
-  {t:'Volumen o compromiso anual',p:3},
-  {t:'Ampliación del alcance a otras líneas del proyecto',p:3},
-  {t:'Programación de entregas parciales',p:2},
-  {t:'Capacitación o acompañamiento en la puesta en marcha',p:2},
-  {t:'Referencia, caso de éxito o visita de otros clientes a su planta',p:1},
-  {t:'Descuento directo sobre el precio de lista',p:-3},
-  {t:'Adelantar la fecha de entrega comprometiéndome sin confirmar con logística',p:-3}
- ],
- just:'Existen muchas monedas antes del precio. El descuento directo es la última y la más cara. Comprometer fechas sin confirmar es una concesión que se paga con la confianza del cliente.'},
-
-{id:'N04',dim:'negociacion',comp:'Compromisos de entrega',type:'scenario',level:'medio',w:1.2,crit:true,
- case:'El cliente necesita el equipo en 10 días. El tiempo de entrega confirmado por fábrica es de 6 semanas y el cliente advierte que si no, comprará con otro.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Le digo la verdad, reviso alternativas reales: existencia local, modelo sustituto disponible, entrega parcial o préstamo de equipo, y le presento opciones el mismo día.',s:100},
-  {t:'Le confirmo los 10 días y luego presiono internamente para que se cumpla de alguna manera.',s:0},
-  {t:'Le digo que haré todo lo posible sin comprometer una fecha, y le informo en cuanto tenga la confirmación.',s:55},
-  {t:'Le explico que 6 semanas es el tiempo real y que si otro promete 10 días probablemente no es el mismo producto.',s:70},
-  {t:'Le propongo que compre esta vez con el otro proveedor y quedamos para el siguiente requerimiento.',s:30}
- ],
- just:'Prometer una fecha imposible transfiere el problema al cliente y destruye la relación. Buscar alternativas reales es la única respuesta que protege la venta y la credibilidad al mismo tiempo.'},
-
-{id:'N05',dim:'negociacion',comp:'Manejo de la objeción de precio',type:'ranking',level:'medio',w:1.2,crit:false,
- case:'El cliente dice: "está muy caro".',
- q:'Ordena las acciones de la más apropiada a la menos apropiada.',
- opts:[
-  {t:'Preguntar "¿caro comparado con qué?" para entender si es contra otra propuesta, contra su presupuesto o contra lo que pagó antes',r:1},
-  {t:'Cuantificar con el cliente el costo del problema que la solución evita',r:2},
-  {t:'Revisar el alcance de la propuesta para ver si hay elementos que puedan ajustarse',r:3},
-  {t:'Ofrecer un descuento para destrabar la conversación',r:4}
- ],
- just:'"Está caro" es una objeción sin información. Primero se investiga la referencia, luego se construye valor, después se ajusta el alcance y solo al final se toca el precio.'},
-
-/* ---------- D6 · PIPELINE (5) ---------- */
-{id:'F01',dim:'pipeline',comp:'Priorización de oportunidades',type:'scenario',level:'medio',w:1.5,crit:true,
- case:'Tienes 40 cotizaciones abiertas y solo puedes dar seguimiento real a 12 esta semana.',
- q:'¿Cómo eliges?',
- opts:[
-  {t:'Priorizo por necesidad confirmada, presupuesto, decisor identificado y fecha de decisión; las que no tienen próximo paso definido las depuro o las regreso a etapa temprana.',s:100},
-  {t:'Priorizo por monto, empezando por las cotizaciones de mayor valor.',s:50},
-  {t:'Priorizo las más antiguas, porque llevan más tiempo esperando respuesta.',s:30},
-  {t:'Priorizo los clientes con los que tengo mejor relación, donde es más probable cerrar.',s:40},
-  {t:'Doy seguimiento a todas con un correo estándar y profundizo con las que respondan.',s:35}
- ],
- just:'El monto sin decisor ni fecha no es pipeline, es una lista de deseos. El criterio correcto combina necesidad, presupuesto, decisor y tiempo, y depura lo que no avanza.'},
-
-{id:'F02',dim:'pipeline',comp:'Calificación de oportunidades',type:'multi',level:'medio',w:1.4,crit:false,max:6,
- q:'¿Qué convierte una cotización enviada en una oportunidad real de pipeline? Selecciona todas las que apliquen.',
- opts:[
-  {t:'Existe una necesidad confirmada por el usuario, no solo un sondeo de precios',p:3},
-  {t:'Está identificado quién decide y quién influye en la decisión',p:3},
-  {t:'Hay presupuesto asignado o una vía clara para obtenerlo',p:3},
-  {t:'Existe una fecha objetivo de decisión o de instalación',p:3},
-  {t:'Se sabe contra quién se compite y con qué alcance',p:2},
-  {t:'Hay un próximo paso agendado con fecha y responsable',p:3},
-  {t:'El cliente respondió que la propuesta "se ve bien"',p:-1},
-  {t:'El monto de la cotización es alto',p:-1}
- ],
- just:'Necesidad, decisor, presupuesto, fecha, competencia y próximo paso. Un comentario amable o un monto grande no califican una oportunidad; son las dos causas más comunes de un forecast inflado.'},
-
-{id:'F03',dim:'pipeline',comp:'Seguimiento efectivo',type:'scenario',level:'basico',w:1.2,crit:false,
- case:'Enviaste una cotización importante hace tres semanas y no has recibido respuesta pese a dos correos.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Llamo por teléfono al usuario técnico, no solo a compras, para saber si el proyecto sigue vivo, qué cambió y quién lo tiene detenido.',s:100},
-  {t:'Me presento en la planta con un pretexto técnico válido para retomar el contacto en persona.',s:85},
-  {t:'Envío un tercer correo con una mejora en el precio para reactivar el interés.',s:25},
-  {t:'Espero: si no responden es porque no hay interés y prefiero no incomodar.',s:5},
-  {t:'Marco a compras para preguntar si ya tomaron una decisión.',s:50}
- ],
- just:'Después de dos correos sin respuesta, el canal está agotado. El usuario técnico normalmente sí sabe qué pasó. Bajar el precio para provocar respuesta regala margen sin haber diagnosticado nada.'},
-
-{id:'F04',dim:'pipeline',comp:'Uso de CRM',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Con qué disciplina registras visitas, oportunidades y próximos pasos en un CRM o sistema de seguimiento?',
- labs:['Casi nunca','Siempre, el mismo día'],
- just:'Autoevaluación de peso reducido. Se contrasta con F01 y F03 en el índice de consistencia.'},
-
-{id:'F05',dim:'pipeline',comp:'Construcción del forecast',type:'scenario',level:'avanzado',w:1.3,crit:false,
- q:'¿Cómo construyes tu pronóstico de cierre del mes?',
- opts:[
-  {t:'Reviso oportunidad por oportunidad: etapa, decisor, presupuesto, fecha y próximo paso; solo incluyo lo que tiene evidencia de cierre en el mes',s:100},
-  {t:'Aplico un porcentaje histórico de conversión sobre el total de cotizaciones abiertas',s:55},
-  {t:'Incluyo todo lo que el cliente me dijo que probablemente cerraría este mes',s:30},
-  {t:'Proyecto con base en lo que cerré el mismo mes del año anterior más un crecimiento',s:35},
-  {t:'Presento un rango: un escenario conservador y uno optimista, y explico el supuesto de cada uno',s:80}
- ],
- just:'El forecast se construye por oportunidad, con evidencia. La conversión histórica sirve como control, no como método. El escenario dual es una buena práctica si detrás hay revisión caso por caso.'},
-
-/* ---------- D7 · ORGANIZACIÓN (4) ---------- */
-{id:'O01',dim:'organizacion',comp:'Planeación de rutas y visitas',type:'scenario',level:'medio',w:1.3,crit:true,
- q:'¿Cómo planeas tu semana de trabajo de campo?',
- opts:[
-  {t:'Cierro la agenda el viernes anterior: visitas confirmadas por zona, un objetivo por visita y bloques fijos para prospección, cotizaciones y seguimiento',s:100},
-  {t:'Defino las zonas por día y confirmo las citas la mañana de cada visita',s:65},
-  {t:'Salgo a la zona con varias cuentas objetivo y voy ajustando según quién me reciba',s:40},
-  {t:'Atiendo primero lo que van pidiendo los clientes durante la semana y acomodo lo demás alrededor',s:20},
-  {t:'Alterno: dos días de visitas programadas y el resto según lo que surja',s:50}
- ],
- just:'La agenda cerrada por anticipado con objetivo por visita es la diferencia entre un territorio trabajado y un territorio recorrido. Operar por lo que va surgiendo garantiza que la prospección nunca ocurra.'},
-
-{id:'O02',dim:'organizacion',comp:'Manejo de prioridades en conflicto',type:'scenario',level:'medio',w:1.2,crit:false,
- case:'Mismo día: un cliente tiene una línea parada y pide apoyo urgente, vence una cotización grande, y tenías una visita de prospección agendada hace dos semanas.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Atiendo el paro y activo apoyo interno, confirmo la entrega de la cotización delegando lo que se pueda, y aviso con anticipación al prospecto para reagendar con fecha nueva ese mismo día.',s:100},
-  {t:'Atiendo el paro, entrego la cotización y reagendo el prospecto cuando pueda.',s:65},
-  {t:'Atiendo el paro y pido prórroga en la cotización; la visita de prospección la mantengo.',s:55},
-  {t:'Mantengo la visita agendada porque es un compromiso adquirido y canalizo el paro al área de servicio.',s:35},
-  {t:'Priorizo la cotización grande, que es la que tiene impacto directo en la meta del mes.',s:25}
- ],
- just:'Se evalúa la capacidad de atender lo urgente sin perder lo comprometido: activar apoyo, delegar y, sobre todo, avisar y reagendar el mismo día en lugar de simplemente no presentarse.'},
-
-{id:'O03',dim:'organizacion',comp:'Autonomía',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Qué tan cómodo te sientes trabajando semanas completas en campo sin supervisión directa y organizando tú mismo tus prioridades?',
- labs:['Prefiero supervisión cercana','Totalmente cómodo'],
- just:'Autoevaluación de peso reducido; se contrasta con O01 y O04.'},
-
-{id:'O04',dim:'organizacion',comp:'Cumplimiento de compromisos',type:'scenario',level:'basico',w:1.2,crit:true,
- case:'Prometiste enviar una propuesta el jueves. Es jueves a las 5 pm y no la vas a terminar.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Aviso antes de que termine el día, explico la razón y comprometo una nueva fecha concreta que sí puedo cumplir.',s:100},
-  {t:'Envío un avance parcial con lo que ya tengo y aclaro qué falta y para cuándo.',s:85},
-  {t:'Trabajo en la noche lo que haga falta para enviarla, aunque sea de madrugada.',s:60},
-  {t:'La envío el viernes temprano; un día de diferencia normalmente no afecta.',s:25},
-  {t:'Espero a que el cliente pregunte y entonces explico el retraso.',s:0}
- ],
- just:'Avisar antes del vencimiento preserva la confianza; avisar después la desgasta. Terminar de madrugada resuelve el caso pero no el patrón. Esperar a que el cliente reclame es el peor escenario.'},
-
-/* ---------- D8 · RESULTADOS (3) ---------- */
-{id:'R01',dim:'resultados',comp:'Responsabilidad sobre resultados',type:'scenario',level:'medio',w:1.4,crit:false,
- case:'Cerraste el trimestre en 60% de tu meta. Tu gerente te pide una explicación.',
- q:'¿Cuál es la mejor respuesta?',
- opts:[
-  {t:'Reviso mis números: visitas realizadas, oportunidades generadas, tasa de conversión y dónde se cayeron los negocios; identifico qué dependió de mí y qué voy a cambiar el próximo trimestre.',s:100},
-  {t:'Explico que el mercado estuvo lento y que varios proyectos de clientes se pospusieron.',s:20},
-  {t:'Señalo que los precios no fueron competitivos frente a la competencia en las oportunidades clave.',s:10},
-  {t:'Muestro que la actividad comercial sí se cumplió y que el problema estuvo en los tiempos de entrega.',s:35},
-  {t:'Reconozco el resultado y presento un plan para recuperar el faltante el trimestre siguiente.',s:70}
- ],
- just:'La respuesta ideal analiza la propia actividad antes de mirar hacia afuera. Los factores externos pueden ser reales, pero cuando son la explicación principal indican falta de responsabilidad sobre el resultado.'},
-
-{id:'R02',dim:'resultados',comp:'Indicadores propios',type:'multi',level:'medio',w:1.2,crit:false,max:5,
- q:'¿Qué indicadores propios revisarías cada semana para saber si vas bien, aunque todavía no haya cierres? Selecciona todos los que apliquen.',
- opts:[
-  {t:'Visitas efectivas realizadas contra las planeadas',p:3},
-  {t:'Oportunidades nuevas generadas y su monto',p:3},
-  {t:'Cotizaciones con próximo paso agendado',p:3},
-  {t:'Tasa de conversión de cotización a orden',p:2},
-  {t:'Clientes nuevos contactados por primera vez',p:2},
-  {t:'Margen promedio de lo cerrado',p:2},
-  {t:'Cantidad de correos enviados',p:-2}
- ],
- just:'Se busca que el candidato mida actividad que anticipa el resultado, no volumen administrativo. El correo enviado es actividad sin evidencia de avance.'},
-
-{id:'R03',dim:'resultados',comp:'Autopercepción de orientación a meta',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Qué tanto consideras que el cumplimiento de tu meta depende principalmente de ti y no de factores externos?',
- labs:['Depende mucho del entorno','Depende principalmente de mí'],
- just:'Autoevaluación de peso reducido; se contrasta con R01 en el índice de consistencia.'},
-
-/* ---------- D9 · APRENDIZAJE (3) ---------- */
-{id:'A01',dim:'aprendizaje',comp:'Aprendizaje de tecnología nueva',type:'scenario',level:'medio',w:1.4,crit:true,
- case:'Te asignan una línea de visión artificial e identificación industrial que no conoces, con meta desde el primer trimestre.',
- q:'¿Cómo lo abordas?',
- opts:[
-  {t:'Estudio la documentación y los casos de aplicación, acompaño al especialista en visitas reales y pido una lista de las 10 aplicaciones más comunes para reconocerlas en campo.',s:100},
-  {t:'Tomo la capacitación del fabricante en cuanto esté disponible y mientras tanto vendo lo que ya domino.',s:50},
-  {t:'Salgo a campo desde el primer día y aprendo en las visitas con apoyo del especialista cuando surja una oportunidad.',s:70},
-  {t:'Estudio a fondo la documentación técnica antes de ofrecer la línea, para no equivocarme frente al cliente.',s:55},
-  {t:'Pido que las oportunidades de esa línea las atienda el ingeniero de aplicaciones y yo apoyo la parte comercial.',s:20}
- ],
- just:'La combinación de estudio dirigido, campo acompañado y foco en las aplicaciones más frecuentes es la curva de aprendizaje más rápida. Esperar la capacitación formal o delegar la línea completa retrasa la meta.'},
-
-{id:'A02',dim:'aprendizaje',comp:'Reconocer lo que no se sabe',type:'scenario',level:'basico',w:1.3,crit:true,
- case:'En una junta con cinco personas del cliente, te hacen una pregunta técnica cuya respuesta no conoces.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Digo que no lo sé con certeza, anoto la pregunta con el detalle necesario y me comprometo a responder con fecha concreta.',s:100},
-  {t:'Respondo lo que creo más probable y aclaro que lo confirmaré por escrito después.',s:45},
-  {t:'Devuelvo la pregunta al cliente para entender mejor el contexto y ganar tiempo mientras razono la respuesta.',s:60},
-  {t:'Comento que depende de varios factores y ofrezco traer al especialista para resolverlo a fondo.',s:80},
-  {t:'Doy una respuesta general que suene razonable para no perder autoridad frente al grupo.',s:0}
- ],
- just:'Decir "no lo sé, lo confirmo para tal fecha" construye más credibilidad técnica que improvisar. Inventar una respuesta plausible es el riesgo más caro en venta industrial.'},
-
-{id:'A03',dim:'aprendizaje',comp:'Curiosidad técnica',type:'likert',level:'basico',w:0.5,crit:false,
- q:'¿Con qué frecuencia dedicas tiempo por iniciativa propia a estudiar tecnologías, aplicaciones o procesos industriales?',
- labs:['Rara vez','Cada semana'],
- just:'Autoevaluación de peso reducido; alimenta principalmente el potencial de desarrollo.'},
-
-/* ---------- D10 · ÉTICA (4) ---------- */
-{id:'E01',dim:'etica',comp:'Integridad ante un error propio',type:'scenario',level:'medio',w:1.5,crit:true,
- case:'Detectas que cotizaste un equipo con un error: el precio quedó 30% por debajo del costo. El cliente ya emitió la orden de compra.',
- q:'¿Qué haces?',
- opts:[
-  {t:'Informo de inmediato internamente y al cliente, explico el error, asumo la responsabilidad y presento opciones: corregir, absorber parcialmente o revisar el alcance.',s:100},
-  {t:'Lo escalo internamente y espero la instrucción de la empresa antes de contactar al cliente.',s:70},
-  {t:'Surto la orden con la pérdida para no dañar la relación y corrijo en la siguiente compra.',s:45},
-  {t:'Le digo al cliente que el proveedor subió el precio y le pido que ajuste la orden.',s:0,flag:true},
-  {t:'Retraso la entrega hasta encontrar una salida que no me exponga ante el cliente.',s:0,flag:true}
- ],
- just:'El error se reconoce y se comunica. Escalar internamente primero es aceptable. Culpar a un tercero o retrasar deliberadamente la entrega para ganar tiempo constituye una falta de integridad y activa una alerta crítica.'},
-
-{id:'E02',dim:'etica',comp:'Conflicto de interés',type:'scenario',level:'medio',w:1.5,crit:true,
- case:'Un contacto del cliente te propone: "si logras que se especifique tu marca, quiero un porcentaje directo para mí".',
- q:'¿Qué haces?',
- opts:[
-  {t:'Rechazo la propuesta, dejo clara la política de la empresa y lo reporto a mi gerente para definir cómo continuar con esa cuenta.',s:100},
-  {t:'Rechazo la propuesta de forma diplomática y sigo trabajando la cuenta por otro contacto, sin reportarlo.',s:55},
-  {t:'Le explico que no manejo ese tipo de acuerdos y le ofrezco en cambio capacitación y soporte formal para su área.',s:75},
-  {t:'Lo consulto con mi gerente para ver si existe alguna forma de manejarlo dentro de la política comercial.',s:30},
-  {t:'Acepto: es una práctica común en el mercado y sin eso perdería el proyecto.',s:0,flag:true}
- ],
- just:'Rechazar y reportar es lo correcto: protege al vendedor y a la empresa. Aceptar el pago personal activa una alerta crítica automática independientemente del resto de la evaluación.'},
-
-{id:'E03',dim:'etica',comp:'Manejo de información confidencial',type:'scenario',level:'medio',w:1.3,crit:true,
- case:'Un contacto en una planta te comparte la propuesta económica completa de un competidor y te dice: "úsala, pero no digas que te la di".',
- q:'¿Qué haces?',
- opts:[
-  {t:'No la uso como base para ajustar mi precio; le pido que me diga qué le hace falta a mi propuesta y trabajo sobre eso.',s:100},
-  {t:'La leo para entender el alcance, pero construyo mi propuesta con mis propios criterios y no la menciono.',s:55},
-  {t:'Le devuelvo el documento y le explico que no puedo recibir información de ese tipo.',s:90},
-  {t:'La uso para ajustar mi precio apenas por debajo, que es lo que el cliente espera de mí.',s:0,flag:true},
-  {t:'La comparto internamente con mi gerente para definir la estrategia de precio.',s:20}
- ],
- just:'Usar información confidencial de un tercero es una falta ética con riesgo legal y reputacional. Devolverla o no usarla es lo correcto; difundirla internamente agrava el problema.'},
-
-{id:'E04',dim:'etica',comp:'Promesas al cliente',type:'scenario',level:'basico',w:1.2,crit:true,
- case:'Para ganar un proyecto necesitas afirmar que el equipo cumple con una certificación específica. No estás seguro de que la tenga.',
- q:'¿Qué haces?',
- opts:[
-  {t:'No afirmo nada: verifico con el fabricante y respondo por escrito con el documento que lo respalde.',s:100},
-  {t:'Digo que lo confirmo antes de la orden y continúo con la presentación.',s:70},
-  {t:'Menciono que "cumple con la normativa aplicable" sin entrar en detalle.',s:15},
-  {t:'Afirmo que sí la cumple; la mayoría de los equipos de esa gama la tienen.',s:0,flag:true},
-  {t:'Le pido al cliente que lo verifique directamente con el fabricante.',s:40}
- ],
- just:'Afirmar una certificación sin verificarla puede tener consecuencias legales y de seguridad. Verificar y documentar es la única respuesta aceptable en áreas normadas.'}
+ {
+  "id": "P01",
+  "dim": "prospeccion",
+  "comp": "Generación autónoma de oportunidades",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.4,
+  "crit": true,
+  "case": "Tu cartera está estable, pero llevas dos semanas sin recibir una sola solicitud nueva de cotización.",
+  "q": "¿Qué haces primero?",
+  "opts": [
+   {
+    "t": "Reviso qué cuentas bajaron su consumo respecto al año pasado y salgo a preguntarles qué cambió en su proceso o en su proveedor.",
+    "s": 100
+   },
+   {
+    "t": "Salgo al corredor industrial a tocar plantas que no son clientes, aunque no tenga contacto dentro, para levantar información de sus líneas.",
+    "s": 85
+   },
+   {
+    "t": "Aprovecho para depurar el CRM, actualizar contactos y dejar el pipeline al día antes de que entre la siguiente ola de solicitudes.",
+    "s": 30
+   },
+   {
+    "t": "Preparo un envío a toda la base con las novedades del portafolio y promociones vigentes, para reactivar consultas sin saturar a nadie.",
+    "s": 45
+   },
+   {
+    "t": "Reporto la baja de actividad a mi gerente con el detalle de la zona y propongo reforzar campañas mientras atiendo las cuentas activas.",
+    "s": 15
+   }
+  ],
+  "just": "Las cinco opciones describen trabajo real; la diferencia es de dónde sale la oportunidad. La mejor la genera desde información propia del cliente. La prospección en frío también genera, aunque sin la ventaja del dato. Depurar el CRM suena disciplinado y por eso es la trampa más eficaz: es actividad sin oportunidad. Escalar a marketing traslada a otros la generación de demanda."
+ },
+ {
+  "id": "P02",
+  "dim": "prospeccion",
+  "comp": "Planeación de territorio nuevo",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "case": "Te asignan un territorio nuevo con unas 40 plantas industriales y sin historial de compras.",
+  "q": "¿Cómo usas las dos primeras semanas?",
+  "opts": [
+   {
+    "t": "Recorro las 40 en orden geográfico para presentarme en todas y, con lo que observe en cada una, decido después dónde concentrarme.",
+    "s": 65
+   },
+   {
+    "t": "Investigo cada planta en internet, identifico responsables técnicos y envío correos de presentación antes de invertir días en carretera.",
+    "s": 60
+   },
+   {
+    "t": "Pido el histórico de facturación de la zona y arranco por los clientes que alguna vez compraron, que son los que menos resistencia opondrán.",
+    "s": 50
+   },
+   {
+    "t": "Solicito a la gerencia el objetivo de facturación y el perfil esperado del territorio, para dimensionar bien el esfuerzo antes de salir.",
+    "s": 20
+   },
+   {
+    "t": "Clasifico las 40 por giro y tamaño, elijo 12 con mayor probabilidad de usar nuestras tecnologías y armo rutas para llegar a mantenimiento.",
+    "s": 100
+   }
+  ],
+  "just": "Todas son actividades defendibles. Lo que separa es si hay priorización antes del esfuerzo. Recorrer las 40 o investigar en escritorio son válidas pero costosas. Pedir el objetivo primero suena prudente y ordenado, y es la trampa: convierte dos semanas de campo en espera de instrucciones."
+ },
+ {
+  "id": "P03",
+  "dim": "prospeccion",
+  "comp": "Tolerancia al rechazo",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.2,
+  "crit": true,
+  "case": "Llegas a una planta que te interesa y en recepción te dicen: aquí no recibimos proveedores sin cita y compras no atiende visitas.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Llamo al conmutador los siguientes días a distintas horas hasta que alguien me transfiera con ingeniería o con mantenimiento.",
+    "s": 60
+   },
+   {
+    "t": "Dejo tarjeta y catálogo con una nota dirigida a mantenimiento, y vuelvo a pasar en tres semanas por si cambió la disposición.",
+    "s": 45
+   },
+   {
+    "t": "Registro la planta como de acceso restringido y concentro las rutas donde sí hay apertura, para no gastar visitas en cuentas cerradas.",
+    "s": 20
+   },
+   {
+    "t": "Pido el nombre del responsable de mantenimiento, dejo material y regreso con cita apoyándome en un caso de una planta parecida de la zona.",
+    "s": 100
+   },
+   {
+    "t": "Pregunto si puedo esperar unos minutos por si baja alguien de área técnica, y mientras tanto observo el movimiento de entrada y salida.",
+    "s": 70
+   }
+  ],
+  "just": "El filtro de recepción es rutina, no una negativa del cliente. Lo distintivo es salir con un dato aprovechable y una razón técnica para volver. La última opción está redactada como buena administración del tiempo, que es exactamente como la justifica un vendedor con baja tolerancia al rechazo."
+ },
+ {
+  "id": "P04",
+  "dim": "prospeccion",
+  "comp": "Autopercepción de prospección",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Qué tan cómodo te sientes contactando por teléfono a una planta donde todavía no conoces a nadie?",
+  "labs": [
+   "Muy incómodo",
+   "Muy cómodo"
+  ],
+  "just": "Autoevaluación con peso reducido por sesgo de deseabilidad social. Se usa sobre todo para el índice de consistencia contra P01 y P03."
+ },
+ {
+  "id": "P05",
+  "dim": "prospeccion",
+  "comp": "Reactivación de cuentas",
+  "type": "ranking",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "case": "Un cliente que compraba de forma constante dejó de hacerlo hace 14 meses. No hubo queja formal.",
+  "q": "Ordena las acciones de la más apropiada a la menos apropiada.",
+  "opts": [
+   {
+    "t": "Busco al usuario técnico para entender si cambió el proceso, el proveedor o la persona que decidía.",
+    "r": 1
+   },
+   {
+    "t": "Pido una visita con mantenimiento y compras para revisar juntos el histórico y lo que necesitan hoy.",
+    "r": 2
+   },
+   {
+    "t": "Le hago llegar una propuesta con precio preferencial en los productos que solía comprarnos.",
+    "r": 3
+   },
+   {
+    "t": "Le escribo un correo preguntando si sigue habiendo interés en trabajar con nosotros.",
+    "r": 4
+   }
+  ],
+  "just": "Primero la causa, después el contacto presencial, luego la oferta. Empezar por el descuento regala margen sin saber qué pasó, y el correo genérico rara vez obtiene respuesta de una cuenta que ya se enfrió."
+ },
+ {
+  "id": "C01",
+  "dim": "consultiva",
+  "comp": "Descubrimiento antes de recomendar",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.8,
+  "crit": true,
+  "case": "Un jefe de mantenimiento te pide por mensaje el precio de un sensor fotoeléctrico porque el actual falla constantemente.",
+  "q": "¿Qué haces primero?",
+  "opts": [
+   {
+    "t": "Le mando el equivalente exacto de inmediato y le sugiero pedir dos de repuesto, porque si falla seguido los va a necesitar en almacén.",
+    "s": 30
+   },
+   {
+    "t": "Reviso el histórico para ver qué modelo le surtimos antes y le cotizo ese mismo, así no le cambio lo que su gente ya sabe instalar.",
+    "s": 20
+   },
+   {
+    "t": "Le pregunto qué le pasa a la línea cuando falla y desde cuándo ocurre, para saber si el problema es de selección o de instalación.",
+    "s": 100
+   },
+   {
+    "t": "Le propongo pasar a ver la aplicación esta semana y mientras tanto le mando un rango de precio para que tenga una referencia.",
+    "s": 80
+   },
+   {
+    "t": "Le pido marca, modelo y una foto del montaje, y le cotizo el equivalente más dos opciones de mayor alcance por si quedó corto.",
+    "s": 55
+   }
+  ],
+  "just": "Una falla repetida es un síntoma, no una especificación. La mejor respuesta no es la más larga ni la más técnica: es la que con dos preguntas separa causa de consecuencia. Pedir ficha y foto suena riguroso pero sigue resolviendo por catálogo. Ofrecer repuestos suena a buen servicio y es la trampa: normaliza el paro en vez de eliminarlo."
+ },
+ {
+  "id": "C02",
+  "dim": "consultiva",
+  "comp": "Diagnóstico de causa raíz",
+  "type": "multi",
+  "level": "medio",
+  "w": 1.8,
+  "crit": true,
+  "max": 6,
+  "case": "Una línea se detiene unas tres veces por semana porque un sensor deja de detectar correctamente una pieza. El cliente pide reemplazarlo por uno igual.",
+  "q": "¿Qué información investigarías antes de recomendar una solución? Selecciona todas las que apliquen.",
+  "opts": [
+   {
+    "t": "Qué cambia justo antes de la falla: producto, velocidad, turno o limpieza",
+    "p": 3
+   },
+   {
+    "t": "Cuántos minutos se pierden por evento y cuánto vale ese tiempo para el cliente",
+    "p": 3
+   },
+   {
+    "t": "Material, color y variabilidad de la pieza que debe detectar",
+    "p": 3
+   },
+   {
+    "t": "Montaje, alineación, vibración y distancia real de trabajo",
+    "p": 3
+   },
+   {
+    "t": "Ambiente de la zona: polvo, aceite, lavados y temperatura",
+    "p": 2
+   },
+   {
+    "t": "Cuántas veces se ha reemplazado ya ese mismo sensor",
+    "p": 2
+   },
+   {
+    "t": "Presupuesto que tiene autorizado para el reemplazo",
+    "p": 0
+   },
+   {
+    "t": "Qué marca prefiere el cliente, para cotizar dentro de su estándar",
+    "p": -2
+   },
+   {
+    "t": "Si la orden alcanza a salir esta semana con el inventario disponible",
+    "p": -3
+   }
+  ],
+  "just": "Se premia lo que explica la causa y lo que cuantifica el impacto. El presupuesto es neutro en esta etapa. Preguntar por la marca preferida suena a respetar el estándar del cliente y por eso resta poco pero resta: cierra la conversación técnica antes de abrirla. La urgencia de surtir es el reflejo transaccional puro."
+ },
+ {
+  "id": "C03",
+  "dim": "consultiva",
+  "comp": "Lectura de una solicitud de cotización",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.5,
+  "crit": false,
+  "case": "Compras te envía una lista para cotizar: tres variadores de frecuencia con número de parte, sin más información.",
+  "q": "¿Cómo procedes?",
+  "opts": [
+   {
+    "t": "Explico que necesito datos de carga y aplicación para cotizar con responsabilidad, y quedo a la espera de que me los envíen.",
+    "s": 35
+   },
+   {
+    "t": "Cotizo lo pedido en tiempo y por otra vía busco al área técnica para entender la aplicación y si hay un proyecto más grande detrás.",
+    "s": 100
+   },
+   {
+    "t": "Antes de cotizar le pido a compras que me conecte con ingeniería, porque una selección mal validada nos deja expuestos a los dos.",
+    "s": 65
+   },
+   {
+    "t": "Cotizo lo pedido y agrego una alternativa de gama superior con mejor desempeño, explicando en qué casos conviene cada una.",
+    "s": 55
+   },
+   {
+    "t": "Respondo que con número de parte es suficiente y entrego la cotización el mismo día, que es lo que compras necesita para cerrar su cuadro.",
+    "s": 30
+   }
+  ],
+  "just": "La mejor cumple el compromiso de servicio y abre el diagnóstico en paralelo. Condicionar la cotización, aunque se argumente como responsabilidad técnica, suele quemar la oportunidad con compras. Entregar rápido y callar es defendible como eficiencia, y ahí está la trampa: renuncia al proyecto que hay detrás de la lista."
+ },
+ {
+  "id": "C04",
+  "dim": "consultiva",
+  "comp": "Estructura de la entrevista de descubrimiento",
+  "type": "ranking",
+  "level": "avanzado",
+  "w": 1.4,
+  "crit": false,
+  "case": "Primera visita a una planta de alimentos. Tienes 30 minutos con el jefe de mantenimiento.",
+  "q": "Ordena los temas del primero al último.",
+  "opts": [
+   {
+    "t": "Entender el proceso, las líneas críticas y dónde tienen paros o retrabajos",
+    "r": 1
+   },
+   {
+    "t": "Cuantificar el impacto: frecuencia, minutos perdidos, merma y costo",
+    "r": 2
+   },
+   {
+    "t": "Identificar quién especifica, quién decide y cómo se aprueba una inversión",
+    "r": 3
+   },
+   {
+    "t": "Presentar el portafolio, las marcas representadas y casos de otras plantas",
+    "r": 4
+   }
+  ],
+  "just": "De proceso a impacto a proceso de decisión, dejando la presentación para el final, cuando ya se puede conectar con algo concreto. Abrir con el catálogo es el patrón del vendedor transaccional aunque el catálogo sea excelente."
+ },
+ {
+  "id": "C05",
+  "dim": "consultiva",
+  "comp": "Manejo de la presión por precio inmediato",
+  "type": "scenario",
+  "level": "avanzado",
+  "w": 1.5,
+  "crit": false,
+  "case": "Un gerente de producción te corta: no tengo tiempo para diagnósticos, solo dame precio y disponibilidad.",
+  "q": "¿Cuál es la mejor respuesta?",
+  "opts": [
+   {
+    "t": "Te lo mando hoy. Solo dime una cosa: ¿qué te está costando el problema por semana? Con ese dato te mando la opción correcta.",
+    "s": 100
+   },
+   {
+    "t": "Claro, va en una hora. Y de paso le pregunto al técnico de la línea los datos que me faltan mientras recorro la planta.",
+    "s": 70
+   },
+   {
+    "t": "Entiendo la prisa. ¿Te parece si cotizo hoy y agendamos veinte minutos la próxima semana para revisarlo con calma?",
+    "s": 60
+   },
+   {
+    "t": "Te mando tres opciones, económica, intermedia y premium, con sus diferencias claras para que elijas la que mejor te acomode.",
+    "s": 45
+   },
+   {
+    "t": "Perfecto, precio y disponibilidad en una hora. Si después quieres profundizar en la aplicación, aquí estoy cuando lo necesites.",
+    "s": 35
+   }
+  ],
+  "just": "La mejor respeta la restricción de tiempo y aun así obtiene el dato de mayor valor. Preguntarle al técnico es astuto pero deja al gerente fuera. El menú de tres opciones parece atento al cliente y es la trampa: le traslada una decisión técnica que corresponde al vendedor."
+ },
+ {
+  "id": "C06",
+  "dim": "consultiva",
+  "comp": "Detección de oportunidades no solicitadas",
+  "type": "scenario",
+  "level": "avanzado",
+  "w": 1.4,
+  "crit": false,
+  "case": "Durante un recorrido, el gerente de planta comenta de pasada que rechazan producto por etiquetas mal colocadas y que ya se acostumbraron a revisarlo a mano al final de la línea.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Le comento que hay sistemas de visión que resuelven eso y le ofrezco traer al especialista para ver la línea con él.",
+    "s": 80
+   },
+   {
+    "t": "Le mando después la información técnica de inspección por visión y algunos casos de plantas de alimentos con el mismo problema.",
+    "s": 55
+   },
+   {
+    "t": "Lo registro como oportunidad futura de visión artificial y lo retomo cuando el cliente lo plantee como una necesidad real.",
+    "s": 40
+   },
+   {
+    "t": "No lo tomo en ese momento: la visita era por otro tema y meter un frente nuevo puede diluir lo que sí venía a resolver.",
+    "s": 15
+   },
+   {
+    "t": "Le pregunto cuánto producto se rechaza y cuántas personas dedican a revisar, para dimensionar el costo antes de proponer cualquier cosa.",
+    "s": 100
+   }
+  ],
+  "just": "Una molestia normalizada es la oportunidad más rentable y la que un vendedor transaccional no ve. La última opción está escrita como foco y respeto por la agenda, que es justo como se justifica dejarla pasar."
+ },
+ {
+  "id": "C07",
+  "dim": "consultiva",
+  "comp": "Justificación económica",
+  "type": "scenario",
+  "level": "avanzado",
+  "w": 1.4,
+  "crit": false,
+  "case": "Tu solución cuesta 180,000 pesos. La alternativa del cliente es seguir igual. La línea para tres veces por semana, 25 minutos por evento, y cada minuto le cuesta unos 900 pesos.",
+  "q": "¿Cómo presentas la propuesta?",
+  "opts": [
+   {
+    "t": "Presento el sustento técnico de por qué la solución elimina la causa, que es lo que finalmente le da confianza al área de mantenimiento.",
+    "s": 50
+   },
+   {
+    "t": "Comparo mi propuesta contra la alternativa del competidor para mostrar que tenemos la mejor relación entre precio y desempeño.",
+    "s": 35
+   },
+   {
+    "t": "Presento la solución completa y una versión de menor alcance, por si el presupuesto autorizado no alcanza para todo este año.",
+    "s": 40
+   },
+   {
+    "t": "Calculo con su gente que los paros valen unos 67,500 pesos por semana y muestro que la inversión se recupera en menos de un mes.",
+    "s": 100
+   },
+   {
+    "t": "Le explico el orden de magnitud del costo de los paros y dejo que su equipo haga el cálculo con sus propios números internos.",
+    "s": 65
+   }
+  ],
+  "just": "La cifra del propio cliente, validada con su gente, es el argumento más difícil de rebatir. Dejar que ellos calculen conserva la lógica pero pierde el control del número. El sustento técnico es necesario y no basta: convence a mantenimiento, no a quien firma."
+ },
+ {
+  "id": "T01",
+  "dim": "tecnica",
+  "comp": "Selección de sensores",
+  "type": "technical",
+  "level": "basico",
+  "w": 1.3,
+  "crit": false,
+  "q": "Necesitas detectar la presencia de un envase de vidrio transparente en una banda transportadora. ¿Qué tecnología es la más adecuada como primera opción?",
+  "opts": [
+   {
+    "t": "Sensor capacitivo montado bajo la banda, ajustado para ignorar el espesor del transportador",
+    "s": 45
+   },
+   {
+    "t": "Sensor inductivo de alta sensibilidad, colocado lo más cerca posible del envase",
+    "s": 0
+   },
+   {
+    "t": "Barrera fotoeléctrica con emisor y receptor enfrentados, o un modelo con supresión específica para objetos transparentes",
+    "s": 100
+   },
+   {
+    "t": "Sensor ultrasónico, que detecta por eco y no depende de si el material deja pasar la luz",
+    "s": 60
+   },
+   {
+    "t": "Sensor fotoeléctrico réflex con reflector prismático y ajuste fino de sensibilidad",
+    "s": 55
+   }
+  ],
+  "just": "El vidrio transparente deja pasar la luz, así que la barrera o un modelo para transparentes es lo correcto. El ultrasónico y el capacitivo pueden funcionar pero son más sensibles al ambiente y a la variación de producto. El inductivo solo detecta metal: es el único error de concepto."
+ },
+ {
+  "id": "T02",
+  "dim": "tecnica",
+  "comp": "Variadores de frecuencia",
+  "type": "technical",
+  "level": "basico",
+  "w": 1.2,
+  "crit": false,
+  "q": "Un cliente quiere reducir el consumo eléctrico de una bomba centrífuga que hoy trabaja a velocidad fija con una válvula estrangulando el flujo. ¿Cuál es el argumento técnico correcto?",
+  "opts": [
+   {
+    "t": "Permite operar el motor por debajo de su potencia nominal, lo que equivale a instalar un motor de menor capacidad",
+    "s": 20
+   },
+   {
+    "t": "Al regular el flujo por velocidad, la potencia cae aproximadamente con el cubo de la velocidad, así que el ahorro puede ser muy alto",
+    "s": 100
+   },
+   {
+    "t": "Se elimina el estrangulamiento de la válvula, que es una pérdida hidráulica que hoy se paga en energía sin producir trabajo útil",
+    "s": 80
+   },
+   {
+    "t": "El arranque suave reduce la corriente de arranque y con ello la demanda máxima facturada por la comercializadora",
+    "s": 40
+   },
+   {
+    "t": "El variador corrige el factor de potencia del motor y eso se refleja directamente en el consumo facturado",
+    "s": 25
+   }
+  ],
+  "just": "La ley de afinidad es el fundamento del ahorro; eliminar la pérdida en la válvula es la misma idea explicada por el lado hidráulico y también es correcto. El arranque suave y el factor de potencia son beneficios reales pero no explican el ahorro y se citan con frecuencia como si lo hicieran."
+ },
+ {
+  "id": "T03",
+  "dim": "tecnica",
+  "comp": "Seguridad de maquinaria",
+  "type": "technical",
+  "level": "medio",
+  "w": 1.3,
+  "crit": false,
+  "q": "Un cliente quiere ahorrar conectando el paro de emergencia directamente a un contactor estándar, sin relé ni controlador de seguridad. ¿Cuál es la respuesta correcta?",
+  "opts": [
+   {
+    "t": "No es adecuado: la función requiere el nivel de desempeño que arroje la evaluación de riesgo, con diagnóstico de fallas y componentes certificados",
+    "s": 100
+   },
+   {
+    "t": "Habría que revisar primero la evaluación de riesgo de esa máquina y la categoría exigida antes de opinar sobre la instalación",
+    "s": 85
+   },
+   {
+    "t": "Es viable si se duplica el contactor y se cablea en serie, con lo que se obtiene la redundancia que exige la función de paro",
+    "s": 30
+   },
+   {
+    "t": "Se puede aceptar si el cliente lo documenta como desviación y asume por escrito la responsabilidad de la instalación",
+    "s": 15
+   },
+   {
+    "t": "En máquinas instaladas antes de la norma vigente es aceptable, siempre que no se modifique el resto del circuito de control",
+    "s": 10
+   }
+  ],
+  "just": "La seguridad de maquinaria no se negocia por costo ni por acuerdo entre partes. La opción de duplicar contactores suena técnica y es un error frecuente: redundancia sin diagnóstico no cumple. Aceptar una desviación firmada es la trampa más peligrosa porque parece una salida profesional."
+ },
+ {
+  "id": "T04",
+  "dim": "tecnica",
+  "comp": "Instrumentación y señales",
+  "type": "technical",
+  "level": "medio",
+  "w": 1.1,
+  "crit": false,
+  "q": "¿Por qué en instrumentación industrial suele preferirse una señal de 4–20 mA sobre una de 0–10 V en distancias largas?",
+  "opts": [
+   {
+    "t": "Porque la corriente es menos sensible al ruido que inducen los variadores y motores cercanos al tendido de señal",
+    "s": 70
+   },
+   {
+    "t": "Porque permite conectar varios instrumentos en paralelo sobre el mismo par y ahorrar cableado en tramos largos",
+    "s": 25
+   },
+   {
+    "t": "Porque la resolución de una señal de corriente es mayor que la de voltaje dentro del mismo rango de medición",
+    "s": 20
+   },
+   {
+    "t": "Porque al tratarse de una señal digital resiste mejor la distancia y no requiere blindaje en el tendido",
+    "s": 10
+   },
+   {
+    "t": "La corriente no se degrada por la caída de tensión del cable y el cero vivo distingue una falla de un cero real",
+    "s": 100
+   }
+  ],
+  "just": "Inmunidad a la caída de tensión y detección de cable roto por el cero vivo son las razones reales. La inmunidad al ruido es un beneficio cierto y parcial. Llamarla digital es el error conceptual más repetido, y aquí está redactado sin adornos para que no se descarte por su forma."
+ },
+ {
+  "id": "T05",
+  "dim": "tecnica",
+  "comp": "Criterio ante información insuficiente",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.4,
+  "crit": true,
+  "case": "Un cliente te pide un PLC equivalente al que ya tiene para una ampliación. No conoces la aplicación ni las señales involucradas.",
+  "q": "¿Qué respondes?",
+  "opts": [
+   {
+    "t": "Le pido marca y modelo actual y reviso la tabla de equivalencias del fabricante para proponer el sustituto directo.",
+    "s": 55
+   },
+   {
+    "t": "Le propongo el modelo de la misma familia con capacidad superior, que difícilmente se va a quedar corto en la ampliación.",
+    "s": 35
+   },
+   {
+    "t": "Le cotizo la opción más económica que cubra el conteo de entradas y salidas, y dejo a su ingeniería la validación final.",
+    "s": 15
+   },
+   {
+    "t": "Que me faltan datos: cantidad y tipo de señales, protocolo, entorno, si debe integrarse al programa actual y quién dará el soporte.",
+    "s": 100
+   },
+   {
+    "t": "Que prefiero levantar los requerimientos en sitio con el ingeniero de aplicaciones antes de poner cualquier número sobre la mesa.",
+    "s": 85
+   }
+  ],
+  "just": "Reconocer que falta información y saber exactamente cuál falta vale más que responder rápido. Sobredimensionar por si acaso suena a criterio conservador, pero ignora integración y soporte, que es donde se pierden estos proyectos."
+ },
+ {
+  "id": "T06",
+  "dim": "tecnica",
+  "comp": "Grado de protección",
+  "type": "technical",
+  "level": "basico",
+  "w": 1,
+  "crit": false,
+  "q": "Un equipo se instalará en una zona que se lava con manguera a presión al terminar cada turno. ¿Qué grado de protección debes exigir como mínimo?",
+  "opts": [
+   {
+    "t": "IP20 dentro de un gabinete cerrado con empaque, que aísla el equipo del chorro directo",
+    "s": 20
+   },
+   {
+    "t": "El grado IP no es lo determinante aquí; lo que importa es la clase térmica y el rango de operación",
+    "s": 5
+   },
+   {
+    "t": "IP65 como mínimo, y si el chorro es fuerte o hay inmersión ocasional, IP67 o IP69K",
+    "s": 100
+   },
+   {
+    "t": "Depende también del químico del lavado: hay que revisar compatibilidad de materiales además del grado IP",
+    "s": 80
+   },
+   {
+    "t": "IP54 es suficiente, porque el lavado ocurre una vez por turno y no de forma continua",
+    "s": 30
+   }
+  ],
+  "just": "El primer dígito es polvo y el segundo agua; el lavado a presión exige al menos IP65. Considerar la compatibilidad química muestra buen criterio aunque no responda el mínimo. Meter un IP20 en gabinete suena a solución de campo razonable y es donde fallan muchas instalaciones."
+ },
+ {
+  "id": "M01",
+  "dim": "comunicacion",
+  "comp": "Adaptación al interlocutor",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.5,
+  "crit": true,
+  "case": "Presentaste una solución de seguridad de maquinaria a mantenimiento y les gustó. Ahora tienes 15 minutos con el director de planta.",
+  "q": "¿Cómo enfocas la conversación?",
+  "opts": [
+   {
+    "t": "Empiezo por quiénes somos, las marcas que representamos y las plantas del corredor donde ya trabajamos, para dar respaldo.",
+    "s": 25
+   },
+   {
+    "t": "Hablo de exposición ante un accidente, disponibilidad de la línea y retorno de la inversión, y dejo el detalle técnico como respaldo.",
+    "s": 100
+   },
+   {
+    "t": "Pido que mantenimiento explique el problema técnico desde su experiencia y yo cierro con el alcance y las condiciones comerciales.",
+    "s": 70
+   },
+   {
+    "t": "Resumo la parte técnica en tres puntos y dedico el resto del tiempo a precio, plazo de entrega y condiciones de pago.",
+    "s": 40
+   },
+   {
+    "t": "Presento la misma explicación técnica que convenció a mantenimiento, porque es la que está sustentada y ya fue validada por su gente.",
+    "s": 20
+   }
+  ],
+  "just": "Dirección compra riesgo, productividad y retorno. Que el usuario técnico respalde internamente es buena táctica pero no sustituye traducir el valor. Repetir el argumento técnico es el error más común y aquí se justifica con un argumento sólido, que es como se justifica en la realidad."
+ },
+ {
+  "id": "M02",
+  "dim": "comunicacion",
+  "comp": "Argumentación por área",
+  "type": "multi",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "max": 4,
+  "q": "Estás frente al área de compras de una planta. ¿Qué argumentos son los más pertinentes con ese interlocutor? Selecciona todos los que apliquen.",
+  "opts": [
+   {
+    "t": "Costo total de propiedad y no solo precio unitario",
+    "p": 3
+   },
+   {
+    "t": "Tiempo de entrega comprometido y disponibilidad real en inventario",
+    "p": 3
+   },
+   {
+    "t": "Condiciones comerciales, alta como proveedor y respaldo de garantía",
+    "p": 2
+   },
+   {
+    "t": "Consolidar partidas para reducir proveedores y trabajo administrativo",
+    "p": 2
+   },
+   {
+    "t": "Arquitectura de comunicación y protocolos soportados por el equipo",
+    "p": -1
+   },
+   {
+    "t": "Diagramas de conexión y hojas de datos completas del fabricante",
+    "p": -1
+   },
+   {
+    "t": "Posicionamiento de la marca frente a sus competidores directos",
+    "p": -2
+   }
+  ],
+  "just": "Compras valora costo total, entrega, condiciones y simplificación. El detalle técnico pertenece a ingeniería y satura la conversación sin agregar valor. El argumento de marca resta porque no es verificable por ese interlocutor."
+ },
+ {
+  "id": "M03",
+  "dim": "comunicacion",
+  "comp": "Manejo de un error propio en público",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.3,
+  "crit": true,
+  "case": "En una junta, el ingeniero de proceso te corrige frente a su jefe: el dato técnico que acabas de dar es incorrecto.",
+  "q": "¿Cómo reaccionas?",
+  "opts": [
+   {
+    "t": "Reconozco el error, le agradezco la corrección, confirmo con él el dato correcto y me comprometo a enviarlo por escrito ese día.",
+    "s": 100
+   },
+   {
+    "t": "Reconozco que me equivoqué en el dato, lo dejo ahí y regreso la conversación al beneficio concreto para su proceso.",
+    "s": 70
+   },
+   {
+    "t": "Comento que ese valor puede variar según la configuración y ofrezco enviar la hoja del fabricante para dejarlo cerrado.",
+    "s": 40
+   },
+   {
+    "t": "Aclaro que ese dato me lo dio el fabricante y que lo verifico con ellos para no darle información no confirmada.",
+    "s": 35
+   },
+   {
+    "t": "Mantengo lo dicho para no restarle peso a la propuesta frente a su jefe y lo aclaro con él en privado al terminar.",
+    "s": 0
+   }
+  ],
+  "just": "Reconocer, corregir y comprometerse a verificar construye credibilidad. Culpar al fabricante suena a rigor y es una forma de no hacerse cargo. Sostener un dato falso ante el cliente es un riesgo de confiabilidad, no solo de comunicación."
+ },
+ {
+  "id": "M04",
+  "dim": "comunicacion",
+  "comp": "Autopercepción de comunicación",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Qué tan cómodo te sientes presentando una propuesta ante un grupo mixto de ingeniería, producción y dirección?",
+  "labs": [
+   "Muy incómodo",
+   "Muy cómodo"
+  ],
+  "just": "Autoevaluación de peso reducido. Se contrasta con M01 y M03 en el índice de consistencia."
+ },
+ {
+  "id": "M05",
+  "dim": "comunicacion",
+  "comp": "Comunicación escrita de seguimiento",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.1,
+  "crit": false,
+  "q": "Después de una visita técnica de dos horas, ¿qué debe contener el correo de seguimiento que envías ese mismo día?",
+  "opts": [
+   {
+    "t": "Un resumen de lo revisado en planta, las fichas técnicas de lo que mostré y la fecha tentativa de cotización.",
+    "s": 60
+   },
+   {
+    "t": "El agradecimiento por el tiempo y la cotización de lo que revisamos, para que avancen mientras lo tienen fresco.",
+    "s": 45
+   },
+   {
+    "t": "El agradecimiento por la visita y la confirmación de la siguiente reunión, ya con la propuesta terminada en mano.",
+    "s": 50
+   },
+   {
+    "t": "La presentación institucional, el catálogo de las líneas que representamos y los casos de éxito del sector alimentos.",
+    "s": 15
+   },
+   {
+    "t": "Lo que entendí del problema, lo que falta por definir y los compromisos con fecha de las dos partes.",
+    "s": 100
+   }
+  ],
+  "just": "El correo de seguimiento sirve para validar el entendimiento y dejar por escrito compromisos con fecha de las dos partes. El resumen con fichas técnicas es la trampa: parece completo pero no fija compromisos ni verifica si entendimos bien."
+ },
+ {
+  "id": "N01",
+  "dim": "negociacion",
+  "comp": "Defensa de valor ante competencia",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.6,
+  "crit": false,
+  "case": "El cliente te dice que un competidor ofrece un producto 12% más barato y te pide que iguales el precio de inmediato.",
+  "q": "¿Qué haces primero?",
+  "opts": [
+   {
+    "t": "Explico punto por punto las ventajas técnicas de mi propuesta y sostengo el precio tal como está cotizado.",
+    "s": 60
+   },
+   {
+    "t": "Propongo un punto intermedio del cinco o seis por ciento, que suele destrabar sin comprometer tanto el margen.",
+    "s": 25
+   },
+   {
+    "t": "Ajusto al precio del competidor y lo registro como inversión para asegurar la cuenta y ganar las siguientes compras.",
+    "s": 0
+   },
+   {
+    "t": "Pido ver el alcance de la otra propuesta: modelo, prestaciones, garantía, entrega y qué incluye y qué no, antes de hablar de precio.",
+    "s": 100
+   },
+   {
+    "t": "Ofrezco revisar ese 12% si movemos el volumen, el plazo de pago o el resto de las líneas del proyecto.",
+    "s": 75
+   }
+  ],
+  "just": "Un 12% casi siempre esconde una diferencia de alcance. Primero comparar lo comparable; si hay que ceder, se intercambia. Igualar y llamarlo inversión en la cuenta es como suele justificarse internamente, y enseña al cliente a pedir descuento en cada compra."
+ },
+ {
+  "id": "N02",
+  "dim": "negociacion",
+  "comp": "Concesión de última hora",
+  "type": "scenario",
+  "level": "avanzado",
+  "w": 1.4,
+  "crit": false,
+  "case": "Todo está acordado. Al momento de liberar la orden, compras te dice: solo falta un 4% adicional y lo firmamos hoy.",
+  "q": "¿Cuál es la mejor respuesta?",
+  "opts": [
+   {
+    "t": "Ofrezco un 2% como gesto de cierre, que reconoce su esfuerzo sin comprometer la estructura del precio.",
+    "s": 30
+   },
+   {
+    "t": "Lo consulto con mi gerente y regreso con el 4% autorizado, porque el negocio completo vale más que ese punto.",
+    "s": 15
+   },
+   {
+    "t": "Puedo revisar ese 4% si pasamos a pago de contado o si incluimos las otras dos líneas del proyecto en esta orden.",
+    "s": 100
+   },
+   {
+    "t": "El precio ya está en el mínimo autorizado, pero puedo incluir la puesta en marcha sin costo para cerrar hoy mismo.",
+    "s": 60
+   },
+   {
+    "t": "El precio ya está en su mínimo autorizado y prefiero sostenerlo; la propuesta se mantiene tal como está.",
+    "s": 70
+   }
+  ],
+  "just": "La concesión de última hora es una táctica estándar de compras. Ceder sin contrapartida confirma que había margen escondido. Regalar la puesta en marcha suena inteligente porque no toca el precio, pero sigue siendo una concesión sin intercambio."
+ },
+ {
+  "id": "N03",
+  "dim": "negociacion",
+  "comp": "Monedas de intercambio",
+  "type": "multi",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "max": 5,
+  "q": "¿Qué puedes intercambiar en una negociación sin comprometer el margen del negocio? Selecciona todas las que apliquen.",
+  "opts": [
+   {
+    "t": "Plazo de pago o pago anticipado",
+    "p": 3
+   },
+   {
+    "t": "Volumen o compromiso de consumo anual",
+    "p": 3
+   },
+   {
+    "t": "Ampliar el alcance a otras líneas del proyecto",
+    "p": 3
+   },
+   {
+    "t": "Programación de entregas parciales",
+    "p": 2
+   },
+   {
+    "t": "Capacitación o acompañamiento en la puesta en marcha",
+    "p": 2
+   },
+   {
+    "t": "Referencia, caso de éxito o visita de otros clientes a su planta",
+    "p": 1
+   },
+   {
+    "t": "Un punto de descuento sobre lista a cambio de cerrar en el mes",
+    "p": -3
+   },
+   {
+    "t": "Adelantar la fecha de entrega comprometiéndome antes de confirmar con logística",
+    "p": -3
+   }
+  ],
+  "just": "Hay muchas monedas antes del precio. El descuento a cambio de cerrar en el mes está redactado como intercambio, pero lo que se recibe no tiene valor para el cliente: es una concesión disfrazada. Comprometer fechas sin confirmar se paga con la confianza."
+ },
+ {
+  "id": "N04",
+  "dim": "negociacion",
+  "comp": "Compromisos de entrega",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.2,
+  "crit": true,
+  "case": "El cliente necesita el equipo en 10 días. Fábrica confirma 6 semanas y el cliente advierte que si no, comprará con otro.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Le confirmo los diez días y en paralelo presiono internamente para conseguir que se cumpla de alguna manera.",
+    "s": 0
+   },
+   {
+    "t": "Le digo el tiempo real y reviso alternativas concretas: existencia local, modelo sustituto disponible, entrega parcial o equipo en préstamo.",
+    "s": 100
+   },
+   {
+    "t": "Le explico que seis semanas es el plazo real y que si otro promete diez días probablemente no está ofreciendo lo mismo.",
+    "s": 70
+   },
+   {
+    "t": "Le digo que haré todo lo posible por acortar el plazo y le confirmo en cuanto tenga una fecha en firme de fábrica.",
+    "s": 55
+   },
+   {
+    "t": "Le sugiero comprar esta vez con el otro proveedor y quedamos para el siguiente requerimiento, cuidando la relación.",
+    "s": 30
+   }
+  ],
+  "just": "Prometer una fecha imposible transfiere el problema al cliente. Cuestionar la oferta del competidor es correcto pero no resuelve nada por sí solo. Buscar alternativas reales es lo único que protege la venta y la credibilidad al mismo tiempo."
+ },
+ {
+  "id": "N05",
+  "dim": "negociacion",
+  "comp": "Manejo de la objeción de precio",
+  "type": "ranking",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "case": "El cliente dice: está muy caro.",
+  "q": "Ordena las acciones de la más apropiada a la menos apropiada.",
+  "opts": [
+   {
+    "t": "Preguntar caro comparado con qué: otra propuesta, su presupuesto o lo que pagó antes",
+    "r": 1
+   },
+   {
+    "t": "Cuantificar con él el costo del problema que la solución evita",
+    "r": 2
+   },
+   {
+    "t": "Revisar el alcance por si hay elementos que puedan ajustarse o posponerse",
+    "r": 3
+   },
+   {
+    "t": "Ofrecer un descuento para destrabar la conversación",
+    "r": 4
+   }
+  ],
+  "just": "Está caro es una objeción sin información. Primero se investiga la referencia, luego se construye valor, después se ajusta alcance y solo al final se toca el precio."
+ },
+ {
+  "id": "F01",
+  "dim": "pipeline",
+  "comp": "Priorización de oportunidades",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.5,
+  "crit": true,
+  "case": "Tienes 40 cotizaciones abiertas y solo puedes dar seguimiento real a 12 esta semana.",
+  "q": "¿Cómo eliges?",
+  "opts": [
+   {
+    "t": "Por necesidad confirmada, decisor identificado y fecha de decisión; las que no tienen próximo paso las regreso a etapa temprana.",
+    "s": 100
+   },
+   {
+    "t": "Por monto, empezando por las más grandes, que son las que mueven la aguja del trimestre si se cierran.",
+    "s": 50
+   },
+   {
+    "t": "Por los clientes donde tengo mejor relación, que son donde la probabilidad real de cierre es más alta.",
+    "s": 40
+   },
+   {
+    "t": "Por antigüedad, empezando por las que llevan más tiempo sin respuesta antes de que se enfríen del todo.",
+    "s": 30
+   },
+   {
+    "t": "Mando un seguimiento estándar a las 40 y profundizo con las que respondan, así ninguna se queda sin atención.",
+    "s": 35
+   }
+  ],
+  "just": "Monto sin decisor ni fecha no es pipeline, es una lista de deseos. Priorizar por relación suena a criterio comercial experimentado y suele concentrar el esfuerzo donde ya se iba a cerrar. El seguimiento masivo parece equitativo y deja que el cliente decida la prioridad."
+ },
+ {
+  "id": "F02",
+  "dim": "pipeline",
+  "comp": "Calificación de oportunidades",
+  "type": "multi",
+  "level": "medio",
+  "w": 1.4,
+  "crit": false,
+  "max": 6,
+  "q": "¿Qué convierte una cotización enviada en una oportunidad real de pipeline? Selecciona todas las que apliquen.",
+  "opts": [
+   {
+    "t": "Hay una necesidad confirmada por el usuario, no un sondeo de precios",
+    "p": 3
+   },
+   {
+    "t": "Está identificado quién decide y quién influye en la decisión",
+    "p": 3
+   },
+   {
+    "t": "Hay presupuesto asignado o una vía clara para conseguirlo",
+    "p": 3
+   },
+   {
+    "t": "Existe fecha objetivo de decisión o de instalación",
+    "p": 3
+   },
+   {
+    "t": "Hay un próximo paso agendado con fecha y responsable",
+    "p": 3
+   },
+   {
+    "t": "Se sabe contra quién se compite y con qué alcance",
+    "p": 2
+   },
+   {
+    "t": "El cliente confirmó que la propuesta va dentro de su presupuesto",
+    "p": -1
+   },
+   {
+    "t": "El monto es alto y el cliente es una cuenta importante para la zona",
+    "p": -1
+   }
+  ],
+  "just": "Necesidad, decisor, presupuesto, fecha, competencia y próximo paso. Que el cliente diga que va dentro de presupuesto suena a señal fuerte y es opinión, no evidencia. El tamaño de la cuenta es la causa más común de un forecast inflado."
+ },
+ {
+  "id": "F03",
+  "dim": "pipeline",
+  "comp": "Seguimiento efectivo",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.2,
+  "crit": false,
+  "case": "Enviaste una cotización importante hace tres semanas y no has recibido respuesta pese a dos correos.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Me presento en la planta con un motivo técnico válido y aprovecho para retomar el tema en persona.",
+    "s": 85
+   },
+   {
+    "t": "Marco a compras para preguntar en qué etapa está el cuadro comparativo y si necesitan algo más de nuestra parte.",
+    "s": 50
+   },
+   {
+    "t": "Mando un tercer correo con una mejora de precio por cierre en el mes, que suele ser lo que destraba estos casos.",
+    "s": 25
+   },
+   {
+    "t": "Le doy espacio y lo retomo el mes entrante: insistir demasiado con un cliente que no responde puede dañar la relación.",
+    "s": 15
+   },
+   {
+    "t": "Llamo al usuario técnico, no solo a compras, para saber si el proyecto sigue vivo, qué cambió y quién lo tiene detenido.",
+    "s": 100
+   }
+  ],
+  "just": "Después de dos correos el canal está agotado. El usuario técnico normalmente sí sabe qué pasó. Dar espacio se argumenta como respeto y prudencia comercial, y es la forma más elegante de perder la oportunidad sin saber por qué."
+ },
+ {
+  "id": "F04",
+  "dim": "pipeline",
+  "comp": "Uso de CRM",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Con qué disciplina registras visitas, oportunidades y próximos pasos en un CRM o sistema de seguimiento?",
+  "labs": [
+   "Casi nunca",
+   "Siempre, el mismo día"
+  ],
+  "just": "Autoevaluación de peso reducido. Se contrasta con F01 y F03 en el índice de consistencia."
+ },
+ {
+  "id": "F05",
+  "dim": "pipeline",
+  "comp": "Construcción del forecast",
+  "type": "scenario",
+  "level": "avanzado",
+  "w": 1.3,
+  "crit": false,
+  "q": "¿Cómo construyes tu pronóstico de cierre del mes?",
+  "opts": [
+   {
+    "t": "Aplico mi porcentaje histórico de conversión sobre el total de cotizaciones abiertas del mes.",
+    "s": 55
+   },
+   {
+    "t": "Proyecto sobre lo cerrado el mismo mes del año anterior, ajustado por el crecimiento esperado de la zona.",
+    "s": 35
+   },
+   {
+    "t": "Incluyo todo lo que el cliente me confirmó verbalmente que cerraría este mes, que es la información de primera mano.",
+    "s": 30
+   },
+   {
+    "t": "Reviso oportunidad por oportunidad y solo incluyo las que tienen decisor, presupuesto, fecha y próximo paso agendado.",
+    "s": 100
+   },
+   {
+    "t": "Presento un escenario conservador y uno optimista, explicando el supuesto que sostiene cada uno de los dos.",
+    "s": 80
+   }
+  ],
+  "just": "El forecast se construye por oportunidad con evidencia. La conversión histórica sirve como control, no como método. La confirmación verbal del cliente se presenta como información de primera mano y es la principal fuente de pronósticos que no se cumplen."
+ },
+ {
+  "id": "O01",
+  "dim": "organizacion",
+  "comp": "Planeación de rutas y visitas",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.3,
+  "crit": true,
+  "q": "¿Cómo planeas tu semana de trabajo de campo?",
+  "opts": [
+   {
+    "t": "Salgo a la zona con varias cuentas objetivo y voy ajustando el recorrido según quién me pueda recibir ese día.",
+    "s": 40
+   },
+   {
+    "t": "Organizo la semana según lo que van pidiendo los clientes, que al final es lo que genera el negocio del mes.",
+    "s": 20
+   },
+   {
+    "t": "Cierro la agenda el viernes anterior con visitas confirmadas por zona, un objetivo por visita y bloques fijos para cotizar y prospectar.",
+    "s": 100
+   },
+   {
+    "t": "Defino las zonas por día y confirmo cada cita la mañana de la visita, para no perder el viaje si alguien cancela.",
+    "s": 65
+   },
+   {
+    "t": "Reservo dos días de visitas programadas y dejo el resto abierto para lo que vaya surgiendo durante la semana.",
+    "s": 50
+   }
+  ],
+  "just": "Agenda cerrada por anticipado con objetivo por visita es la diferencia entre trabajar un territorio y recorrerlo. Dejar días abiertos suena a flexibilidad necesaria en campo. Operar por lo que piden los clientes se defiende con el argumento del negocio inmediato y garantiza que la prospección nunca ocurra."
+ },
+ {
+  "id": "O02",
+  "dim": "organizacion",
+  "comp": "Manejo de prioridades en conflicto",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "case": "Mismo día: un cliente tiene una línea parada y pide apoyo urgente, vence una cotización grande y tenías una visita de prospección agendada hace dos semanas.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Priorizo la cotización grande, que es la que tiene impacto directo en la meta, y muevo lo demás al día siguiente.",
+    "s": 25
+   },
+   {
+    "t": "Atiendo el paro con apoyo interno, aseguro la entrega de la cotización delegando lo que se pueda y reagendo el prospecto ese mismo día.",
+    "s": 100
+   },
+   {
+    "t": "Atiendo el paro y entrego la cotización, y busco al prospecto en cuanto se libere la agenda para poner una fecha nueva.",
+    "s": 65
+   },
+   {
+    "t": "Atiendo el paro, pido prórroga de un día para la cotización y mantengo la visita de prospección ya comprometida.",
+    "s": 55
+   },
+   {
+    "t": "Canalizo el paro al área de servicio y mantengo la visita agendada, porque el compromiso con el prospecto ya estaba adquirido.",
+    "s": 35
+   }
+  ],
+  "just": "Se evalúa atender lo urgente sin perder lo comprometido: activar apoyo, delegar y sobre todo avisar y reagendar el mismo día. Sostener la visita de prospección suena a integridad con los compromisos, pero deja al cliente con la línea parada."
+ },
+ {
+  "id": "O03",
+  "dim": "organizacion",
+  "comp": "Autonomía",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Qué tan cómodo te sientes trabajando semanas completas en campo sin supervisión directa y organizando tú mismo tus prioridades?",
+  "labs": [
+   "Prefiero supervisión cercana",
+   "Totalmente cómodo"
+  ],
+  "just": "Autoevaluación de peso reducido; se contrasta con O01 y O04."
+ },
+ {
+  "id": "O04",
+  "dim": "organizacion",
+  "comp": "Cumplimiento de compromisos",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.2,
+  "crit": true,
+  "case": "Prometiste enviar una propuesta el jueves. Es jueves a las cinco de la tarde y no la vas a terminar.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Aviso antes de que termine el día, explico por qué y comprometo una fecha nueva que sí puedo cumplir.",
+    "s": 100
+   },
+   {
+    "t": "Mando el avance que tengo, aclaro qué falta y para cuándo lo completo, para que puedan ir revisando.",
+    "s": 85
+   },
+   {
+    "t": "Me quedo a terminarla esa noche y la envío aunque sea de madrugada, porque la fecha la puse yo.",
+    "s": 60
+   },
+   {
+    "t": "La envío el viernes a primera hora con una propuesta mejor trabajada, que es lo que finalmente valora el cliente.",
+    "s": 25
+   },
+   {
+    "t": "Espero a ver si la piden: si no la requieren con urgencia, entregarla el lunes no cambia nada del proceso.",
+    "s": 0
+   }
+  ],
+  "just": "Avisar antes del vencimiento preserva la confianza; avisar después la desgasta. Entregar un día tarde pero mejor está redactado como criterio de calidad, y es la racionalización más frecuente del incumplimiento."
+ },
+ {
+  "id": "R01",
+  "dim": "resultados",
+  "comp": "Responsabilidad sobre resultados",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.4,
+  "crit": false,
+  "case": "Cerraste el trimestre en 60% de tu meta. Tu gerente te pide una explicación.",
+  "q": "¿Cuál es la mejor respuesta?",
+  "opts": [
+   {
+    "t": "Reconozco el resultado, no busco justificaciones y presento un plan concreto para recuperar el faltante el trimestre que entra.",
+    "s": 70
+   },
+   {
+    "t": "Muestro que la actividad comercial se cumplió completa y que los proyectos se frenaron por tiempos de entrega de fábrica.",
+    "s": 35
+   },
+   {
+    "t": "Explico que varios clientes pospusieron inversiones por el momento del mercado y que el pipeline sigue vivo para el siguiente ciclo.",
+    "s": 20
+   },
+   {
+    "t": "Señalo que en las oportunidades grandes quedamos fuera por precio y propongo revisar la política comercial de la zona.",
+    "s": 15
+   },
+   {
+    "t": "Reviso mis números de visitas, oportunidades generadas y conversión, identifico qué dependió de mí y qué voy a cambiar.",
+    "s": 100
+   }
+  ],
+  "just": "La mejor analiza la propia actividad antes de mirar afuera. Reconocer y presentar un plan suena responsable pero se salta el diagnóstico: sin saber qué falló, el plan es voluntarismo. Los factores externos pueden ser ciertos y aquí están redactados con datos, que es como se presentan en la realidad."
+ },
+ {
+  "id": "R02",
+  "dim": "resultados",
+  "comp": "Indicadores propios",
+  "type": "multi",
+  "level": "medio",
+  "w": 1.2,
+  "crit": false,
+  "max": 5,
+  "q": "¿Qué indicadores propios revisarías cada semana para saber si vas bien, aunque todavía no haya cierres? Selecciona todos los que apliquen.",
+  "opts": [
+   {
+    "t": "Visitas efectivas realizadas contra las planeadas",
+    "p": 3
+   },
+   {
+    "t": "Oportunidades nuevas generadas y su monto",
+    "p": 3
+   },
+   {
+    "t": "Cotizaciones con próximo paso agendado",
+    "p": 3
+   },
+   {
+    "t": "Tasa de conversión de cotización a orden",
+    "p": 2
+   },
+   {
+    "t": "Clientes contactados por primera vez",
+    "p": 2
+   },
+   {
+    "t": "Margen promedio de lo cerrado",
+    "p": 2
+   },
+   {
+    "t": "Cotizaciones enviadas en la semana",
+    "p": -1
+   },
+   {
+    "t": "Kilómetros recorridos y tiempo invertido en campo",
+    "p": -2
+   }
+  ],
+  "just": "Se busca que mida actividad que anticipa resultado, no volumen de trabajo. Cotizaciones enviadas parece un indicador comercial legítimo y mide esfuerzo, no avance. Los kilómetros miden desgaste."
+ },
+ {
+  "id": "R03",
+  "dim": "resultados",
+  "comp": "Autopercepción de orientación a meta",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Qué tanto consideras que el cumplimiento de tu meta depende principalmente de ti y no de factores externos?",
+  "labs": [
+   "Depende mucho del entorno",
+   "Depende principalmente de mí"
+  ],
+  "just": "Autoevaluación de peso reducido; se contrasta con R01 en el índice de consistencia."
+ },
+ {
+  "id": "A01",
+  "dim": "aprendizaje",
+  "comp": "Aprendizaje de tecnología nueva",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.4,
+  "crit": true,
+  "case": "Te asignan una línea de visión artificial e identificación industrial que no conoces, con meta desde el primer trimestre.",
+  "q": "¿Cómo lo abordas?",
+  "opts": [
+   {
+    "t": "Estudio a fondo la documentación técnica antes de ofrecer la línea, para no equivocarme frente a un cliente que sabe más que yo.",
+    "s": 55
+   },
+   {
+    "t": "Tomo la capacitación oficial del fabricante en cuanto haya fecha y mientras tanto empujo fuerte las líneas que ya domino.",
+    "s": 45
+   },
+   {
+    "t": "Propongo que las oportunidades de esa línea las lleve el ingeniero de aplicaciones y yo aporto la relación y el cierre comercial.",
+    "s": 20
+   },
+   {
+    "t": "Pido las diez aplicaciones más frecuentes de la línea, las estudio y salgo a campo con el especialista para reconocerlas en planta.",
+    "s": 100
+   },
+   {
+    "t": "Salgo a campo desde el primer día y voy aprendiendo en las visitas, apoyándome en el especialista cuando aparece una oportunidad.",
+    "s": 70
+   }
+  ],
+  "just": "Estudio dirigido a lo que más se repite, más campo acompañado, es la curva más rápida. Estudiar a fondo primero suena a responsabilidad profesional y retrasa la meta un trimestre. Delegar la línea al especialista está redactado como reparto inteligente de roles."
+ },
+ {
+  "id": "A02",
+  "dim": "aprendizaje",
+  "comp": "Reconocer lo que no se sabe",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.3,
+  "crit": true,
+  "case": "En una junta con cinco personas del cliente, te hacen una pregunta técnica cuya respuesta no conoces.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Respondo lo que creo más probable, aclarando que lo confirmo por escrito ese mismo día con el fabricante.",
+    "s": 45
+   },
+   {
+    "t": "Doy una respuesta general y técnicamente defendible, y profundizo después con quien lo preguntó en corto.",
+    "s": 10
+   },
+   {
+    "t": "Digo que no lo sé con certeza, anoto la pregunta con el detalle necesario y me comprometo a responder con fecha.",
+    "s": 100
+   },
+   {
+    "t": "Comento que depende de varios factores del proceso y propongo traer al especialista para resolverlo a fondo con ellos.",
+    "s": 80
+   },
+   {
+    "t": "Devuelvo la pregunta para entender mejor el contexto de la aplicación antes de dar una respuesta que pueda quedar corta.",
+    "s": 60
+   }
+  ],
+  "just": "Decir no lo sé y comprometer una fecha construye más credibilidad que improvisar. La respuesta general y defendible es la trampa fuerte: suena a manejo de junta y es inventar con mejor redacción."
+ },
+ {
+  "id": "A03",
+  "dim": "aprendizaje",
+  "comp": "Curiosidad técnica",
+  "type": "likert",
+  "level": "basico",
+  "w": 0.5,
+  "crit": false,
+  "q": "¿Con qué frecuencia dedicas tiempo por iniciativa propia a estudiar tecnologías, aplicaciones o procesos industriales?",
+  "labs": [
+   "Rara vez",
+   "Cada semana"
+  ],
+  "just": "Autoevaluación de peso reducido; alimenta principalmente el potencial de desarrollo."
+ },
+ {
+  "id": "E01",
+  "dim": "etica",
+  "comp": "Integridad ante un error propio",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.5,
+  "crit": true,
+  "case": "Detectas que cotizaste un equipo 30% por debajo del costo. El cliente ya emitió la orden de compra.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Detengo el trámite de la orden mientras busco internamente una salida que no me exponga frente al cliente.",
+    "s": 0,
+    "flag": true
+   },
+   {
+    "t": "Lo informo de inmediato dentro y al cliente, asumo el error y presento opciones: corregir, absorber una parte o ajustar el alcance.",
+    "s": 100
+   },
+   {
+    "t": "Lo escalo con mi gerente y espero la instrucción de la empresa antes de hablar con el cliente sobre el tema.",
+    "s": 70
+   },
+   {
+    "t": "Surto la orden con la pérdida y lo recupero en las siguientes compras, que es el costo de haber cometido el error.",
+    "s": 45
+   },
+   {
+    "t": "Le informo que el fabricante ajustó precios después de la cotización y le pido revisar la orden con el valor correcto.",
+    "s": 0,
+    "flag": true
+   }
+  ],
+  "just": "El error se reconoce y se comunica. Escalar primero es aceptable. Atribuirlo a un ajuste del fabricante es una mentira redactada como explicación comercial normal, y detener el trámite sin avisar es engaño por omisión: ambas activan alerta crítica."
+ },
+ {
+  "id": "E02",
+  "dim": "etica",
+  "comp": "Conflicto de interés",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.5,
+  "crit": true,
+  "case": "Un contacto del cliente te propone: si logras que se especifique tu marca, quiero un porcentaje directo para mí.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Lo rechazo, dejo clara la política de la empresa y lo reporto a mi gerente para definir cómo seguir con esa cuenta.",
+    "s": 100
+   },
+   {
+    "t": "Le explico que no manejo ese tipo de acuerdos y le ofrezco a cambio capacitación y soporte formal para su área.",
+    "s": 75
+   },
+   {
+    "t": "Lo rechazo con diplomacia y sigo trabajando la cuenta por otro contacto, sin mover el tema dentro de la empresa.",
+    "s": 55
+   },
+   {
+    "t": "Lo planteo con mi gerente para ver si hay alguna figura dentro de la política comercial que permita reconocer su apoyo.",
+    "s": 25
+   },
+   {
+    "t": "Lo acepto: es práctica común en el mercado y sin eso el proyecto se va con quien sí esté dispuesto a hacerlo.",
+    "s": 0,
+    "flag": true
+   }
+  ],
+  "just": "Rechazar y reportar protege al vendedor y a la empresa. Buscar una figura dentro de la política suena a manejo institucional y es el primer paso para normalizarlo. Aceptar el pago personal activa alerta crítica sin importar el resto del perfil."
+ },
+ {
+  "id": "E03",
+  "dim": "etica",
+  "comp": "Manejo de información confidencial",
+  "type": "scenario",
+  "level": "medio",
+  "w": 1.3,
+  "crit": true,
+  "case": "Un contacto en una planta te comparte la propuesta económica completa de un competidor y te dice: úsala, pero no digas que te la di.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "No la uso para fijar mi precio; le pregunto qué le falta a mi propuesta y trabajo sobre eso con él.",
+    "s": 100
+   },
+   {
+    "t": "La leo para entender el alcance de lo que compite, pero construyo mi propuesta con mis propios criterios y no la menciono.",
+    "s": 50
+   },
+   {
+    "t": "La comparto con mi gerente para definir la estrategia de precio, que es una decisión que no me corresponde tomar solo.",
+    "s": 20
+   },
+   {
+    "t": "Ajusto mi precio apenas por debajo, que es lo que el cliente espera de mí al habérmela pasado.",
+    "s": 0,
+    "flag": true
+   },
+   {
+    "t": "Se la devuelvo y le explico que no puedo recibir información de ese tipo, aunque agradezco la intención de ayudarme.",
+    "s": 95
+   }
+  ],
+  "just": "Usar información confidencial de un tercero tiene riesgo legal y reputacional. Difundirla internamente parece transparencia hacia la empresa y agrava el problema en lugar de resolverlo."
+ },
+ {
+  "id": "E04",
+  "dim": "etica",
+  "comp": "Promesas al cliente",
+  "type": "scenario",
+  "level": "basico",
+  "w": 1.2,
+  "crit": true,
+  "case": "Para ganar un proyecto necesitas afirmar que el equipo cumple con una certificación específica. No estás seguro de que la tenga.",
+  "q": "¿Qué haces?",
+  "opts": [
+   {
+    "t": "Le sugiero que lo valide directamente con el fabricante, que es quien puede darle el respaldo documental.",
+    "s": 40
+   },
+   {
+    "t": "Menciono que cumple con la normativa aplicable al tipo de equipo, sin entrar en el detalle de esa certificación.",
+    "s": 15
+   },
+   {
+    "t": "Confirmo que sí la cumple: toda la gama la tiene y sería raro que justo ese modelo fuera la excepción.",
+    "s": 0,
+    "flag": true
+   },
+   {
+    "t": "No afirmo nada: lo verifico con el fabricante y respondo por escrito adjuntando el documento que lo respalda.",
+    "s": 100
+   },
+   {
+    "t": "Digo que lo confirmo antes de la orden de compra y sigo con la presentación sin comprometer ese punto.",
+    "s": 70
+   }
+  ],
+  "just": "Afirmar una certificación sin verificarla puede tener consecuencias legales y de seguridad. Decir que cumple la normativa aplicable es una ambigüedad deliberada. Confirmar por inferencia está redactado con un razonamiento plausible, que es exactamente como ocurre en la realidad."
+ }
 ];
 
 /* Preguntas de contexto: informativas, sin variables discriminatorias */
