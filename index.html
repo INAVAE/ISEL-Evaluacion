@@ -1402,6 +1402,21 @@ const DB = {
     const c = await LS.get('isel:config', null);
     if(c) Object.assign(CFG, c);
     SESSION = await LS.get('isel:session', null);
+    /* La conexión pertenece al sitio publicado, no a cada navegador: si junto
+       a index.html hay un config.json, manda ése. Así el celular del candidato
+       sabe a qué proyecto conectarse sin configurar nada. */
+    try{
+      const r = await fetch('config.json?v=' + Date.now(), {cache:'no-store'});
+      if(r.ok){
+        const j = await r.json();
+        if(j && j.url && j.anonKey){
+          CFG.mode = j.mode || 'supabase';
+          CFG.url = j.url;
+          CFG.anonKey = j.anonKey;
+          CFG.fromFile = true;
+        }
+      }
+    }catch(e){ /* sin config.json: configuración manual */ }
     return CFG;
   },
   async saveConfig(patch){
@@ -1751,7 +1766,7 @@ const S = {
   list:[], sortK:'index', sortD:-1, fRes:'', fDate:'', sel:[], qbOpen:{},
   instruments:[], activeIns:null, draft:null, dirty:false, tab:'items',
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
-  saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null,
+  saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -2616,6 +2631,11 @@ function viewSettings(){
         los enlaces de invitación funcionan desde cualquier dispositivo y las respuestas quedan normalizadas para análisis.</span></button>
     </div>
 
+    ${CFG.fromFile?`<div class="alert warn" style="margin-bottom:16px">
+      <h3>La conexión viene de config.json</h3>
+      Este sitio publica un archivo <code>config.json</code> y sus valores mandan sobre lo que guardes aquí.
+      Es lo correcto: así el celular de cada candidato se conecta solo, sin configurar nada.
+      Para cambiar el proyecto, edita ese archivo en el repositorio.</div>`:''}
     ${CFG.mode==='supabase'?`
       <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Credenciales del proyecto</h3></div>
         <div class="panel-b">
@@ -2633,7 +2653,11 @@ function viewSettings(){
           puntajes o criterios de calificación.</p>
           <div class="navrow"><button class="btn btn-sm" data-testconn>Probar conexión</button>
             <button class="btn btn-ghost btn-sm" data-testsave ${DB.signedIn?'':'disabled'}>Probar guardado</button>
-            <button class="btn btn-ghost btn-sm" data-saveconn>Guardar</button></div>
+            <button class="btn btn-ghost btn-sm" data-saveconn>Guardar</button>
+            <button class="btn btn-ghost btn-sm" data-dlconfig>Descargar config.json</button></div>
+          <p class="mini">Descarga ese archivo y súbelo al repositorio, junto a <code>index.html</code>.
+          Sin él, los enlaces de invitación abren en blanco porque el dispositivo del candidato no sabe
+          a qué proyecto conectarse.</p>
           ${S.diag?`<div class="alert ${S.diag.ok?'warn':''}" style="margin-top:12px">
             <h3>${S.diag.ok?'El guardado funciona':'El guardado falla'}</h3>
             ${S.diag.ok?'Se escribió y se borró un registro de prueba sin errores.':
@@ -2736,9 +2760,19 @@ function invitePanel(){
 /* ---------- modo candidato: solo la evaluación ---------- */
 function viewInvite(){
   const inv = S.invite;
-  if(!inv) return topbar()+`<div class="cand-shell" style="padding:80px 22px">
-    <div class="empty"><b>Enlace no válido</b>La invitación no existe, ya fue utilizada o pertenece a otro dispositivo.
-    Solicita un enlace nuevo a la persona que te contactó.</div></div>`;
+  if(!inv){
+    const why = S.inviteReason==='sinconfig'
+      ? {t:'Esta página no está conectada a la base de datos',
+         d:'Avísale a quien te envió el enlace: falta publicar el archivo <code>config.json</code> junto a la aplicación.'}
+      : S.inviteReason==='error'
+      ? {t:'No se pudo consultar la invitación',
+         d:'Puede ser un problema momentáneo de conexión. Recarga la página en un minuto.' +
+           (DB.lastError?'<br><span class="tiny">Detalle: '+esc(DB.lastError)+'</span>':'')}
+      : {t:'Enlace no válido o ya utilizado',
+         d:'Cada enlace sirve una sola vez. Solicita uno nuevo a la persona que te contactó.'};
+    return topbar()+`<div class="cand-shell" style="padding:80px 22px">
+      <div class="empty"><b>${why.t}</b>${why.d}</div></div>`;
+  }
   const n = inv.instrument.items.filter(i=>i.active!==false).length;
   return topbar()+`<div class="cand-shell" style="padding:56px 22px 70px">
     <h1 style="font-size:clamp(30px,6vw,46px)">Evaluación de competencias comerciales</h1>
@@ -2836,7 +2870,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-startinvite],[data-recalc],[data-retrysave]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-startinvite],[data-recalc],[data-retrysave]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -2854,6 +2888,16 @@ APP.addEventListener('click', async e=>{
     t.disabled = true; t.textContent = 'Probando…';
     try{ S.conn = await DB.testConnection(); }
     catch(e){ S.conn = {ok:false, steps:[{ok:false, t:e.message}]}; }
+    return render();
+  }
+  if(d.dlconfig!==undefined){
+    const blob = new Blob([JSON.stringify({mode:'supabase', url:CFG.url, anonKey:CFG.anonKey}, null, 2)],
+      {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'config.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    S.msg = 'Sube config.json al repositorio, en la misma carpeta que index.html.';
     return render();
   }
   if(d.testsave!==undefined){
@@ -3198,6 +3242,7 @@ window.addEventListener('beforeunload', e=>{ if(S.dirty){ e.preventDefault(); e.
 
 async function enterCandidateMode(token){
   S.candidateMode = true; S.inviteToken = token;
+  S.invite = null; S.inviteReason = '';
   await DB.loadConfig();
   try{
     const inv = await DB.getInvite(token);
@@ -3206,7 +3251,11 @@ async function enterCandidateMode(token){
       useInstrument(inv.instrument);
       if(DB.remote){ try{ await rpc('isel_start_invite', {p_token: token}); }catch(e){} }
     }
-  }catch(e){ S.invite = null; DB.lastError = e.message; }
+    /* En modo local la invitación solo existe en el navegador que la creó.
+       Si no aparece y no hay conexión remota, lo más probable es que el sitio
+       no publique config.json y este dispositivo no sepa a dónde conectarse. */
+    else S.inviteReason = DB.remote ? 'usado' : 'sinconfig';
+  }catch(e){ S.invite = null; S.inviteReason = 'error'; DB.lastError = e.message; }
   S.view = 'invite';
   render();
 }
