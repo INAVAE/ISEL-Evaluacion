@@ -389,6 +389,54 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
   font-family:var(--cond);font-size:14px;background:var(--steel-50)}
 .logincard{max-width:420px;margin:70px auto;border:var(--line);border-top:4px solid var(--blue);background:var(--paper);padding:28px}
 .cand-shell{max-width:720px;margin:0 auto;padding:0 22px}
+
+/* ---------- táctil y pantallas chicas ---------- */
+/* En un celular el estado :hover se queda pegado tras tocar, y la opción
+   parece preseleccionada aunque no lo esté. Solo se aplica donde hay ratón. */
+@media (hover: none){
+  .opt:hover{border-color:var(--steel-200);background:var(--paper)}
+  .opt.sel:hover{border-color:var(--blue);background:var(--blue-l)}
+  .lik button:hover{border-color:var(--steel-200);background:var(--paper)}
+  .lik button.sel:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn:hover{background:var(--blue);border-color:var(--blue)}
+  .btn-ghost:hover{background:transparent;border-color:var(--steel-200);color:var(--blue)}
+  .tlink:hover{background:var(--paper);color:var(--ink-2)}
+  .tlink.on:hover{background:var(--blue);color:#fff}
+  .modeopt:hover{border-color:var(--steel-200)}
+  .modeopt.on:hover{border-color:var(--blue)}
+  .tbl tr:hover td{background:transparent}
+  .et tr:hover td{background:transparent}
+  .itemrow:hover{background:var(--paper)}
+}
+.opt, .lik button, .btn{-webkit-tap-highlight-color:transparent}
+
+.prog-bar{display:none;height:6px;background:var(--steel-100)}
+.prog-bar i{display:block;height:100%;background:var(--blue);transition:width .2s}
+
+@media (max-width:700px){
+  body{overflow-x:hidden}
+  .shell, .shell-narrow, .cand-shell{padding-left:16px;padding-right:16px}
+  .prog-seg{display:none}
+  .prog-bar{display:block}
+  .btn{padding:12px 18px;font-size:15px}
+  .navrow{gap:10px}
+  .navrow .btn{flex:1 1 auto;min-width:0}
+  .qtext{font-size:18.5px;max-width:none}
+  .qwrap{padding:26px 0 48px}
+  .opt{padding:13px 13px;font-size:15px}
+  .lik{gap:5px}
+  .lik button{padding:14px 2px;font-size:19px}
+  .prog-meta{font-size:12.5px}
+  .hero{padding:44px 0 32px}
+  .gauge-band b{font-size:13px}
+  .gauge-band span{font-size:10px}
+  .res-id h2{font-size:27px}
+  .bigscore{font-size:60px}
+}
+@media (max-width:420px){
+  .gauge-bands{flex-wrap:wrap}
+  .gauge-band{flex:1 1 45%}
+}
 </style>
 <div id="app"></div>
 <script>
@@ -1915,7 +1963,8 @@ function viewQuiz(){
   return topbar()+`
   <div class="prog no-print"><div class="shell prog-in">
     <div class="prog-meta"><span>Pregunta <b>${S.page+1}</b> de <b>${BANK.length}</b></span><span>${done} respondidas</span></div>
-    <div class="prog-seg">${segs}</div></div></div>
+    <div class="prog-seg">${segs}</div>
+    <div class="prog-bar"><i style="width:${Math.round((S.page+1)/BANK.length*100)}%"></i></div></div></div>
   <div class="shell-narrow qwrap">
     <div class="qtag">${esc(d.short)}</div>
     ${q.case?`<div class="qcase">${esc(q.case)}</div>`:''}
