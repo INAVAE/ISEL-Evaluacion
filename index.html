@@ -2200,6 +2200,26 @@ function blankInstrument(){
 /* ============================================================
    MÓDULO 3 — INSTRUMENTO ACTIVO
    ============================================================ */
+/* Completa instrumentos guardados por versiones anteriores de la app.
+   Sin esto, una evaluación creada antes del aviso de privacidad lo muestra vacío. */
+function migrateInstrument(ins){
+  if(!ins) return ins;
+  if(!ins.privacy || typeof ins.privacy !== 'object') ins.privacy = clone(PRIVACY_SEED);
+  else {
+    const d = PRIVACY_SEED;
+    ['responsible','text','contact','ack'].forEach(k=>{
+      if(ins.privacy[k] === undefined || ins.privacy[k] === '') ins.privacy[k] = d[k];
+    });
+    if(ins.privacy.enabled === undefined) ins.privacy.enabled = true;
+  }
+  if(!Array.isArray(ins.consPairs)) ins.consPairs = [];
+  if(!ins.plan) ins.plan = {d30:[],d60:[],d90:[]};
+  if(!Array.isArray(ins.basic)) ins.basic = [];
+  if(!Array.isArray(ins.ideal)) ins.ideal = [];
+  (ins.items||[]).forEach(q=>{ if(q.active === undefined) q.active = true; });
+  return ins;
+}
+
 let INS = null, DIMS = [], DIM = {}, BANK = [];
 function useInstrument(ins){
   INS = ins;
@@ -2597,11 +2617,11 @@ const DB = {
 
   /* --- instrumentos --- */
   async listInstruments(){
-    if(!DB.remote) return LS.get('isel:instruments', []);
+    if(!DB.remote) return (await LS.get('isel:instruments', [])).map(migrateInstrument);
     const rows = await sbFetch('/rest/v1/isel_instruments?select=*&order=updated_at.desc');
-    return (rows||[]).map(r => Object.assign({}, r.definition, {
+    return (rows||[]).map(r => migrateInstrument(Object.assign({}, r.definition, {
       id:r.id, name:r.name, area:r.area, version:r.version, status:r.status,
-      notes:r.notes, createdAt:r.created_at, updatedAt:r.updated_at}));
+      notes:r.notes, createdAt:r.created_at, updatedAt:r.updated_at})));
   },
   async saveInstrument(ins){
     ins.updatedAt = new Date().toISOString();
@@ -3646,7 +3666,11 @@ function tabPlan(ins){
 /* ---- pestaña: metadatos ---- */
 function tabMeta(ins){
   const ro = isLocked(ins)?'disabled':'';
-  return `<div class="tabpanel"><div class="formgrid">
+  return `<div class="tabpanel">
+    ${ro?`<div class="alert warn" style="margin-bottom:18px"><h3>Versión publicada: solo consulta</h3>
+      Los campos están bloqueados para no alterar evaluaciones ya aplicadas.
+      <div class="navrow" style="margin-top:10px"><button class="btn btn-sm" data-dupins="${ins.id}">Nueva versión a partir de ésta</button></div></div>`:''}
+    <div class="formgrid">
     <div class="full"><label class="fl">Puesto evaluado</label><input class="fi" data-meta="name" value="${esc(ins.name)}" ${ro}></div>
     <div class="full"><label class="fl">Área</label><input class="fi" data-meta="area" value="${esc(ins.area||'')}" ${ro}></div>
     <div><label class="fl">Clave de versión</label><input class="fi" data-meta="version" value="${esc(ins.version)}" ${ro}></div>
@@ -4441,8 +4465,15 @@ APP.addEventListener('click', async e=>{
   }
 
   /* --- dimensiones --- */
-  if(d.privon!==undefined){ ins.privacy = ins.privacy||{}; ins.privacy.enabled = !ins.privacy.enabled; touch(); return render(); }
-  if(d.shuffle!==undefined){ ins.shuffleOptions = ins.shuffleOptions===false; touch(); return render(); }
+  if(d.privon!==undefined || d.shuffle!==undefined){
+    if(isLocked(ins)){
+      S.msg = 'La versión ' + ins.version + ' está publicada y no se puede modificar. Usa "Nueva versión a partir de ésta" para editarla.';
+      return render();
+    }
+    if(d.privon!==undefined){ ins.privacy = ins.privacy||clone(PRIVACY_SEED); ins.privacy.enabled = !ins.privacy.enabled; }
+    else ins.shuffleOptions = ins.shuffleOptions===false;
+    touch(); return render();
+  }
   if(d.adddim!==undefined){
     ins.dims.push({id:uid('d'), code:'X', n:'Nueva dimensión', short:'Nueva', w:0, crit:false, min:55, strength:'', gap:'', probe:''});
     touch(); return render();
