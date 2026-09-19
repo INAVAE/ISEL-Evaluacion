@@ -523,6 +523,28 @@ const LEVELS = [
 ];
 const levelOf = s => LEVELS.find(l => s >= l.min);
 
+const PROFILES_SEED = [
+ {code:'D', k:'Desarrollador estratégico de cuentas', minIndex:78,
+  when:[{dim:'consultiva',min:78},{dim:'prospeccion',min:72},{dim:'pipeline',min:72},{dim:'comunicacion',min:75},{dim:'index',min:78}],
+  d:'Potencial para key account management, desarrollo de plantas, proyectos complejos, cross-selling y relación con múltiples niveles organizacionales.'},
+ {code:'C', k:'Consultor comercial',
+  when:[{dim:'consultiva',min:68},{dim:'tecnica',min:58},{dim:'negociacion',min:58},{dim:'index',min:66}],
+  d:'Combina diagnóstico técnico, generación de oportunidades, negociación y capacidad de construir valor frente al cliente.'},
+ {code:'B', k:'Vendedor industrial',
+  when:[{dim:'index',min:56},{dim:'prospeccion',min:52},{dim:'consultiva',min:55}],
+  d:'Bases comerciales sólidas. Puede manejar cartera, visitas, oportunidades y cierres con acompañamiento técnico.'},
+ {code:'A', k:'Comercial transaccional', when:[],
+  d:'Responde solicitudes, cotiza y da seguimiento, pero compite principalmente por precio. Puede funcionar en ventas internas; requiere desarrollo para venta consultiva externa.'}
+];
+const TRAIN_SEED = [
+ {dim:'aprendizaje', w:.30},
+ {item:'A02', fallback:'aprendizaje', w:.15},
+ {dim:'organizacion', w:.15},
+ {dim:'etica', w:.15},
+ {dim:'tecnica', w:.10},
+ {dim:'resultados', w:.15}
+];
+
 const PROFILES = {
   A:{k:'Comercial transaccional', d:'Responde solicitudes, cotiza y da seguimiento, pero compite principalmente por precio. Puede funcionar en ventas internas; requiere desarrollo para venta consultiva externa.'},
   B:{k:'Vendedor industrial',     d:'Bases comerciales sólidas. Puede manejar cartera, visitas, oportunidades y cierres con acompañamiento técnico.'},
@@ -2182,9 +2204,2024 @@ function baseInstrument(){
     ideal: clone(IDEAL_SEED),
     plan: clone(PLAN_SEED),
     consPairs: clone(CONS_SEED),
-    privacy: clone(PRIVACY_SEED)
+    privacy: clone(PRIVACY_SEED),
+    profiles: clone(PROFILES_SEED),
+    trainability: clone(TRAIN_SEED)
   };
 }
+const GERENTE_SEED = {
+ "id": "ins-gerente",
+ "name": "Gerente de Ventas Matriz / Sucursal",
+ "area": "Comercial · Dirección de equipo de ventas",
+ "version": "ISEL-GER-1.0",
+ "status": "publicada",
+ "notes": "Construido a partir de la descripción de puesto de ISEL (rev. 00, 30/01/2024). No usa edad ni estado civil: el artículo 133 de la Ley Federal del Trabajo prohíbe discriminar por esos criterios y el motor los excluye por diseño. Los puntajes por opción requieren calibración con la Gerencia Comercial.",
+ "createdAt": "2026-01-15T10:00:00.000Z",
+ "updatedAt": "2026-01-15T10:00:00.000Z",
+ "dims": [
+  {
+   "id": "liderazgo",
+   "code": "L",
+   "n": "Liderazgo y desarrollo del equipo",
+   "short": "Liderazgo",
+   "w": 0.2,
+   "crit": true,
+   "min": 60,
+   "strength": "Desarrolla a sus consultores en lugar de resolver por ellos; convierte el acompañamiento en aprendizaje.",
+   "gap": "Riesgo de operar como vendedor estrella con título de gerente: cierra él y el equipo no crece.",
+   "probe": "Pedir el caso de un consultor con bajo desempeño que haya logrado levantar: qué hizo distinto, en cuánto tiempo y cómo supo que funcionó."
+  },
+  {
+   "id": "rendicion",
+   "code": "R",
+   "n": "Gestión del desempeño y rendición de cuentas",
+   "short": "Rendición",
+   "w": 0.15,
+   "crit": true,
+   "min": 55,
+   "strength": "Sostiene el ritmo semanal de rendición de cuentas y convierte los indicadores en acciones concretas.",
+   "gap": "La junta semanal podría volverse reporte de actividades sin compromisos ni consecuencias.",
+   "probe": "Pedir que describa cómo era su junta semanal de rendición de cuentas: quién hablaba, qué se revisaba y qué pasaba cuando alguien no cumplía lo comprometido."
+  },
+  {
+   "id": "planeacion",
+   "code": "P",
+   "n": "Planeación comercial y de metas",
+   "short": "Planeación",
+   "w": 0.125,
+   "crit": true,
+   "min": 55,
+   "strength": "Traduce la meta anual en planes trimestrales por consultor con supuestos verificables.",
+   "gap": "Planes construidos sobre deseos en lugar de sobre pipeline; la meta se reparte sin sustento.",
+   "probe": "Pedir que explique cómo construyó su último plan trimestral: de dónde salió el número de cada consultor y qué hizo cuando uno no daba."
+  },
+  {
+   "id": "oportunidades",
+   "code": "O",
+   "n": "Acompañamiento en oportunidades clave",
+   "short": "Oportunidades",
+   "w": 0.125,
+   "crit": false,
+   "min": 55,
+   "strength": "Identifica dónde su presencia cambia el resultado y entra sin desplazar al consultor.",
+   "gap": "Podría dispersarse en oportunidades pequeñas o tomar el control de las grandes y dejar al consultor fuera.",
+   "probe": "Pedir un cierre en el que haya intervenido personalmente: cómo decidió entrar, qué papel dejó al consultor y qué pasó con esa cuenta después."
+  },
+  {
+   "id": "negociacion",
+   "code": "N",
+   "n": "Negociación y protección de rentabilidad",
+   "short": "Negociación",
+   "w": 0.1,
+   "crit": true,
+   "min": 55,
+   "strength": "Defiende margen y usa su autoridad de descuento como excepción sustentada, no como herramienta de cierre.",
+   "gap": "Riesgo de que su nivel de autorización se convierta en la salida fácil de todo el equipo.",
+   "probe": "Pedir un caso donde haya negado un descuento que su consultor pedía: cómo lo manejó con el cliente y con el consultor."
+  },
+  {
+   "id": "cuentas",
+   "code": "C",
+   "n": "Desarrollo de cuentas y crecimiento",
+   "short": "Cuentas",
+   "w": 0.075,
+   "crit": false,
+   "min": 50,
+   "strength": "Impulsa apertura de cuentas nuevas y desarrollo de las existentes en lugar de administrar la cartera heredada.",
+   "gap": "La cartera podría mantenerse estable por inercia, sin clientes nuevos ni penetración en los actuales.",
+   "probe": "Pedir cómo creció la cartera de su equipo en el último año: cuántas cuentas nuevas y de dónde salieron."
+  },
+  {
+   "id": "marca",
+   "code": "M",
+   "n": "Gestión de marca como sponsor",
+   "short": "Marca",
+   "w": 0.075,
+   "crit": false,
+   "min": 50,
+   "strength": "Trabaja la marca que patrocina como un negocio propio: conocimiento, proyectos protegidos y foco del equipo.",
+   "gap": "El rol de sponsor podría quedar en reportes al proveedor sin efecto sobre la venta del equipo.",
+   "probe": "Pedir qué hizo por la marca que patrocinaba más allá de reportar: cómo logró que sus consultores la ofrecieran."
+  },
+  {
+   "id": "datos",
+   "code": "D",
+   "n": "Análisis de indicadores y decisiones",
+   "short": "Datos",
+   "w": 0.075,
+   "crit": true,
+   "min": 55,
+   "strength": "Lee indicadores predictivos y ajusta antes de que el trimestre se pierda.",
+   "gap": "Podría reaccionar a resultados ya consumados en vez de a las señales que los anticipan.",
+   "probe": "Pedir qué indicador revisa primero al abrir su tablero un lunes y qué decisión tomó la última vez que ese número se salió de rango."
+  },
+  {
+   "id": "tecnica",
+   "code": "T",
+   "n": "Criterio técnico-comercial",
+   "short": "Técnica",
+   "w": 0.05,
+   "crit": false,
+   "min": 50,
+   "strength": "Resuelve aplicaciones de complejidad baja y media y reconoce cuándo escalar a ingeniería.",
+   "gap": "Podría comprometer soluciones sin sustento técnico o depender de soporte para todo.",
+   "probe": "Presentar una aplicación industrial concreta y pedir hasta dónde la resolvería él y en qué punto involucraría a soporte."
+  },
+  {
+   "id": "etica",
+   "code": "E",
+   "n": "Integridad y confiabilidad",
+   "short": "Ética",
+   "w": 0.025,
+   "crit": true,
+   "min": 70,
+   "strength": "Sostiene criterios de integridad incluso cuando el costo comercial es inmediato y visible para su equipo.",
+   "gap": "Señales de criterio insuficiente bajo presión de resultado; en un mando esto se replica hacia abajo.",
+   "probe": "Pedir una situación en la que su equipo o un cliente le propuso algo que consideró incorrecto: qué hizo y qué vio el equipo que hizo."
+  }
+ ],
+ "items": [
+  {
+   "id": "L01",
+   "dim": "liderazgo",
+   "comp": "Desarrollo frente a sustitución",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.6,
+   "crit": true,
+   "case": "Un consultor lleva dos meses sin cerrar. Tiene pipeline, visita clientes y entrega cotizaciones, pero no concreta.",
+   "q": "¿Qué haces primero?",
+   "opts": [
+    {
+     "t": "Lo acompaño a tres visitas para ver dónde se rompe su proceso, y después acordamos qué va a cambiar en la siguiente.",
+     "s": 100
+    },
+    {
+     "t": "Reviso con él sus cotizaciones abiertas una por una para entender en qué etapa se están quedando detenidas.",
+     "s": 85
+    },
+    {
+     "t": "Entro yo a sus dos oportunidades más grandes para asegurar que al menos esas cierren este mes.",
+     "s": 35
+    },
+    {
+     "t": "Le asigno más actividad de prospección: si el problema es de cierre, con más volumen algo va a caer.",
+     "s": 25
+    },
+    {
+     "t": "Le pido un plan de acción por escrito con compromisos semanales y lo reviso en la junta de rendición de cuentas.",
+     "s": 55
+    }
+   ],
+   "just": "Todas son cosas que hace un gerente. La diferencia está en si el consultor sale sabiendo algo nuevo. Cerrar por él resuelve el mes y deja el problema intacto. Pedir un plan por escrito suena a método pero delega el diagnóstico en quien no lo tiene.",
+   "active": true
+  },
+  {
+   "id": "L02",
+   "dim": "liderazgo",
+   "comp": "Reparto del tiempo del gerente",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.3,
+   "crit": false,
+   "case": "Tienes seis consultores: dos por encima de meta, tres alrededor del objetivo y uno muy por debajo.",
+   "q": "¿Cómo repartes tu tiempo de acompañamiento en la semana?",
+   "opts": [
+    {
+     "t": "Concentro la mayor parte en el que va rezagado, porque es donde está el mayor riesgo para el número del área.",
+     "s": 60
+    },
+    {
+     "t": "Doy el mismo tiempo a los seis: un gerente no puede tener favoritos ni dejar a nadie sin seguimiento.",
+     "s": 45
+    },
+    {
+     "t": "Priorizo a los dos que van arriba para que rompan su marca, que es lo que compensa al que va abajo.",
+     "s": 35
+    },
+    {
+     "t": "Dedico el tiempo a las oportunidades más grandes del área sin importar de quién sean, y ahí acompaño a quien las lleve.",
+     "s": 55
+    },
+    {
+     "t": "Reparto según dónde mi presencia cambia el resultado: sobre todo los tres del medio, que con apoyo pueden superar la meta.",
+     "s": 100
+    }
+   ],
+   "just": "El mayor retorno suele estar en quienes ya tienen base y les falta empuje. Volcarse en el rezagado es la respuesta emocionalmente correcta y la más común, pero consume muchas horas para mover poco. Repartir parejo suena justo y en la práctica diluye.",
+   "active": true
+  },
+  {
+   "id": "L03",
+   "dim": "liderazgo",
+   "comp": "Conversación de desempeño",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.5,
+   "crit": true,
+   "case": "Un consultor con buenos resultados llega tarde a las juntas, no actualiza el CRM y su tablero lo llena marketing con datos que él pasa a última hora.",
+   "q": "¿Cómo lo manejas?",
+   "opts": [
+    {
+     "t": "Le pido a marketing que le dé seguimiento directo para que el tablero quede actualizado sin depender de él.",
+     "s": 20
+    },
+    {
+     "t": "Lo dejo pasar mientras siga cumpliendo meta: el resultado es lo que se le pide y lo está entregando.",
+     "s": 10
+    },
+    {
+     "t": "Le hago ver que si no cumple con el proceso no puedo respaldar sus solicitudes de condiciones especiales.",
+     "s": 55
+    },
+    {
+     "t": "Hablo con él a solas, le explico por qué esos registros afectan al equipo y acordamos un cambio concreto con fecha de revisión.",
+     "s": 100
+    },
+    {
+     "t": "Lo trato en la junta semanal junto con el resto del equipo, para que la regla quede clara para todos por igual.",
+     "s": 45
+    }
+   ],
+   "just": "El buen vendedor indisciplinado es la prueba más común del criterio de un gerente. Exponerlo en la junta cuesta la relación y no cambia la conducta. Resolverlo por fuera con marketing quita el síntoma y confirma que la regla no aplica para él.",
+   "active": true
+  },
+  {
+   "id": "L04",
+   "dim": "liderazgo",
+   "comp": "Traspaso de conocimiento",
+   "type": "multi",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "max": 5,
+   "q": "Después de acompañar a un consultor en una visita difícil, ¿qué hace que ese acompañamiento sirva para algo? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Revisar con él la visita el mismo día, mientras la tiene fresca",
+     "p": 3
+    },
+    {
+     "t": "Preguntarle primero qué vio él antes de dar mi lectura",
+     "p": 3
+    },
+    {
+     "t": "Acordar una acción concreta para la siguiente visita",
+     "p": 3
+    },
+    {
+     "t": "Dejar que él condujera la reunión aunque yo hubiera entrado distinto",
+     "p": 3
+    },
+    {
+     "t": "Señalar qué hizo bien, no solo lo que hay que corregir",
+     "p": 2
+    },
+    {
+     "t": "Registrar el acuerdo para darle seguimiento la semana siguiente",
+     "p": 2
+    },
+    {
+     "t": "Tomar yo la palabra en los momentos clave para mostrarle cómo se hace",
+     "p": -2
+    },
+    {
+     "t": "Mandarle después un resumen escrito con las correcciones",
+     "p": -1
+    }
+   ],
+   "just": "El acompañamiento enseña cuando el consultor conduce y reflexiona. Tomar la palabra para demostrar suena a modelaje y le quita el turno. El resumen escrito parece profesional y sustituye la conversación, que es donde ocurre el aprendizaje.",
+   "active": true
+  },
+  {
+   "id": "L05",
+   "dim": "liderazgo",
+   "comp": "Manejo de un error del equipo ante el cliente",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": true,
+   "case": "Un cliente importante te llama molesto: tu consultor le prometió una fecha de entrega que no se va a cumplir.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Le digo al cliente que el consultor se comprometió sin consultar y que eso se va a corregir de inmediato.",
+     "s": 10
+    },
+    {
+     "t": "Mando al consultor a resolverlo él mismo con el cliente: fue su compromiso y debe aprender a sostener las consecuencias.",
+     "s": 30
+    },
+    {
+     "t": "Asumo el error frente al cliente sin culpar al consultor, doy una fecha real con alternativas, y después lo reviso con él.",
+     "s": 100
+    },
+    {
+     "t": "Le pido al consultor que me explique qué pasó antes de responderle al cliente, para no contradecir lo que ya dijo.",
+     "s": 65
+    },
+    {
+     "t": "Le explico al cliente que hubo un malentendido en la comunicación interna y que yo me hago cargo desde ahora.",
+     "s": 50
+    }
+   ],
+   "just": "Hacia afuera el gerente responde por su equipo; hacia adentro corrige. Exponer al consultor ante el cliente resuelve el momento y destruye la autoridad del vendedor en esa cuenta. Mandarlo a resolver solo se argumenta como aprendizaje y deja al cliente sin interlocutor.",
+   "active": true
+  },
+  {
+   "id": "L06",
+   "dim": "liderazgo",
+   "comp": "Autopercepción de liderazgo",
+   "type": "likert",
+   "level": "basico",
+   "w": 0.5,
+   "crit": false,
+   "q": "¿Qué tan cómodo te sientes dando retroalimentación negativa a alguien que te cae bien y lleva años en la empresa?",
+   "labs": [
+    "Muy incómodo",
+    "Muy cómodo"
+   ],
+   "just": "Autoevaluación con peso reducido. Se contrasta contra L01 y L03 en el índice de consistencia.",
+   "active": true
+  },
+  {
+   "id": "L07",
+   "dim": "liderazgo",
+   "comp": "Coherencia entre exigencia y conducta",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": true,
+   "case": "Exiges al equipo que registre toda visita en el CRM el mismo día. Tú llevas tres semanas sin capturar las tuyas por carga de trabajo.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Bajo la exigencia a registro semanal para todos, que es lo que realmente se puede sostener con la carga actual.",
+     "s": 35
+    },
+    {
+     "t": "Me pongo al corriente y lo digo en la junta: expliqué por qué me atrasé y qué voy a hacer para no repetirlo.",
+     "s": 100
+    },
+    {
+     "t": "Me pongo al corriente el fin de semana sin comentarlo, porque lo que importa es que el registro esté completo.",
+     "s": 65
+    },
+    {
+     "t": "Pido apoyo administrativo para que capturen mis visitas y así poder sostener la exigencia con el equipo.",
+     "s": 40
+    },
+    {
+     "t": "Aclaro que mi cartera es distinta: son tres cuentas estratégicas donde el CRM aporta menos que en una cartera amplia.",
+     "s": 20
+    }
+   ],
+   "just": "En un mando la coherencia se mide en público. Ponerse al corriente en silencio corrige el dato y desaprovecha la ocasión de modelar. Explicar por qué a uno no le aplica la regla es el camino más corto para que el equipo deje de respetarla.",
+   "active": true
+  },
+  {
+   "id": "R01",
+   "dim": "rendicion",
+   "comp": "Conducción de la junta semanal",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.5,
+   "crit": true,
+   "q": "¿Cómo conduces la junta semanal de rendición de cuentas con tus consultores?",
+   "opts": [
+    {
+     "t": "Cada uno reporta si cumplió lo que se comprometió la semana pasada, qué aprendió y a qué se compromete para la siguiente.",
+     "s": 100
+    },
+    {
+     "t": "Reviso el tablero de cada uno contra su meta y trabajamos juntos las oportunidades que están detenidas.",
+     "s": 75
+    },
+    {
+     "t": "Cada consultor presenta el avance de su cartera y yo aporto dónde puedo ayudar en las cuentas grandes.",
+     "s": 55
+    },
+    {
+     "t": "Comparto los números del área, doy los avisos de la semana y después hablo en corto con quien va atrasado.",
+     "s": 35
+    },
+    {
+     "t": "Dedico la junta a resolver los casos difíciles en equipo, que es donde más aprenden unos de otros.",
+     "s": 45
+    }
+   ],
+   "just": "La rendición de cuentas es compromiso personal y público, no reporte de avance. Revisar el tablero es necesario y no basta. Dedicarla a resolver casos difíciles suena colaborativo y convierte la junta en asesoría técnica, que es como se diluye.",
+   "active": true
+  },
+  {
+   "id": "R02",
+   "dim": "rendicion",
+   "comp": "Incumplimiento de un compromiso",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": false,
+   "case": "Un consultor se comprometió a diez visitas de prospección en la semana. Hizo tres y explica que tuvo que atender urgencias de clientes.",
+   "q": "¿Cómo respondes en la junta?",
+   "opts": [
+    {
+     "t": "Reconozco que atender al cliente es prioritario y revisamos si diez visitas era un número realista para su cartera.",
+     "s": 50
+    },
+    {
+     "t": "Le señalo que el compromiso era suyo y que el equipo escuchó cuando lo asumió, y pido que lo reponga esta semana.",
+     "s": 75
+    },
+    {
+     "t": "Reviso con él su agenda de la semana para ayudarle a proteger los bloques de prospección de las interrupciones.",
+     "s": 80
+    },
+    {
+     "t": "Lo dejo pasar esta vez porque la razón es válida, y le pido que avise antes si vuelve a ocurrir.",
+     "s": 20
+    },
+    {
+     "t": "Le pregunto qué va a hacer distinto para que las urgencias no se coman la prospección y lo dejo comprometido por escrito.",
+     "s": 100
+    }
+   ],
+   "just": "Las urgencias del cliente son la excusa más legítima que existe, y por eso es la trampa. Aceptarla sin ajuste enseña al equipo cuál es la salida. Bajar el compromiso puede ser razonable, pero hacerlo en el momento del incumplimiento premia el fallo.",
+   "active": true
+  },
+  {
+   "id": "R03",
+   "dim": "rendicion",
+   "comp": "Indicadores predictivos",
+   "type": "multi",
+   "level": "avanzado",
+   "w": 1.4,
+   "crit": false,
+   "max": 5,
+   "q": "Vas a la mitad del trimestre y la venta va al 40%. ¿Qué revisas para saber si todavía se puede corregir? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Margen de seguridad: cuánto pipeline calificado hay contra lo que falta por vender",
+     "p": 3
+    },
+    {
+     "t": "Efectividad de cierre por consultor en lo que va del trimestre",
+     "p": 3
+    },
+    {
+     "t": "Oportunidades con fecha de decisión dentro del trimestre y su monto",
+     "p": 3
+    },
+    {
+     "t": "Pendientes por surtir que ya son venta comprometida",
+     "p": 2
+    },
+    {
+     "t": "Visitas efectivas y oportunidades nuevas generadas por semana",
+     "p": 2
+    },
+    {
+     "t": "Cuentas que bajaron consumo respecto al trimestre anterior",
+     "p": 2
+    },
+    {
+     "t": "Venta acumulada del mismo trimestre del año pasado",
+     "p": -1
+    },
+    {
+     "t": "Total de cotizaciones emitidas en el trimestre",
+     "p": -2
+    }
+   ],
+   "just": "A mitad de trimestre solo sirven los indicadores que anticipan. La comparación con el año pasado explica pero no permite actuar. El total de cotizaciones emitidas mide esfuerzo y es el número que más se usa para aparentar actividad.",
+   "active": true
+  },
+  {
+   "id": "R04",
+   "dim": "rendicion",
+   "comp": "Escalamiento de un caso persistente",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": false,
+   "case": "Un consultor lleva tres trimestres seguidos por debajo del 70% de su meta, pese a acompañamiento, capacitación y ajustes de cartera.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Le reduzco la cartera y la meta para que pueda cumplir y recupere confianza antes de volver a exigirle.",
+     "s": 30
+    },
+    {
+     "t": "Reasigno sus cuentas más grandes a consultores con mejor desempeño para proteger el número del área.",
+     "s": 35
+    },
+    {
+     "t": "Le doy otro trimestre con seguimiento más cercano: tres trimestres pueden coincidir con un mercado difícil en su zona.",
+     "s": 40
+    },
+    {
+     "t": "Reviso con Capital Humano qué opciones hay, con la evidencia documentada de lo que se intentó y sus resultados.",
+     "s": 100
+    },
+    {
+     "t": "Le planteo directamente la situación y acordamos un periodo definido con metas claras y consecuencias explícitas.",
+     "s": 90
+    }
+   ],
+   "just": "Después de tres trimestres con apoyo, sostener sin definición le hace daño a la persona y al equipo. Bajar la meta suena humano y vuelve permanente el bajo desempeño. Reasignar cuentas protege el número y confirma que no habrá consecuencias.",
+   "active": true
+  },
+  {
+   "id": "R05",
+   "dim": "rendicion",
+   "comp": "Autopercepción de disciplina",
+   "type": "likert",
+   "level": "basico",
+   "w": 0.5,
+   "crit": false,
+   "q": "¿Con qué disciplina sostienes una cadencia semanal de seguimiento cuando la operación se pone pesada?",
+   "labs": [
+    "Se cae fácilmente",
+    "Se sostiene siempre"
+   ],
+   "just": "Autoevaluación de peso reducido; se contrasta con R01 y R02.",
+   "active": true
+  },
+  {
+   "id": "P01",
+   "dim": "planeacion",
+   "comp": "Construcción del plan trimestral",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.5,
+   "crit": true,
+   "q": "¿Cómo construyes el plan de ventas trimestral de tu equipo?",
+   "opts": [
+    {
+     "t": "Defino primero las cuentas y proyectos que van a sostener el trimestre y armo el plan alrededor de ellos.",
+     "s": 80
+    },
+    {
+     "t": "Pido a cada consultor que proponga su número y lo ajusto con él hasta que la suma alcance la meta del área.",
+     "s": 60
+    },
+    {
+     "t": "Parto del pipeline real de cada consultor, veo cuánto falta para la meta y defino con él de dónde va a salir ese faltante.",
+     "s": 100
+    },
+    {
+     "t": "Reparto la meta del área entre los consultores según el tamaño y potencial de cada cartera.",
+     "s": 55
+    },
+    {
+     "t": "Tomo el trimestre anterior de cada uno y le aplico el crecimiento que pide la Gerencia Comercial.",
+     "s": 40
+    }
+   ],
+   "just": "Un plan se sostiene en pipeline identificable, no en repartos. Partir de las cuentas que sostendrán el trimestre es cercano y algo más estrecho. Pedir que cada uno proponga suena participativo y produce números negociados en vez de sustentados.",
+   "active": true
+  },
+  {
+   "id": "P02",
+   "dim": "planeacion",
+   "comp": "Meta que no cuadra",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.4,
+   "crit": false,
+   "case": "La Gerencia Comercial te asigna una meta trimestral 25% superior. Al revisar el pipeline de tu equipo, con la efectividad de cierre histórica no alcanza.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Acepto la meta y solicito recursos adicionales como un consultor más o presupuesto de demos para poder cumplirla.",
+     "s": 60
+    },
+    {
+     "t": "Presento el cálculo de cuánto pipeline falta y propongo qué acciones lo generarían, antes de aceptar o rechazar el número.",
+     "s": 100
+    },
+    {
+     "t": "Acepto la meta y armo un plan agresivo de prospección y desarrollo de cuentas para cubrir la diferencia.",
+     "s": 70
+    },
+    {
+     "t": "Planteo que la meta no es alcanzable con el equipo y la cartera actuales, y pido que se revise a la baja.",
+     "s": 40
+    },
+    {
+     "t": "Acepto la meta sin discutir y la reparto entre los consultores: al final las metas altas siempre empujan más.",
+     "s": 15
+    }
+   ],
+   "just": "Un gerente discute metas con números, no con opiniones. Aceptar y armar plan agresivo es responsable pero se salta la conversación. Rechazar sin propuesta se lee como falta de ambición. Aceptar callando es la salida cómoda que reaparece en el mes tres.",
+   "active": true
+  },
+  {
+   "id": "P03",
+   "dim": "planeacion",
+   "comp": "Traducción de objetivos a medidas",
+   "type": "ranking",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": false,
+   "case": "Vas a definir el trimestre con tu equipo.",
+   "q": "Ordena los pasos del primero al último.",
+   "opts": [
+    {
+     "t": "Definir el resultado concreto que se busca y cómo se va a medir",
+     "r": 1
+    },
+    {
+     "t": "Identificar las pocas actividades que más influyen en ese resultado",
+     "r": 2
+    },
+    {
+     "t": "Fijar el compromiso semanal de cada consultor sobre esas actividades",
+     "r": 3
+    },
+    {
+     "t": "Establecer el tablero y la cadencia de revisión de los avances",
+     "r": 4
+    }
+   ],
+   "just": "Del resultado a las medidas que lo anticipan, de ahí al compromiso individual y al final la cadencia. Empezar por el tablero es el error frecuente: se mide antes de decidir qué importa.",
+   "active": true
+  },
+  {
+   "id": "P04",
+   "dim": "planeacion",
+   "comp": "Ajuste a medio camino",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.3,
+   "crit": false,
+   "case": "Termina el segundo mes del trimestre. El área va al 55% de la meta y hay dos proyectos grandes que se recorrieron al trimestre siguiente.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Reviso qué queda alcanzable en el mes que falta, lo comprometo con cada consultor y aviso el faltante a Gerencia con tiempo.",
+     "s": 100
+    },
+    {
+     "t": "Concentro al equipo en cerrar todo lo que tenga fecha de decisión dentro del mes, aunque sean tickets chicos.",
+     "s": 70
+    },
+    {
+     "t": "Trabajo con la marca para conseguir condiciones especiales que permitan adelantar alguno de los dos proyectos grandes.",
+     "s": 75
+    },
+    {
+     "t": "Espero al cierre para reportar: en un mes pueden aparecer oportunidades que cambien el panorama por completo.",
+     "s": 10
+    },
+    {
+     "t": "Autorizo descuentos adicionales en las oportunidades abiertas para acelerar decisiones antes del cierre del trimestre.",
+     "s": 25
+    }
+   ],
+   "just": "Avisar tarde le quita a la empresa la posibilidad de reaccionar. Comprar el cierre con descuento salva el volumen y destruye el margen, que es otro de los indicadores del puesto.",
+   "active": true
+  },
+  {
+   "id": "P05",
+   "dim": "planeacion",
+   "comp": "Planeación del propio territorio",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.1,
+   "crit": false,
+   "q": "El puesto permite manejar una cartera propia de hasta tres cuentas clave. ¿Cómo la eliges?",
+   "opts": [
+    {
+     "t": "Las tres cuentas de mayor facturación del área, que son las que no puedo permitirme perder.",
+     "s": 60
+    },
+    {
+     "t": "Cuentas nuevas de alto potencial que todavía nadie del equipo ha logrado penetrar.",
+     "s": 80
+    },
+    {
+     "t": "Las cuentas de los consultores con menos experiencia, para protegerlas mientras ellos maduran.",
+     "s": 30
+    },
+    {
+     "t": "Prefiero no manejar cartera propia: mi función es que el equipo venda, no vender yo.",
+     "s": 45
+    },
+    {
+     "t": "Cuentas donde el acceso a dirección o la complejidad del proyecto requieren un interlocutor de mi nivel.",
+     "s": 100
+    }
+   ],
+   "just": "La cartera del gerente se justifica por el nivel de interlocución que exige, no por su tamaño. Quedarse con las cuentas de los junior suena protector y les impide crecer. No tener cartera es defendible pero desaprovecha lo que el puesto contempla.",
+   "active": true
+  },
+  {
+   "id": "O01",
+   "dim": "oportunidades",
+   "comp": "Criterio para intervenir",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.5,
+   "crit": false,
+   "case": "Revisas el pipeline del área: 60 oportunidades abiertas. Tu agenda permite involucrarte a fondo en unas seis.",
+   "q": "¿Cómo eliges en cuáles?",
+   "opts": [
+    {
+     "t": "Aquellas donde el consultor me pide apoyo explícitamente, porque él conoce mejor dónde está atorado.",
+     "s": 55
+    },
+    {
+     "t": "Las que llevan más tiempo detenidas, que son las que claramente necesitan un empujón distinto.",
+     "s": 40
+    },
+    {
+     "t": "Las de los clientes más importantes del área, independientemente del monto de la oportunidad puntual.",
+     "s": 50
+    },
+    {
+     "t": "Las que concentran el grueso del monto y además tienen algo que solo yo puedo destrabar: acceso, condiciones o respaldo de marca.",
+     "s": 100
+    },
+    {
+     "t": "Las de mayor monto del trimestre, que son las que definen si el área llega o no llega a la meta.",
+     "s": 70
+    }
+   ],
+   "just": "El criterio es monto por aporte diferencial. Ir solo por monto ignora si la presencia del gerente cambia algo. Esperar a que el consultor pida ayuda suena a respeto por su autonomía y deja fuera al que no sabe que la necesita.",
+   "active": true
+  },
+  {
+   "id": "O02",
+   "dim": "oportunidades",
+   "comp": "Papel en la reunión de cierre",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": false,
+   "case": "Acompañas a un consultor a la reunión decisiva con un cliente clave. Está el director de planta.",
+   "q": "¿Cómo distribuyes los papeles?",
+   "opts": [
+    {
+     "t": "Dejo que el consultor la lleve completa y solo intervengo si veo que la conversación se desvía.",
+     "s": 70
+    },
+    {
+     "t": "Acordamos antes qué dice cada uno y yo tomo la palabra en el momento de la negociación de condiciones.",
+     "s": 85
+    },
+    {
+     "t": "El consultor lleva la reunión y yo entro en el impacto de negocio y en lo que requiere mi autorización.",
+     "s": 100
+    },
+    {
+     "t": "Abro yo posicionando a ISEL y el consultor desarrolla la propuesta técnica y comercial que él construyó.",
+     "s": 75
+    },
+    {
+     "t": "Llevo yo la reunión: es el cierre de una cuenta clave y el cliente espera hablar con quien decide.",
+     "s": 30
+    }
+   ],
+   "just": "El gerente aporta nivel de interlocución y autoridad de decisión sin quitarle la cuenta al consultor. Llevar la reunión completa se justifica con la importancia del cliente y le dice al cliente con quién debe hablar de ahí en adelante.",
+   "active": true
+  },
+  {
+   "id": "O03",
+   "dim": "oportunidades",
+   "comp": "Oportunidad mal calificada",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.3,
+   "crit": false,
+   "case": "Un consultor te presenta una oportunidad de dos millones como probable para el trimestre. Al preguntar, no sabe quién autoriza la inversión ni si hay presupuesto.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "La reporto a Gerencia Comercial señalando que es la oportunidad que puede definir el trimestre del área.",
+     "s": 20
+    },
+    {
+     "t": "La saco del forecast hasta que traiga decisor y presupuesto, y acordamos cómo va a conseguir esos dos datos.",
+     "s": 100
+    },
+    {
+     "t": "La dejo en el forecast con probabilidad baja y le pido que consiga la información durante la semana.",
+     "s": 55
+    },
+    {
+     "t": "Voy con él a la cuenta para identificar juntos quién decide y en qué etapa está realmente el proyecto.",
+     "s": 85
+    },
+    {
+     "t": "La mantengo como está: el consultor conoce la cuenta y su lectura del cliente vale más que la ficha.",
+     "s": 15
+    }
+   ],
+   "just": "Sin decisor ni presupuesto no es oportunidad. Confiar en la lectura del consultor es como se inflan los pronósticos, y suena a respeto por su experiencia. Reportarla hacia arriba traslada el riesgo sin resolverlo.",
+   "active": true
+  },
+  {
+   "id": "O04",
+   "dim": "oportunidades",
+   "comp": "Competencia por una cuenta clave",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": false,
+   "case": "Un cliente importante te avisa que va a licitar su siguiente proyecto y que entran tres proveedores más.",
+   "q": "¿Cuál es tu primer movimiento?",
+   "opts": [
+    {
+     "t": "Busco entender qué van a valorar y quiénes participan en la decisión, antes de trabajar la propuesta.",
+     "s": 100
+    },
+    {
+     "t": "Involucro a la marca que patrocino para obtener respaldo, condiciones especiales y protección del proyecto.",
+     "s": 80
+    },
+    {
+     "t": "Reúno al consultor con ingeniería para armar la propuesta técnica más sólida posible desde el inicio.",
+     "s": 70
+    },
+    {
+     "t": "Pido a Gerencia Comercial autorización de un precio agresivo para no quedar fuera en la primera ronda.",
+     "s": 25
+    },
+    {
+     "t": "Refuerzo la relación visitando al cliente con el consultor para recordar todo lo que hemos hecho por ellos.",
+     "s": 45
+    }
+   ],
+   "just": "Antes de competir hay que saber contra qué criterio. Involucrar a la marca es un movimiento correcto del rol de sponsor y llega mejor después del diagnóstico. Pedir precio agresivo de entrada define la licitación por precio, que es donde menos conviene pelear.",
+   "active": true
+  },
+  {
+   "id": "O05",
+   "dim": "oportunidades",
+   "comp": "Concentración del pipeline",
+   "type": "multi",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "max": 4,
+   "q": "¿Qué señales te dicen que el pipeline del área no es confiable aunque el monto total se vea bien? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Una sola oportunidad concentra buena parte del monto del trimestre",
+     "p": 3
+    },
+    {
+     "t": "Hay oportunidades sin próximo paso agendado ni fecha de decisión",
+     "p": 3
+    },
+    {
+     "t": "Las fechas de cierre se han recorrido dos o más veces",
+     "p": 3
+    },
+    {
+     "t": "Varias oportunidades grandes están en la misma cuenta y con el mismo contacto",
+     "p": 2
+    },
+    {
+     "t": "El monto total creció pero la cantidad de oportunidades es la misma",
+     "p": 2
+    },
+    {
+     "t": "Hay más oportunidades pequeñas que el trimestre anterior",
+     "p": -1
+    },
+    {
+     "t": "El pipeline total supera varias veces la meta del trimestre",
+     "p": -2
+    }
+   ],
+   "just": "Concentración, falta de próximo paso y fechas que se recorren son las señales duras. Que el pipeline supere varias veces la meta se cita como fortaleza y suele ser síntoma de oportunidades que nadie depuró.",
+   "active": true
+  },
+  {
+   "id": "N01",
+   "dim": "negociacion",
+   "comp": "Uso de la autoridad de descuento",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.6,
+   "crit": true,
+   "case": "Un consultor te pide autorizar un descuento fuera de política para cerrar hoy. Dice que el cliente ya lo tiene decidido y solo falta ese punto.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Reviso el margen de la operación completa y autorizo solo si el resultado global sigue siendo aceptable.",
+     "s": 70
+    },
+    {
+     "t": "Lo autorizo: si el cliente ya decidió, perder el cierre por un punto sería el peor resultado posible.",
+     "s": 15
+    },
+    {
+     "t": "Lo escalo a Gerencia Comercial con el caso completo, que es quien puede autorizar fuera de política.",
+     "s": 60
+    },
+    {
+     "t": "Lo niego y acompaño al consultor a sostener el precio frente al cliente con los argumentos de valor.",
+     "s": 85
+    },
+    {
+     "t": "Pregunto qué se obtiene a cambio y qué se intentó antes de llegar al precio, y decido con eso.",
+     "s": 100
+    }
+   ],
+   "just": "Lo que se decide aquí no es un descuento: es qué aprende el equipo sobre cómo se cierra. Revisar el margen global es prudente y sigue sin preguntar qué se intentó. Autorizar porque el cliente ya decidió convierte la autoridad del gerente en el atajo de todos.",
+   "active": true
+  },
+  {
+   "id": "N02",
+   "dim": "negociacion",
+   "comp": "Presión del cliente sobre el gerente",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.4,
+   "crit": false,
+   "case": "Un cliente clave te llama directamente: quiere el mismo precio que le dio un competidor y te dice que a ti te lo pide porque sabe que tú sí puedes autorizarlo.",
+   "q": "¿Cómo respondes?",
+   "opts": [
+    {
+     "t": "Le ofrezco revisar el precio si consolida el resto de sus compras del año con nosotros.",
+     "s": 75
+    },
+    {
+     "t": "Le doy la condición que pide para cuidar la relación y después se lo informo al consultor.",
+     "s": 0
+    },
+    {
+     "t": "Le explico que los precios los maneja el consultor y le pido que lo trate directamente con él.",
+     "s": 35
+    },
+    {
+     "t": "Le digo que quiero ver qué incluye la otra propuesta y que le respondo hoy mismo con el consultor presente.",
+     "s": 100
+    },
+    {
+     "t": "Le explico que cualquier condición especial la revisamos con su consultor, y agendo los tres la conversación.",
+     "s": 85
+    }
+   ],
+   "just": "El cliente está probando si puede saltarse al consultor. Negociar por encima de él cierra la venta y le quita la cuenta para siempre. Mandarlo de vuelta sin más es correcto en la forma y desperdicia que el gerente ya está en la conversación.",
+   "active": true
+  },
+  {
+   "id": "N03",
+   "dim": "negociacion",
+   "comp": "Margen contra volumen",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": false,
+   "case": "Cierras el mes en meta de venta pero el margen del área quedó tres puntos abajo del objetivo.",
+   "q": "¿Cómo lo trabajas con el equipo?",
+   "opts": [
+    {
+     "t": "Lo dejo pasar este mes: se cumplió la venta y el margen se recupera con la mezcla de producto del siguiente.",
+     "s": 15
+    },
+    {
+     "t": "Reviso con Gerencia Comercial si la política de precios está fuera de mercado en las líneas donde más se cedió.",
+     "s": 55
+    },
+    {
+     "t": "Identifico en qué operaciones se fue el margen y reviso con cada consultor qué concedió y a cambio de qué.",
+     "s": 100
+    },
+    {
+     "t": "Refuerzo en la junta que el margen es parte de la meta y que a partir de ahora lo revisaremos cada semana.",
+     "s": 65
+    },
+    {
+     "t": "Endurezco mi criterio de autorización: los descuentos fuera de política se acaban hasta nuevo aviso.",
+     "s": 50
+    }
+   ],
+   "just": "El margen se pierde operación por operación, así que ahí se corrige. Endurecer la autorización trata el síntoma. Revisar la política de precios puede ser válido y también es la forma habitual de mover el problema al escritorio de otro.",
+   "active": true
+  },
+  {
+   "id": "N04",
+   "dim": "negociacion",
+   "comp": "Monedas de intercambio",
+   "type": "multi",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "max": 5,
+   "q": "Al cerrar un proyecto grande, ¿qué puedes intercambiar antes de tocar el precio? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Plazo de pago o pago anticipado",
+     "p": 3
+    },
+    {
+     "t": "Compromiso de consumo anual o exclusividad en una línea",
+     "p": 3
+    },
+    {
+     "t": "Ampliar el alcance a otras líneas o etapas del proyecto",
+     "p": 3
+    },
+    {
+     "t": "Programación de entregas por fases",
+     "p": 2
+    },
+    {
+     "t": "Capacitación, puesta en marcha o acompañamiento en sitio",
+     "p": 2
+    },
+    {
+     "t": "Respaldo y condiciones especiales de la marca patrocinada",
+     "p": 2
+    },
+    {
+     "t": "Un punto de descuento por firmar dentro del mes",
+     "p": -3
+    },
+    {
+     "t": "Comprometer una fecha de entrega antes de validarla con importaciones",
+     "p": -3
+    }
+   ],
+   "just": "El descuento por cerrar en el mes está escrito como intercambio, pero lo que se recibe no tiene valor para el cliente. Comprometer fechas sin validar es la concesión que más caro se paga en un negocio de importación.",
+   "active": true
+  },
+  {
+   "id": "C01",
+   "dim": "cuentas",
+   "comp": "Crecimiento de la cartera",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": false,
+   "case": "La cartera activa del área lleva un año estable: la misma facturación con los mismos clientes.",
+   "q": "¿Qué haces primero?",
+   "opts": [
+    {
+     "t": "Refuerzo la atención de los clientes actuales para asegurar que ninguno se pierda mientras buscamos crecer.",
+     "s": 25
+    },
+    {
+     "t": "Analizo qué participación tenemos dentro de cada cliente actual y dónde estamos dejando compra a otros proveedores.",
+     "s": 100
+    },
+    {
+     "t": "Pongo meta de apertura de cuentas nuevas por consultor y la incluyo en el compromiso semanal.",
+     "s": 85
+    },
+    {
+     "t": "Identifico con la marca qué plantas de la zona usan su tecnología y todavía no son clientes nuestros.",
+     "s": 80
+    },
+    {
+     "t": "Reviso qué clientes dejaron de comprar en los últimos dos años y armo un plan de reactivación.",
+     "s": 70
+    }
+   ],
+   "just": "La participación dentro de la cuenta actual suele ser el crecimiento más barato y el que nadie mira. Proteger lo que hay está redactado como prudencia y es lo que mantiene una cartera plana durante años.",
+   "active": true
+  },
+  {
+   "id": "C02",
+   "dim": "cuentas",
+   "comp": "Cuenta en riesgo",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "case": "Un cliente que representa el 15% de la venta del área redujo sus pedidos a la mitad en el último trimestre.",
+   "q": "¿Cuál es tu primer movimiento?",
+   "opts": [
+    {
+     "t": "Voy con el consultor a entender qué cambió en su operación o en su proceso de compra, antes de asumir nada.",
+     "s": 100
+    },
+    {
+     "t": "Reviso el histórico para ver qué líneas dejaron de comprar y con eso preparo la conversación con ellos.",
+     "s": 85
+    },
+    {
+     "t": "Le pido al consultor un informe de la situación de la cuenta antes de decidir si me involucro.",
+     "s": 50
+    },
+    {
+     "t": "Le ofrezco al cliente condiciones especiales para recuperar el volumen antes de que se consolide con otro proveedor.",
+     "s": 25
+    },
+    {
+     "t": "Lo escalo a Gerencia Comercial por el peso que tiene la cuenta en el número del área.",
+     "s": 35
+    }
+   ],
+   "just": "Primero entender, después actuar. Ofrecer condiciones antes de saber qué pasó puede estar resolviendo un problema que no era de precio y deja el margen comprometido para siempre.",
+   "active": true
+  },
+  {
+   "id": "C03",
+   "dim": "cuentas",
+   "comp": "Desarrollo multinivel",
+   "type": "multi",
+   "level": "avanzado",
+   "w": 1.2,
+   "crit": false,
+   "max": 4,
+   "q": "Quieres convertir un cliente que compra por refacción en una cuenta estratégica. ¿Qué es lo que realmente lo mueve? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Llegar a quien planea proyectos, no solo a quien compra consumibles",
+     "p": 3
+    },
+    {
+     "t": "Entender su plan de inversión y sus problemas de producción",
+     "p": 3
+    },
+    {
+     "t": "Que ISEL les resuelva algo que hoy nadie les está resolviendo",
+     "p": 3
+    },
+    {
+     "t": "Construir relación con más de un área dentro de la planta",
+     "p": 2
+    },
+    {
+     "t": "Involucrar a la marca en una visita o demostración en su proceso",
+     "p": 2
+    },
+    {
+     "t": "Mejorar las condiciones comerciales para ganar preferencia",
+     "p": -1
+    },
+    {
+     "t": "Aumentar la frecuencia de visitas del consultor a compras",
+     "p": -1
+    }
+   ],
+   "just": "Una cuenta se vuelve estratégica cuando se accede a quien decide inversiones y se resuelve algo que duele. Más visitas a compras y mejores condiciones son lo que se intenta primero y lo que mantiene la relación exactamente donde está.",
+   "active": true
+  },
+  {
+   "id": "M01",
+   "dim": "marca",
+   "comp": "Rol de sponsor",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": false,
+   "case": "Te asignan como sponsor de una marca cuya venta lleva dos trimestres estancada en tu sucursal.",
+   "q": "¿Por dónde empiezas?",
+   "opts": [
+    {
+     "t": "Detecto qué tanto la conocen mis consultores y programo la capacitación que haga falta con el proveedor.",
+     "s": 80
+    },
+    {
+     "t": "Armo el tablero de la marca con margen de seguridad y efectividad de cierre para ver dónde se está perdiendo.",
+     "s": 85
+    },
+    {
+     "t": "Coordino con el representante de la marca visitas conjuntas a las cuentas de mayor potencial.",
+     "s": 70
+    },
+    {
+     "t": "Lanzo una promoción interna con incentivo para que el equipo empuje esa marca durante el trimestre.",
+     "s": 35
+    },
+    {
+     "t": "Reviso qué aplicaciones de esa marca existen en las cuentas actuales del equipo y dónde no la estamos ofreciendo.",
+     "s": 100
+    }
+   ],
+   "just": "Primero saber dónde está la oportunidad desaprovechada. El incentivo interno mueve la aguja un trimestre y no cambia por qué no se vende. Es la salida más rápida y la que menos deja instalado.",
+   "active": true
+  },
+  {
+   "id": "M02",
+   "dim": "marca",
+   "comp": "Proyecto en riesgo",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "case": "Un proyecto registrado con tu marca está por perderse ante un competidor que ofrece una marca equivalente más barata.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Solicito a Gerencia Comercial autorización de precio especial para igualar la propuesta del competidor.",
+     "s": 40
+    },
+    {
+     "t": "Propongo al cliente la marca alterna de nuestro portafolio que sí compite en ese rango de precio.",
+     "s": 45
+    },
+    {
+     "t": "Refuerzo ante el cliente el servicio y el respaldo de ISEL, que es lo que el competidor no puede igualar.",
+     "s": 55
+    },
+    {
+     "t": "Convoco a la marca con el detalle del proyecto para gestionar respaldo técnico y condiciones de protección.",
+     "s": 100
+    },
+    {
+     "t": "Reviso con ingeniería si la propuesta del competidor cumple realmente con lo que el cliente necesita.",
+     "s": 85
+    }
+   ],
+   "just": "Para eso existe el registro de proyecto con la marca. Ofrecer la marca alterna es una salida legítima del portafolio y renuncia al proyecto que se estaba protegiendo, que es justo lo que el rol de sponsor debía evitar.",
+   "active": true
+  },
+  {
+   "id": "M03",
+   "dim": "marca",
+   "comp": "Conocimiento de marca en el equipo",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.1,
+   "crit": false,
+   "q": "¿Cómo sabes si tus consultores realmente dominan la marca que patrocinas?",
+   "opts": [
+    {
+     "t": "Por la cantidad de cotizaciones de esa marca que emiten cada mes en su cartera.",
+     "s": 55
+    },
+    {
+     "t": "Les pido una presentación de la marca ante el equipo para verificar que dominan el discurso.",
+     "s": 40
+    },
+    {
+     "t": "Por las aplicaciones que detectan en campo: si la reconocen en la planta del cliente, la entendieron.",
+     "s": 100
+    },
+    {
+     "t": "Por el avance en los programas de capacitación en línea y la asistencia a los cursos del proveedor.",
+     "s": 45
+    },
+    {
+     "t": "Por la calidad de las preguntas que me hacen cuando arman una propuesta con esa marca.",
+     "s": 85
+    }
+   ],
+   "just": "El conocimiento se demuestra reconociendo una aplicación, no repitiendo un discurso. Los cursos completados y las presentaciones internas son los indicadores más cómodos de medir y los que menos dicen.",
+   "active": true
+  },
+  {
+   "id": "D01",
+   "dim": "datos",
+   "comp": "Lectura del tablero",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.5,
+   "crit": true,
+   "case": "Abres el tablero del área un lunes. La venta del mes va bien, pero el margen de seguridad cayó a la mitad respecto al mes anterior.",
+   "q": "¿Qué significa y qué haces?",
+   "opts": [
+    {
+     "t": "Que el indicador puede estar distorsionado por las oportunidades grandes que se cerraron. Lo reviso el mes entrante.",
+     "s": 20
+    },
+    {
+     "t": "Que el mes entrante viene flojo: hay poco pipeline calificado. Pongo foco del equipo en generar oportunidades ahora.",
+     "s": 100
+    },
+    {
+     "t": "Que se está cerrando bien y vaciando el embudo. Reviso con cada consultor qué va a reponer y con qué cuentas.",
+     "s": 95
+    },
+    {
+     "t": "Que los consultores no están registrando sus oportunidades. Insisto en la actualización del CRM esta semana.",
+     "s": 45
+    },
+    {
+     "t": "Que bajó la generación de oportunidades. Lo comento en la junta y pido que todos aumenten prospección.",
+     "s": 65
+    }
+   ],
+   "just": "El margen de seguridad es predictivo: avisa del mes siguiente, no del actual. Las dos primeras leen la señal y actúan. Atribuirlo a falta de registro o esperar al mes entrante son las dos formas de llegar tarde.",
+   "active": true
+  },
+  {
+   "id": "D02",
+   "dim": "datos",
+   "comp": "Indicador contra realidad",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.3,
+   "crit": false,
+   "case": "Un consultor tiene excelente efectividad de cierre pero su venta está por debajo de meta.",
+   "q": "¿Qué lees ahí?",
+   "opts": [
+    {
+     "t": "Que cierra lo que trabaja pero trabaja poco: el problema está en generación de oportunidades, no en cierre.",
+     "s": 100
+    },
+    {
+     "t": "Que sus oportunidades son de monto bajo: cierra mucho pero de poco valor cada una.",
+     "s": 85
+    },
+    {
+     "t": "Que está calificando de más y solo mete al pipeline lo que ya tiene ganado.",
+     "s": 75
+    },
+    {
+     "t": "Que el indicador está bien y el problema es la meta, que quedó alta para su cartera.",
+     "s": 20
+    },
+    {
+     "t": "Que necesita apoyo para cerrar operaciones más grandes con acompañamiento mío.",
+     "s": 45
+    }
+   ],
+   "just": "Dos indicadores que se contradicen siempre señalan la etapa anterior. Las tres primeras son lecturas válidas y complementarias. Culpar a la meta es la conclusión que cierra la investigación antes de empezarla.",
+   "active": true
+  },
+  {
+   "id": "D03",
+   "dim": "datos",
+   "comp": "Datos para decidir",
+   "type": "multi",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "max": 5,
+   "q": "Vas a presentar a Dirección por qué el área no llegó al trimestre. ¿Qué llevas? Selecciona todo lo que aplique.",
+   "opts": [
+    {
+     "t": "Dónde se cayeron las oportunidades y contra quién o por qué",
+     "p": 3
+    },
+    {
+     "t": "Comparación entre pipeline proyectado y pipeline real generado",
+     "p": 3
+    },
+    {
+     "t": "Qué dependió de la operación y qué del mercado, separado",
+     "p": 3
+    },
+    {
+     "t": "Acciones correctivas concretas con responsable y fecha",
+     "p": 3
+    },
+    {
+     "t": "Efectividad de cierre y margen por consultor",
+     "p": 2
+    },
+    {
+     "t": "Comportamiento de la competencia en las cuentas perdidas",
+     "p": 1
+    },
+    {
+     "t": "Comparativo contra el mismo trimestre del año anterior",
+     "p": -1
+    },
+    {
+     "t": "Las razones por las que la meta era difícil desde el inicio",
+     "p": -2
+    }
+   ],
+   "just": "Se espera diagnóstico y corrección, no explicación. El comparativo anual da contexto y no decide nada. Argumentar que la meta era difícil desde el inicio es lo que más se dice en esas juntas y lo que más credibilidad cuesta.",
+   "active": true
+  },
+  {
+   "id": "D04",
+   "dim": "datos",
+   "comp": "Autopercepción de manejo de datos",
+   "type": "likert",
+   "level": "basico",
+   "w": 0.5,
+   "crit": false,
+   "q": "¿Qué tan cómodo te sientes construyendo y leyendo un tablero de indicadores para tomar decisiones semanales?",
+   "labs": [
+    "Muy incómodo",
+    "Muy cómodo"
+   ],
+   "just": "Autoevaluación de peso reducido; se contrasta con D01 y D02.",
+   "active": true
+  },
+  {
+   "id": "T01",
+   "dim": "tecnica",
+   "comp": "Límite del criterio propio",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": false,
+   "case": "Un consultor te consulta una aplicación: hay que detectar piezas metálicas pequeñas a alta velocidad en una línea con vibración y aceite.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Lo canalizo directo a ingeniería: por la velocidad y el ambiente conviene que lo dimensione un especialista.",
+     "s": 80
+    },
+    {
+     "t": "Le propongo un inductivo de la marca que patrocino y le pido validar la distancia de detección con la ficha técnica.",
+     "s": 55
+    },
+    {
+     "t": "Le pido que consiga fotos y video de la línea y lo revisamos juntos antes de involucrar a nadie más.",
+     "s": 75
+    },
+    {
+     "t": "Le sugiero cotizar dos opciones de distinta tecnología para que el cliente evalúe cuál le funciona mejor.",
+     "s": 25
+    },
+    {
+     "t": "Le digo qué datos faltan (distancia, tamaño, cadencia, montaje) y con eso decidimos si lo resolvemos o va a soporte.",
+     "s": 100
+    }
+   ],
+   "just": "El puesto pide resolver complejidad baja y media y reconocer el límite. Canalizar directo es prudente y desaprovecha el acompañamiento. Dejar que el cliente pruebe cuál funciona traslada el riesgo técnico a quien menos puede asumirlo.",
+   "active": true
+  },
+  {
+   "id": "T02",
+   "dim": "tecnica",
+   "comp": "Fundamentos aplicados",
+   "type": "technical",
+   "level": "basico",
+   "w": 1.2,
+   "crit": false,
+   "q": "Un cliente quiere reducir el consumo de una bomba centrífuga que hoy regula el flujo estrangulando con válvula. ¿Cuál es el argumento correcto?",
+   "opts": [
+    {
+     "t": "El arranque suave reduce la corriente de arranque y con ello la demanda máxima que le facturan",
+     "s": 40
+    },
+    {
+     "t": "El variador corrige el factor de potencia del motor y eso baja directamente el consumo facturado",
+     "s": 25
+    },
+    {
+     "t": "Permite operar el motor por debajo de su nominal, equivalente a instalar uno de menor capacidad",
+     "s": 20
+    },
+    {
+     "t": "Al regular por velocidad, la potencia cae aproximadamente con el cubo de la velocidad y el ahorro puede ser alto",
+     "s": 100
+    },
+    {
+     "t": "Se elimina la pérdida hidráulica de la válvula, que hoy se paga en energía sin producir trabajo útil",
+     "s": 85
+    }
+   ],
+   "just": "La ley de afinidad es el fundamento; la pérdida en la válvula es la misma idea por el lado hidráulico. Arranque suave y factor de potencia son beneficios reales que no explican el ahorro y se citan constantemente como si lo hicieran.",
+   "active": true
+  },
+  {
+   "id": "T03",
+   "dim": "tecnica",
+   "comp": "Criterio en seguridad de maquinaria",
+   "type": "technical",
+   "level": "medio",
+   "w": 1.2,
+   "crit": false,
+   "q": "Un consultor te reporta que el cliente quiere conectar el paro de emergencia a un contactor estándar para ahorrar. ¿Qué le indicas?",
+   "opts": [
+    {
+     "t": "Que lo documente como decisión del cliente y que él asuma por escrito la responsabilidad",
+     "s": 10
+    },
+    {
+     "t": "Que cotice ambas opciones y le explique al cliente el riesgo de la más económica",
+     "s": 30
+    },
+    {
+     "t": "Que no procede: la función exige el nivel de desempeño que arroje la evaluación de riesgo, con diagnóstico y componentes certificados",
+     "s": 100
+    },
+    {
+     "t": "Que primero hay que revisar la evaluación de riesgo de esa máquina y la categoría requerida antes de opinar",
+     "s": 85
+    },
+    {
+     "t": "Que se puede si se duplican contactores en serie, con lo que se obtiene la redundancia necesaria",
+     "s": 25
+    }
+   ],
+   "just": "En seguridad de maquinaria un gerente marca la línea. Duplicar contactores suena técnico y no cumple: redundancia sin diagnóstico no es categoría de seguridad. Cotizar ambas y advertir el riesgo parece respetar al cliente y traslada una decisión que no le corresponde tomar solo.",
+   "active": true
+  },
+  {
+   "id": "E01",
+   "dim": "etica",
+   "comp": "Presión de resultado sobre la integridad",
+   "type": "scenario",
+   "level": "avanzado",
+   "w": 1.5,
+   "crit": true,
+   "case": "Falta una semana para cerrar el trimestre y te faltan dos millones. Un consultor propone facturar anticipadamente un proyecto que el cliente aceptaría recibir el mes entrante.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Lo autorizo esta vez por el cierre de trimestre y dejo claro que no se vuelve a repetir.",
+     "s": 0,
+     "flag": true
+    },
+    {
+     "t": "No lo autorizo, explico al equipo por qué, y reporto el faltante real a Gerencia con el plan del trimestre siguiente.",
+     "s": 100
+    },
+    {
+     "t": "Lo consulto con Gerencia Comercial y administración antes de decidir: no es una decisión que deba tomar solo.",
+     "s": 70
+    },
+    {
+     "t": "Lo autorizo si el cliente firma de conformidad: si él acepta recibir, la operación es legítima.",
+     "s": 0,
+     "flag": true
+    },
+    {
+     "t": "Busco con el equipo qué otras oportunidades se pueden adelantar de forma legítima y acepto el faltante si no alcanza.",
+     "s": 95
+    }
+   ],
+   "just": "Adelantar facturación de algo no entregado altera el resultado del periodo, y un gerente que lo autoriza le enseña al equipo que la regla depende del mes. La conformidad del cliente no lo convierte en correcto, y esa es la racionalización más frecuente.",
+   "active": true
+  },
+  {
+   "id": "E02",
+   "dim": "etica",
+   "comp": "Conflicto de interés en el equipo",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.4,
+   "crit": true,
+   "case": "Te enteras de que un consultor recibe atenciones frecuentes de un proveedor cuya marca recomienda de forma sistemática a sus clientes.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Lo hablo con él, verifico si sus recomendaciones se sostienen técnicamente y lo reporto según la política de la empresa.",
+     "s": 100
+    },
+    {
+     "t": "Reviso primero sus últimas propuestas para ver si hay sesgo real antes de plantearle nada.",
+     "s": 80
+    },
+    {
+     "t": "Le recuerdo al equipo la política sobre atenciones de proveedores sin señalar a nadie en particular.",
+     "s": 35
+    },
+    {
+     "t": "Lo observo un tiempo más para reunir evidencia sólida antes de intervenir en algo tan delicado.",
+     "s": 30
+    },
+    {
+     "t": "Lo dejo pasar mientras el cliente quede satisfecho y la marca cumpla: al final todos ganan.",
+     "s": 0,
+     "flag": true
+    }
+   ],
+   "just": "Un gerente que tolera esto lo vuelve norma. El recordatorio general al equipo evita el conflicto y no resuelve nada. Esperar a reunir evidencia se argumenta como prudencia y suele ser la forma de no tener la conversación.",
+   "active": true
+  },
+  {
+   "id": "E03",
+   "dim": "etica",
+   "comp": "Información del competidor",
+   "type": "scenario",
+   "level": "medio",
+   "w": 1.3,
+   "crit": true,
+   "case": "Un consultor te muestra con orgullo la propuesta económica completa de un competidor, que le pasó un contacto del cliente pidiendo discreción.",
+   "q": "¿Qué haces?",
+   "opts": [
+    {
+     "t": "Le pido que la devuelva y le explico por qué la empresa no puede recibir información de ese tipo.",
+     "s": 95
+    },
+    {
+     "t": "La reviso para entender el alcance de lo que compite, pero le indico que la propuesta se arma con nuestros criterios.",
+     "s": 45
+    },
+    {
+     "t": "Lo felicito por el nivel de confianza que tiene con el cliente y le pido que la maneje con discreción.",
+     "s": 0,
+     "flag": true
+    },
+    {
+     "t": "La escalo a Gerencia Comercial para que ellos definan cómo aprovecharla en la estrategia de precio.",
+     "s": 20
+    },
+    {
+     "t": "Le indico que no la usemos para fijar precio y que trabajemos sobre lo que al cliente le falta de nuestra propuesta.",
+     "s": 100
+    }
+   ],
+   "just": "Lo que haga el gerente aquí define lo que el equipo va a hacer la próxima vez. Felicitarlo premia la práctica. Escalarla hacia arriba parece manejo institucional y lo único que hace es repartir el problema.",
+   "active": true
+  }
+ ],
+ "basic": [
+  {
+   "n": "Capacidad de mando y desarrollo de personas",
+   "min": 60,
+   "src": {
+    "type": "dim",
+    "dim": "liderazgo"
+   }
+  },
+  {
+   "n": "Disciplina de seguimiento y rendición de cuentas",
+   "min": 55,
+   "src": {
+    "type": "dim",
+    "dim": "rendicion"
+   }
+  },
+  {
+   "n": "Planeación de metas con sustento",
+   "min": 55,
+   "src": {
+    "type": "dim",
+    "dim": "planeacion"
+   }
+  },
+  {
+   "n": "Integridad y criterio profesional",
+   "min": 70,
+   "src": {
+    "type": "dim",
+    "dim": "etica"
+   }
+  },
+  {
+   "n": "Negociación y defensa de rentabilidad",
+   "min": 55,
+   "src": {
+    "type": "dim",
+    "dim": "negociacion"
+   }
+  },
+  {
+   "n": "Lectura de indicadores para decidir",
+   "min": 55,
+   "src": {
+    "type": "dim",
+    "dim": "datos"
+   }
+  },
+  {
+   "n": "Intervención oportuna en cierres importantes",
+   "min": 55,
+   "src": {
+    "type": "dim",
+    "dim": "oportunidades"
+   }
+  },
+  {
+   "n": "Base técnica para acompañar al equipo",
+   "min": 50,
+   "src": {
+    "type": "dim",
+    "dim": "tecnica"
+   }
+  },
+  {
+   "n": "Manejo de conversaciones difíciles con el equipo",
+   "min": 55,
+   "src": {
+    "type": "items",
+    "ids": [
+     "L03",
+     "L05",
+     "R04"
+    ],
+    "fallback": "liderazgo"
+   }
+  },
+  {
+   "n": "Disponibilidad operativa (campo, viajes, licencia)",
+   "min": 100,
+   "src": {
+    "type": "operativo"
+   }
+  }
+ ],
+ "ideal": [
+  {
+   "n": "Desarrollo sistemático de consultores",
+   "min": 80,
+   "src": {
+    "type": "dim",
+    "dim": "liderazgo"
+   }
+  },
+  {
+   "n": "Método instalado de rendición de cuentas",
+   "min": 78,
+   "src": {
+    "type": "dim",
+    "dim": "rendicion"
+   }
+  },
+  {
+   "n": "Planeación trimestral por consultor",
+   "min": 78,
+   "src": {
+    "type": "dim",
+    "dim": "planeacion"
+   }
+  },
+  {
+   "n": "Uso de indicadores predictivos",
+   "min": 78,
+   "src": {
+    "type": "dim",
+    "dim": "datos"
+   }
+  },
+  {
+   "n": "Apertura y desarrollo de cuentas clave",
+   "min": 75,
+   "src": {
+    "type": "dim",
+    "dim": "cuentas"
+   }
+  },
+  {
+   "n": "Gestión de marca con impacto en la venta",
+   "min": 72,
+   "src": {
+    "type": "dim",
+    "dim": "marca"
+   }
+  },
+  {
+   "n": "Protección de margen bajo presión",
+   "min": 78,
+   "src": {
+    "type": "dim",
+    "dim": "negociacion"
+   }
+  },
+  {
+   "n": "Criterio para entrar y salir de una oportunidad",
+   "min": 78,
+   "src": {
+    "type": "dim",
+    "dim": "oportunidades"
+   }
+  },
+  {
+   "n": "Profundidad técnica para dirigir la conversación",
+   "min": 72,
+   "src": {
+    "type": "dim",
+    "dim": "tecnica"
+   }
+  },
+  {
+   "n": "Coherencia entre lo que exige y lo que hace",
+   "min": 80,
+   "src": {
+    "type": "items",
+    "ids": [
+     "E01",
+     "E03",
+     "L07"
+    ],
+    "fallback": "etica"
+   }
+  }
+ ],
+ "plan": {
+  "d30": [
+   {
+    "t": "Inducción al portafolio, marcas representadas y estructura comercial de ISEL",
+    "dim": ""
+   },
+   {
+    "t": "Metodología 4DX: MCI, medidas predictivas, tablero y cadencia de rendición de cuentas",
+    "dim": "rendicion"
+   },
+   {
+    "t": "CRM, tableros de control e interpretación de los KPI de la operación",
+    "dim": "datos"
+   },
+   {
+    "t": "Revisión uno a uno con cada consultor: cartera, pipeline y situación real",
+    "dim": "liderazgo"
+   },
+   {
+    "t": "Acompañamiento en campo con cada consultor de su equipo",
+    "dim": ""
+   }
+  ],
+  "d60": [
+   {
+    "t": "Taller de coaching comercial y conversaciones de desempeño",
+    "dim": "liderazgo"
+   },
+   {
+    "t": "Construcción del plan trimestral por consultor con la Gerencia Comercial",
+    "dim": "planeacion"
+   },
+   {
+    "t": "Política comercial, niveles de autorización y defensa de margen",
+    "dim": "negociacion"
+   },
+   {
+    "t": "Rol de sponsor: la marca asignada, su tablero y su estrategia interna",
+    "dim": "marca"
+   },
+   {
+    "t": "Fundamentos técnicos de las líneas de mayor rotación",
+    "dim": "tecnica"
+   }
+  ],
+  "d90": [
+   {
+    "t": "Conducción autónoma del ritmo semanal de rendición de cuentas",
+    "dim": "rendicion"
+   },
+   {
+    "t": "Forecast del área y análisis mensual contra meta",
+    "dim": "datos"
+   },
+   {
+    "t": "Plan de desarrollo de cuentas clave con los consultores",
+    "dim": "cuentas"
+   },
+   {
+    "t": "Participación en negociaciones complejas con Gerencia Comercial",
+    "dim": "negociacion"
+   },
+   {
+    "t": "Presentación de resultados y OKR a la Dirección",
+    "dim": "planeacion"
+   }
+  ]
+ },
+ "consPairs": [
+  {
+   "self": "L06",
+   "beh": [
+    "L01",
+    "L03"
+   ],
+   "n": "Desarrollo del equipo"
+  },
+  {
+   "self": "R05",
+   "beh": [
+    "R01",
+    "R02"
+   ],
+   "n": "Disciplina de seguimiento"
+  },
+  {
+   "self": "D04",
+   "beh": [
+    "D01",
+    "D02"
+   ],
+   "n": "Uso de indicadores"
+  }
+ ],
+ "profiles": [
+  {
+   "code": "D",
+   "k": "Líder comercial con visión de negocio",
+   "when": [
+    {
+     "dim": "liderazgo",
+     "min": 80
+    },
+    {
+     "dim": "planeacion",
+     "min": 75
+    },
+    {
+     "dim": "datos",
+     "min": 75
+    },
+    {
+     "dim": "cuentas",
+     "min": 70
+    },
+    {
+     "dim": "index",
+     "min": 80
+    }
+   ],
+   "d": "Además de sostener el equipo, construye estrategia: lee el mercado, desarrolla cuentas clave y puede crecer hacia dirección comercial."
+  },
+  {
+   "code": "C",
+   "k": "Gerente de ventas consolidado",
+   "when": [
+    {
+     "dim": "liderazgo",
+     "min": 70
+    },
+    {
+     "dim": "rendicion",
+     "min": 68
+    },
+    {
+     "dim": "negociacion",
+     "min": 60
+    },
+    {
+     "dim": "index",
+     "min": 70
+    }
+   ],
+   "d": "Dirige el equipo con método, sostiene el ritmo de rendición de cuentas y negocia protegiendo rentabilidad."
+  },
+  {
+   "code": "B",
+   "k": "Gerente en formación",
+   "when": [
+    {
+     "dim": "index",
+     "min": 58
+    },
+    {
+     "dim": "liderazgo",
+     "min": 55
+    }
+   ],
+   "d": "Tiene bases de mando pero necesita método y acompañamiento para instalar disciplina de seguimiento en el equipo."
+  },
+  {
+   "code": "A",
+   "k": "Vendedor senior sin perfil de mando",
+   "when": [],
+   "warnLow": true,
+   "warnText": "El patrón de respuestas es el de un vendedor que resuelve por su cuenta, no el de alguien que desarrolla a otros. Explorar si ha tenido gente a cargo con meta propia y qué hizo cuando uno no cumplió.",
+   "d": "Buen desempeño individual probable, pero el patrón de decisiones indica que resolvería por el equipo en lugar de desarrollarlo. Considerarlo para una cuenta estratégica antes que para un mando."
+  }
+ ],
+ "trainability": [
+  {
+   "dim": "liderazgo",
+   "w": 0.25
+  },
+  {
+   "dim": "rendicion",
+   "w": 0.2
+  },
+  {
+   "dim": "datos",
+   "w": 0.15
+  },
+  {
+   "dim": "etica",
+   "w": 0.15
+  },
+  {
+   "dim": "planeacion",
+   "w": 0.15
+  },
+  {
+   "dim": "tecnica",
+   "w": 0.1
+  }
+ ],
+ "hardRules": [
+  {
+   "dim": "etica",
+   "below": 60,
+   "t": "Ética"
+  },
+  {
+   "dim": "liderazgo",
+   "below": 45,
+   "t": "Liderazgo"
+  },
+  {
+   "dim": "rendicion",
+   "below": 40,
+   "t": "Rendición de cuentas"
+  }
+ ],
+ "shuffleOptions": true
+};
+
+/* Catálogo de plantillas: base para crear la evaluación de otro puesto.
+   Cada una se crea como borrador editable y se publica cuando esté calibrada. */
+const TEMPLATES = [
+  {id:'vendedor', n:'Vendedor externo / Consultor de ventas', d:'47 reactivos · 10 dimensiones · venta consultiva industrial en campo.', make:()=>baseInstrument()},
+  {id:'gerente',  n:'Gerente de Ventas Matriz / Sucursal',   d:'42 reactivos · 10 dimensiones · dirección de equipo, rendición de cuentas y rentabilidad.', make:()=>clone(GERENTE_SEED)},
+  {id:'blanco',   n:'Evaluación en blanco',                   d:'Una dimensión y ningún reactivo. Para construir un puesto desde cero.', make:()=>blankInstrument()}
+];
+
+function fromTemplate(tid){
+  const t = TEMPLATES.find(x=>x.id===tid) || TEMPLATES[TEMPLATES.length-1];
+  const ins = migrateInstrument(t.make());
+  ins.id = uid('ins-');
+  ins.status = 'borrador';
+  ins.createdAt = ins.updatedAt = new Date().toISOString();
+  if(tid !== 'blanco'){
+    const m = (ins.version||'').match(/(.*?)(\d+)\.(\d+)$/);
+    ins.version = m ? `${m[1]}${m[2]}.${+m[3]+1}` : (ins.version||'V') + '-copia';
+  }
+  return ins;
+}
+
 function blankInstrument(){
   const t = new Date().toISOString();
   return {
@@ -2213,6 +4250,8 @@ function migrateInstrument(ins){
     if(ins.privacy.enabled === undefined) ins.privacy.enabled = true;
   }
   if(!Array.isArray(ins.consPairs)) ins.consPairs = [];
+  if(!Array.isArray(ins.profiles) || !ins.profiles.length) ins.profiles = clone(PROFILES_SEED);
+  if(!Array.isArray(ins.trainability) || !ins.trainability.length) ins.trainability = clone(TRAIN_SEED);
   if(!ins.plan) ins.plan = {d30:[],d60:[],d90:[]};
   if(!Array.isArray(ins.basic)) ins.basic = [];
   if(!Array.isArray(ins.ideal)) ins.ideal = [];
@@ -2330,15 +4369,21 @@ function runScoring(profile, answers, ins){
   const idealOk = IDEAL.filter(r=>r.st==='ok').length;
   const basicPct = BASIC.length ? basicOk/BASIC.length : 1;
 
-  const g = id => dims[id] ?? index;
-  let prof;
-  if(g('consultiva')>=78 && g('prospeccion')>=72 && g('pipeline')>=72 && g('comunicacion')>=75 && index>=78) prof='D';
-  else if(g('consultiva')>=68 && g('tecnica')>=58 && g('negociacion')>=58 && index>=66) prof='C';
-  else if(index>=56 && g('prospeccion')>=52 && g('consultiva')>=55) prof='B';
-  else prof='A';
+  const g = id => id==='index' ? index : (dims[id] ?? index);
 
-  const trainRaw = R(g('aprendizaje')*.30 + (perQ.A02 ?? g('aprendizaje'))*.15 + g('organizacion')*.15 +
-                     g('etica')*.15 + g('tecnica')*.10 + g('resultados')*.15);
+  /* Perfil: las reglas viven en el instrumento, no en el código, para que cada
+     puesto clasifique con sus propias dimensiones. Gana la primera que cumple. */
+  const profDefs = (I.profiles && I.profiles.length) ? I.profiles : PROFILES_SEED;
+  const profEntry = profDefs.find(pd => (pd.when||[]).every(c => g(c.dim) >= c.min)) || profDefs[profDefs.length-1];
+  const prof = profEntry.code;
+
+  const tw = (I.trainability && I.trainability.length) ? I.trainability : TRAIN_SEED;
+  let tacc = 0, tsum = 0;
+  tw.forEach(t=>{
+    const v = t.item ? (perQ[t.item] ?? g(t.fallback||t.dim)) : g(t.dim);
+    tacc += v * t.w; tsum += t.w;
+  });
+  const trainRaw = R(tsum ? tacc/tsum : index);
   const trainKey = trainRaw>=82?'Muy alto': trainRaw>=68?'Alto': trainRaw>=52?'Medio':'Bajo';
 
   const critFail = dimsDef.filter(d=>d.crit && dims[d.id] < d.min).length;
@@ -2362,7 +4407,7 @@ function runScoring(profile, answers, ins){
   if(flags.length) probes.push('Revisar directamente la respuesta de riesgo ético detectada ('+flags.map(f=>f.id).join(', ')+'): pedir que explique su razonamiento y qué haría hoy de forma distinta.');
   gaps.forEach(gp=>{ const d = dimsDef.find(x=>x.short===gp.t); if(d && d.probe) probes.push(d.probe); });
   if(cons.idx < 70) probes.push('El índice de consistencia es bajo: hay diferencia notable entre lo que el candidato declara de sí mismo y las decisiones que eligió. Contrastar con ejemplos concretos y verificables.');
-  if(prof==='A' && index>=60) probes.push('El perfil resulta competente pero transaccional. Explorar si ha trabajado alguna vez con objetivo de desarrollo de cuenta y no solo de atención de pedidos.');
+  if(profEntry.warnLow && index>=60) probes.push('El perfil resulta competente pero limitado. Explorar si ha trabajado alguna vez con objetivo de desarrollo de cuenta y no solo de atención de pedidos.');
   let gi = ranked.length-1;
   while(probes.length<3 && gi>=0){ const d=ranked[gi--]; if(d.probe && !probes.includes(d.probe)) probes.push(d.probe); }
 
@@ -2373,7 +4418,8 @@ function runScoring(profile, answers, ins){
   });
 
   return {dims, index, perQ, alerts, flags, BASIC, IDEAL, basicOk, idealOk,
-          prof, trainRaw, trainKey, risk, dec, strengths, gaps,
+          prof, profK: profEntry.k, profD: profEntry.d,
+          trainRaw, trainKey, risk, dec, strengths, gaps,
           probes: probes.slice(0,5), plan, consistency:cons};
 }
 
@@ -2920,7 +4966,7 @@ const S = {
   instruments:[], activeIns:null, draft:null, dirty:false, tab:'items',
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
-  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false,
+  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -3133,13 +5179,11 @@ function fourQuestions(rec){
   const gn = listEs(r.gaps.map(g=>g.t));
   const q3 = gn ? `Prioridad de capacitación: ${gn.toLowerCase()}, más el portafolio ISEL y el proceso comercial.`
                 : 'Solo portafolio ISEL, proceso comercial y CRM.';
-  const q4 = ({D:'Alto: reúne diagnóstico, generación de oportunidades y conversación multinivel.',
-               C:'Sólido: ya opera de forma consultiva; el siguiente paso es desarrollo estratégico de cuentas.',
-               B:'Medio: bases comerciales firmes, requiere desarrollar profundidad consultiva y técnica.',
-               A:'Limitado en el corto plazo: el patrón de respuestas es predominantemente transaccional.'})[r.prof]
+  const q4 = (r.profD || (PROFILES[r.prof]||{}).d || '')
              + ` Potencial de desarrollo ${r.trainKey.toLowerCase()}.`;
   const items = [['¿Puede desempeñar actualmente el puesto?',q1],['¿Qué tan preparado está?',q2],
-                 ['¿Qué necesitaríamos enseñarle?',q3],['¿Cuál es su potencial como consultor comercial?',q4]];
+                 ['¿Qué necesitaríamos enseñarle?',q3],
+                 ['¿Cuál es su potencial de crecimiento?', (r.profK? r.profK+'. ':'') + q4]];
   return `<div class="sect"><div class="sect-h"><h2>Lectura de la decisión</h2></div>
     <div class="panel"><div class="panel-b">
       <p style="font-size:16.5px;line-height:1.6;max-width:78ch;margin-bottom:18px">${narrative(rec)}</p>
@@ -3151,7 +5195,9 @@ function fourQuestions(rec){
 }
 
 function resultsBody(rec, forPrint){
-  const r = rec.result, lv = levelOf(r.index), dc = DECISIONS[r.dec], pf = PROFILES[r.prof];
+  const r = rec.result, lv = levelOf(r.index), dc = DECISIONS[r.dec];
+  const pf = {k: r.profK || (PROFILES[r.prof]||{}).k || r.prof,
+              d: r.profD || (PROFILES[r.prof]||{}).d || ''};
   const defs = rec.dimsDef || DIMS;
   const nAns = Object.keys(r.perQ).filter(k=>r.perQ[k]!==null).length;
   const alerts = r.alerts.length ? `<div class="alert ${r.alerts.some(a=>a.lvl==='crit')?'':'warn'}">
@@ -3323,7 +5369,7 @@ function viewAdmin(){
           return `<tr><td><input type="checkbox" data-sel="${r.id}" ${S.sel.includes(r.id)?'checked':''} aria-label="Seleccionar"></td>
           <td class="nmc">${esc(r.profile.nombre||'Sin nombre')}<div class="tiny">${esc(r.profile.ultimoPuesto||'')}</div></td>
           <td class="idx" style="color:${lv.c}">${r.result.index}</td><td>${pill(lv.k,lv.c)}</td>
-          <td>${PROFILES[r.result.prof].k}</td><td>${r.result.basicOk}/${r.result.BASIC.length}</td>
+          <td>${esc(r.result.profK || (PROFILES[r.result.prof]||{}).k || r.result.prof)}</td><td>${r.result.basicOk}/${r.result.BASIC.length}</td>
           <td>${r.result.idealOk}/${r.result.IDEAL.length}</td>
           <td style="color:${rc};font-weight:600">${r.result.risk}</td><td>${pill(dc.k,dc.c)}</td>
           <td class="tiny">${esc(r.version)}</td><td class="tiny">${fdate(r.createdAt)}</td>
@@ -3363,7 +5409,7 @@ function viewCompare(){
           `<span class="tiny"><span class="dot" style="background:${COLORS[i]}"></span>${esc(r.profile.nombre)}</span>`).join('')}</div></div></div>
       <div class="panel"><div class="panel-h"><h3>Lectura cualitativa</h3></div><div class="panel-b">
         ${cs.map((r,i)=>`<div style="padding:12px 0;border-bottom:1px solid var(--steel-200)">
-          <div style="font-weight:600"><span class="dot" style="background:${COLORS[i]}"></span>${esc(r.profile.nombre)} · ${PROFILES[r.result.prof].k}</div>
+          <div style="font-weight:600"><span class="dot" style="background:${COLORS[i]}"></span>${esc(r.profile.nombre)} · ${esc(r.result.profK || (PROFILES[r.result.prof]||{}).k || r.result.prof)}</div>
           <div class="tiny" style="margin-top:4px"><b>Fortalezas relativas:</b> ${r.result.strengths.map(s=>esc(s.t)).join(', ')||'—'}</div>
           <div class="tiny"><b>Riesgos relativos:</b> ${r.result.gaps.map(s=>esc(s.t)).join(', ')||'—'}</div></div>`).join('')}</div></div>
     </div>
@@ -3479,10 +5525,19 @@ function viewVersions(){
         </td></tr>`;
       }).join('')}</tbody></table></div></div>
     <div class="navrow">
-      <button class="btn" data-newins="blank">Crear evaluación para otro puesto</button>
+      <button class="btn" data-showtpl>${S.showTpl?'Ocultar plantillas':'Crear evaluación para otro puesto'}</button>
       <button class="btn btn-ghost" data-dupins="${S.activeIns}">Duplicar la evaluación en uso</button>
     </div>
-    <p class="note">Puestos previstos para versiones futuras: ingeniero de aplicaciones, ventas internas, gerente de ventas, ejecutivo de cuentas, ingeniero de servicio.</p>
+    ${S.showTpl?`<div class="panel" style="margin-top:16px"><div class="panel-h"><h3>Crear desde plantilla</h3></div>
+      <div class="panel-b">
+        <p class="mini" style="margin-bottom:14px">Se crea como borrador editable. Los puntajes de cada plantilla son una propuesta
+        inicial: conviene calibrarlos con quien conoce el puesto antes de publicarla.</p>
+        ${TEMPLATES.map(t=>`<div class="itemrow">
+          <span class="iq" style="cursor:default"><b>${esc(t.n)}</b><em>${esc(t.d)}</em></span>
+          <span class="iacts"><button class="btn btn-sm" data-newtpl="${t.id}">Crear</button></span></div>`).join('')}
+      </div></div>`:''}
+    <p class="note">Puestos pendientes de construir: vendedor interno, ingeniero de aplicaciones, ejecutivo de cuentas e ingeniero de servicio.
+    Se pueden partir de una plantilla existente o desde una evaluación en blanco.</p>
   </div>`;
 }
 
@@ -3821,7 +5876,7 @@ function viewItemEdit(){
 /* ============================================================
    MÓDULO 8 — CONEXIÓN, ACCESO E INVITACIONES
    ============================================================ */
-const SQL_SCHEMA = "-- ============================================================\n-- ISEL \u00b7 Evaluaci\u00f3n de competencias comerciales\n-- Esquema para Supabase / PostgreSQL\n-- Ejecutar completo en el SQL Editor del proyecto.\n-- ============================================================\n\n-- En Supabase pgcrypto ya viene instalado en el esquema \"extensions\", no en\n-- \"public\". Por eso todas las funciones llevan extensions en su search_path:\n-- sin eso, gen_random_bytes() no se encuentra y la funci\u00f3n falla.\ncreate extension if not exists pgcrypto;\n\n-- ------------------------------------------------------------\n-- 1. INSTRUMENTOS (versiones de la evaluaci\u00f3n)\n-- La definici\u00f3n completa vive en jsonb: dimensiones, reactivos,\n-- requisitos, plan y pares de consistencia. Se versiona entera\n-- para que un candidato evaluado con 1.0 conserve su contexto\n-- aunque 1.1 cambie los pesos.\n-- ------------------------------------------------------------\ncreate table if not exists isel_instruments (\n  id          text primary key,\n  name        text not null,\n  area        text,\n  version     text not null,\n  status      text not null default 'borrador'\n              check (status in ('borrador','publicada','archivada')),\n  notes       text,\n  definition  jsonb not null,\n  created_at  timestamptz not null default now(),\n  updated_at  timestamptz not null default now()\n);\ncreate index if not exists isel_instruments_status_idx on isel_instruments(status);\n\n-- ------------------------------------------------------------\n-- 2. CANDIDATOS\n-- profile guarda escolaridad, experiencia, disponibilidad, etc.\n-- La edad se captura pero nunca entra al c\u00e1lculo.\n-- ------------------------------------------------------------\ncreate table if not exists isel_candidates (\n  id          text primary key,\n  full_name   text not null,\n  email       text,\n  profile     jsonb not null default '{}'::jsonb,\n  created_at  timestamptz not null default now()\n);\ncreate index if not exists isel_candidates_name_idx on isel_candidates(lower(full_name));\n\n-- ------------------------------------------------------------\n-- 3. EVALUACIONES APLICADAS\n-- Una fila por aplicaci\u00f3n. invite_token permite que el candidato\n-- conteste desde su celular sin ver el panel; se anula al enviar.\n-- ------------------------------------------------------------\ncreate table if not exists isel_assessments (\n  id             text primary key,\n  candidate_id   text references isel_candidates(id) on delete cascade,\n  instrument_id  text references isel_instruments(id),\n  version        text,\n  invite_token   text unique,\n  status         text not null default 'pendiente'\n                 check (status in ('pendiente','en_progreso','completada','cancelada')),\n  consent        jsonb,\n  answers        jsonb,\n  dims_def       jsonb,\n  result         jsonb,\n  index_score    int,\n  decision       text,\n  profile_code   text,\n  risk           text,\n  consistency    int,\n  invited_at     timestamptz not null default now(),\n  started_at     timestamptz,\n  submitted_at   timestamptz\n);\n-- Se agrega aparte porque create table if not exists no modifica una tabla\n-- que ya existe. Es seguro volver a ejecutarlo.\nalter table isel_assessments add column if not exists consent jsonb;\n\n-- Procedencia del puntaje: el servidor recalcula y aqu\u00ed queda constancia\n-- de lo que report\u00f3 el navegador, para poder detectar manipulaci\u00f3n.\nalter table isel_assessments add column if not exists scored_by text;\nalter table isel_assessments add column if not exists client_index int;\nalter table isel_assessments add column if not exists score_mismatch boolean;\n\ncreate index if not exists isel_assessments_status_idx on isel_assessments(status);\ncreate index if not exists isel_assessments_cand_idx   on isel_assessments(candidate_id);\ncreate index if not exists isel_assessments_date_idx   on isel_assessments(submitted_at desc);\n\n-- ------------------------------------------------------------\n-- 4. RESPUESTAS INDIVIDUALES\n-- Normalizadas para poder hacer an\u00e1lisis de reactivos: qu\u00e9 tanto\n-- discrimina cada pregunta entre candidatos buenos y malos.\n-- Guardar la respuesta cruda permite recalcular el puntaje si\n-- despu\u00e9s se recalibra el instrumento.\n-- ------------------------------------------------------------\ncreate table if not exists isel_answers (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  item_id       text not null,\n  dimension_id  text,\n  item_type     text,\n  raw_answer    jsonb,\n  score         numeric,\n  primary key (assessment_id, item_id)\n);\ncreate index if not exists isel_answers_item_idx on isel_answers(item_id);\n\n-- ------------------------------------------------------------\n-- 5. PUNTAJES POR DIMENSI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_dimension_scores (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  dimension_id  text not null,\n  score         int,\n  weight        numeric,\n  minimum       int,\n  is_critical   boolean,\n  primary key (assessment_id, dimension_id)\n);\n\n-- ------------------------------------------------------------\n-- 6. BANDERAS CR\u00cdTICAS\n-- kind: 'respuesta_etica' (opci\u00f3n marcada como falta grave),\n--       'crit' (dimensi\u00f3n bajo umbral de corte),\n--       'warn' (competencia cr\u00edtica bajo el m\u00ednimo del puesto).\n-- ------------------------------------------------------------\ncreate table if not exists isel_critical_flags (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  kind          text not null,\n  item_id       text,\n  detail        text,\n  created_at    timestamptz not null default now()\n);\ncreate index if not exists isel_flags_assessment_idx on isel_critical_flags(assessment_id);\n\n-- ------------------------------------------------------------\n-- 7. RECOMENDACI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_recommendations (\n  assessment_id       text primary key references isel_assessments(id) on delete cascade,\n  decision            text,\n  level               text,\n  profile_code        text,\n  risk                text,\n  potential           text,\n  basic_met           int,\n  basic_total         int,\n  ideal_met           int,\n  ideal_total         int,\n  narrative           text,\n  interview_questions text[]\n);\n\n-- ------------------------------------------------------------\n-- 8. PLAN DE DESARROLLO\n-- ------------------------------------------------------------\ncreate table if not exists isel_development_plans (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  phase         text not null check (phase in ('d30','d60','d90')),\n  activity      text not null,\n  addresses_gap boolean not null default false\n);\ncreate index if not exists isel_plans_assessment_idx on isel_development_plans(assessment_id);\n\n-- ============================================================\n-- VISTAS\n-- ============================================================\n\n-- Reconstruye el registro que consume la aplicaci\u00f3n\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_records;\ncreate view isel_records with (security_invoker = true) as\nselect\n  a.id,\n  a.candidate_id                        as \"candidateId\",\n  coalesce(a.submitted_at, a.invited_at) as \"createdAt\",\n  coalesce(i.name, 'Puesto no especificado') as puesto,\n  a.version,\n  a.instrument_id                       as \"instrumentId\",\n  a.dims_def                            as \"dimsDef\",\n  c.profile,\n  a.consent,\n  a.answers,\n  a.result,\n  a.scored_by                        as \"scoredBy\",\n  a.client_index                     as \"clientIndex\",\n  coalesce(a.score_mismatch, false)  as \"scoreMismatch\",\n  r.narrative\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_instruments i on i.id = a.instrument_id\nleft join isel_recommendations r on r.assessment_id = a.id\nwhere a.status = 'completada';\n\n-- Tablero ejecutivo\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_candidate_overview;\ncreate view isel_candidate_overview with (security_invoker = true) as\nselect c.full_name, a.id as assessment_id, a.version, a.index_score, a.decision,\n       a.profile_code, a.risk, rec.basic_met, rec.basic_total, rec.ideal_met, rec.ideal_total,\n       (select count(*) from isel_critical_flags f where f.assessment_id = a.id and f.kind = 'respuesta_etica') as ethical_flags,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_recommendations rec on rec.assessment_id = a.id\nwhere a.status = 'completada'\norder by a.index_score desc nulls last;\n\n-- An\u00e1lisis de reactivos: qu\u00e9 tanto discrimina cada pregunta.\n-- Un reactivo con desviaci\u00f3n cercana a cero no separa candidatos\n-- y conviene revisarlo o retirarlo.\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_item_analysis;\ncreate view isel_item_analysis with (security_invoker = true) as\nselect ans.item_id, ans.dimension_id, ans.item_type,\n       count(*)                       as respuestas,\n       round(avg(ans.score), 1)       as puntaje_medio,\n       round(stddev_pop(ans.score), 1) as dispersion,\n       round(corr(ans.score, a.index_score::numeric)::numeric, 2) as correlacion_indice\nfrom isel_answers ans\njoin isel_assessments a on a.id = ans.assessment_id\nwhere a.status = 'completada' and ans.score is not null\ngroup by ans.item_id, ans.dimension_id, ans.item_type;\n\n-- ============================================================\n-- FUNCIONES\n-- ============================================================\n\n-- ============================================================\n-- MOTOR DE PUNTUACI\u00d3N EN EL SERVIDOR\n-- Calcula el resultado desde las respuestas crudas y la definici\u00f3n\n-- del instrumento. El jsonb 'result' que manda el navegador se\n-- ignora por completo; solo se conserva su \u00edndice para poder\n-- detectar manipulaci\u00f3n.\n-- ============================================================\n\n\n-- ---- puntaje de un reactivo ----\ncreate or replace function isel__score_item(it jsonb, ans jsonb)\nreturns numeric\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t       text := it->>'type';\n  n       int;\n  mx      int;\n  best    numeric := 0;\n  got     numeric := 0;\n  over    int;\n  disp    numeric := 0;\n  maxdisp numeric;\n  o       jsonb;\n  i       int;\nbegin\n  if ans is null or jsonb_typeof(ans) = 'null' then\n    return null;\n  end if;\n\n  if t = 'likert' then\n    return ((ans #>> '{}')::int - 1) * 25;\n  end if;\n\n  if t in ('scenario','technical') then\n    i := (ans #>> '{}')::int;\n    o := it->'opts'->i;\n    if o is null then return null; end if;\n    return (o->>'s')::numeric;\n  end if;\n\n  if t = 'multi' then\n    if jsonb_typeof(ans) <> 'array' then return null; end if;\n    mx := coalesce((it->>'max')::int, jsonb_array_length(it->'opts'));\n\n    select coalesce(sum(z.p), 0) into best\n    from (\n      select (e->>'p')::numeric as p\n      from jsonb_array_elements(it->'opts') e\n      where (e->>'p')::numeric > 0\n      order by (e->>'p')::numeric desc\n      limit mx\n    ) z;\n    if best = 0 then return null; end if;\n\n    select coalesce(sum(coalesce((it->'opts'->(v.val::int)->>'p')::numeric, 0)), 0) into got\n    from jsonb_array_elements_text(ans) as v(val);\n\n    over := greatest(0, jsonb_array_length(ans) - mx);\n    return greatest(0, least(100, round(got / best * 100) - over * 8));\n  end if;\n\n  if t = 'ranking' then\n    n := jsonb_array_length(it->'opts');\n    if n < 2 then return null; end if;\n\n    select coalesce(sum(abs(coalesce((it->'opts'->(v.val::int)->>'r')::numeric, v.ord) - v.ord)), 0)\n      into disp\n    from jsonb_array_elements_text(ans) with ordinality as v(val, ord);\n\n    maxdisp := floor(n * n / 2.0);\n    if maxdisp = 0 then return null; end if;\n    return greatest(0, least(100, round((1 - disp / maxdisp) * 100)));\n  end if;\n\n  return null;\nend\n$fn$;\n\n-- ---- valor de un requisito ----\ncreate or replace function isel__req_value(src jsonb, dims jsonb, perq jsonb, prof jsonb)\nreturns int\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t   text := src->>'type';\n  v   numeric;\n  cnt int;\nbegin\n  if t = 'operativo' then\n    return case\n      when coalesce(prof->>'licencia','') = 'S\u00ed'\n       and coalesce(prof->>'viajar','No') <> 'No'\n       and coalesce(prof->>'campo','No')  <> 'No'\n      then 100 else 0 end;\n  end if;\n\n  if t = 'dim' then\n    return coalesce((dims->>(src->>'dim'))::int, 0);\n  end if;\n\n  select count(*), coalesce(avg((perq->>x.val)::numeric), 0)\n    into cnt, v\n  from jsonb_array_elements_text(coalesce(src->'ids','[]'::jsonb)) as x(val)\n  where perq ? x.val and jsonb_typeof(perq->x.val) = 'number';\n\n  if cnt > 0 then return round(v)::int; end if;\n  return coalesce((dims->>(src->>'fallback'))::int, 0);\nend\n$fn$;\n\n-- ---- motor completo ----\ncreate or replace function isel_score(p_instrument jsonb, p_answers jsonb, p_profile jsonb)\nreturns jsonb\nlanguage plpgsql\nstable\nset search_path = public, extensions\nas $fn$\ndeclare\n  it         jsonb;\n  d          jsonb;\n  perq       jsonb := '{}'::jsonb;\n  dims       jsonb := '{}'::jsonb;\n  flags      jsonb := '[]'::jsonb;\n  alerts     jsonb := '[]'::jsonb;\n  basic      jsonb := '[]'::jsonb;\n  ideal      jsonb := '[]'::jsonb;\n  strengths  jsonb := '[]'::jsonb;\n  gaps       jsonb := '[]'::jsonb;\n  probes     jsonb := '[]'::jsonb;\n  plan       jsonb := '{}'::jsonb;\n  consdet    jsonb := '[]'::jsonb;\n  sc         numeric;\n  num        numeric;\n  den        numeric;\n  wsum       numeric := 0;\n  idx        numeric := 0;\n  dv         int;\n  o          jsonb;\n  ansv       jsonb;\n  row_       jsonb;\n  st         text;\n  basic_ok   int := 0;\n  ideal_ok   int := 0;\n  basic_tot  int := 0;\n  ideal_tot  int := 0;\n  prof_code  text;\n  train_raw  numeric;\n  train_key  text;\n  crit_fail  int := 0;\n  hard       boolean := false;\n  risk       text;\n  dec_       text;\n  cons_idx   int := 100;\n  cons_acc   numeric := 0;\n  cons_n     int := 0;\n  hard_dims  text[] := '{}';\n  pair       jsonb;\n  selfv      numeric;\n  behv       numeric;\n  behn       int;\n  g          jsonb;\n  ph         text;\n  line       jsonb;\n  arr        jsonb;\n  tmp        numeric;\nbegin\n  ---------------------------------------------------------------\n  -- 1. puntaje por reactivo\n  ---------------------------------------------------------------\n  for it in\n    select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n    where coalesce((e->>'active')::boolean, true)\n  loop\n    ansv := p_answers -> (it->>'id');\n    sc := isel__score_item(it, ansv);\n    perq := perq || jsonb_build_object(it->>'id', case when sc is null then 'null'::jsonb else to_jsonb(sc::int) end);\n\n    if it->>'type' in ('scenario','technical')\n       and ansv is not null and jsonb_typeof(ansv) = 'number' then\n      o := it->'opts'->((ansv #>> '{}')::int);\n      if o is not null and coalesce((o->>'flag')::boolean, false) then\n        flags := flags || jsonb_build_array(jsonb_build_object(\n          'id', it->>'id', 'dim', it->>'dim', 'txt', o->>'t'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 2. puntaje por dimensi\u00f3n e \u00edndice global\n  ---------------------------------------------------------------\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    num := 0; den := 0;\n    for it in\n      select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n      where coalesce((e->>'active')::boolean, true) and e->>'dim' = d->>'id'\n    loop\n      if jsonb_typeof(perq->(it->>'id')) = 'number' then\n        num := num + (perq->>(it->>'id'))::numeric * coalesce((it->>'w')::numeric, 1);\n        den := den + coalesce((it->>'w')::numeric, 1);\n      end if;\n    end loop;\n    dv := case when den > 0 then round(num/den)::int else 0 end;\n    dims := dims || jsonb_build_object(d->>'id', dv);\n    wsum := wsum + coalesce((d->>'w')::numeric, 0);\n    idx  := idx + dv * coalesce((d->>'w')::numeric, 0);\n  end loop;\n  if wsum = 0 then wsum := 1; end if;\n  idx := round(idx / wsum);\n\n  ---------------------------------------------------------------\n  -- 3. banderas y alertas\n  ---------------------------------------------------------------\n  if jsonb_array_length(flags) > 0 then\n    hard := true;\n    alerts := alerts || jsonb_build_array(jsonb_build_object(\n      'lvl','crit','t','Respuesta de riesgo \u00e9tico',\n      'd','El candidato eligi\u00f3 al menos una acci\u00f3n que compromete la integridad profesional ('\n          || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n          || '). Esta se\u00f1al se eval\u00faa por separado del promedio.'));\n  end if;\n\n  for row_ in\n    select * from jsonb_array_elements(\n      coalesce(p_instrument->'hardRules',\n        '[{\"dim\":\"etica\",\"below\":60,\"t\":\"\u00c9tica\"},\n          {\"dim\":\"comunicacion\",\"below\":50,\"t\":\"Comunicaci\u00f3n\"},\n          {\"dim\":\"consultiva\",\"below\":45,\"t\":\"Venta consultiva\"}]'::jsonb)) e\n  loop\n    if dims ? (row_->>'dim') and (dims->>(row_->>'dim'))::int < (row_->>'below')::int then\n      hard := true;\n      hard_dims := hard_dims || (row_->>'dim');\n      alerts := alerts || jsonb_build_array(jsonb_build_object(\n        'lvl','crit',\n        't', (row_->>'t') || ' por debajo del umbral de corte (' || (row_->>'below') || ')',\n        'd', 'Obtuvo ' || (dims->>(row_->>'dim')) ||\n             '. Es una competencia indispensable y no se compensa con el resto del perfil.'));\n    end if;\n  end loop;\n\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    if coalesce((d->>'crit')::boolean,false) and (dims->>(d->>'id'))::int < (d->>'min')::int then\n      crit_fail := crit_fail + 1;\n      if not (d->>'id' = any(hard_dims)) then\n        alerts := alerts || jsonb_build_array(jsonb_build_object(\n          'lvl','warn',\n          't', (d->>'short') || ' por debajo del m\u00ednimo del puesto (' || (d->>'min') || ')',\n          'd', 'Obtuvo ' || (dims->>(d->>'id')) ||\n               '. Competencia cr\u00edtica: requiere validaci\u00f3n espec\u00edfica en entrevista.'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 4. requisitos b\u00e1sicos e ideales\n  ---------------------------------------------------------------\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'basic','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when row_->'src'->>'type' = 'operativo' then 'no'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then basic_ok := basic_ok + 1; end if;\n    basic_tot := basic_tot + 1;\n    basic := basic || jsonb_build_array(row_ || jsonb_build_object(\n      'v', dv, 'st', st, 'bin', row_->'src'->>'type' = 'operativo'));\n  end loop;\n\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'ideal','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then ideal_ok := ideal_ok + 1; end if;\n    ideal_tot := ideal_tot + 1;\n    ideal := ideal || jsonb_build_array(row_ || jsonb_build_object('v', dv, 'st', st));\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 5. perfil, entrenabilidad, riesgo y decisi\u00f3n\n  ---------------------------------------------------------------\n  prof_code := case\n    when coalesce((dims->>'consultiva')::int, idx::int) >= 78\n     and coalesce((dims->>'prospeccion')::int, idx::int) >= 72\n     and coalesce((dims->>'pipeline')::int, idx::int) >= 72\n     and coalesce((dims->>'comunicacion')::int, idx::int) >= 75\n     and idx >= 78 then 'D'\n    when coalesce((dims->>'consultiva')::int, idx::int) >= 68\n     and coalesce((dims->>'tecnica')::int, idx::int) >= 58\n     and coalesce((dims->>'negociacion')::int, idx::int) >= 58\n     and idx >= 66 then 'C'\n    when idx >= 56\n     and coalesce((dims->>'prospeccion')::int, idx::int) >= 52\n     and coalesce((dims->>'consultiva')::int, idx::int) >= 55 then 'B'\n    else 'A' end;\n\n  train_raw := round(\n      coalesce((dims->>'aprendizaje')::numeric, idx) * 0.30\n    + coalesce(nullif(perq->>'A02','')::numeric, coalesce((dims->>'aprendizaje')::numeric, idx)) * 0.15\n    + coalesce((dims->>'organizacion')::numeric, idx) * 0.15\n    + coalesce((dims->>'etica')::numeric, idx) * 0.15\n    + coalesce((dims->>'tecnica')::numeric, idx) * 0.10\n    + coalesce((dims->>'resultados')::numeric, idx) * 0.15);\n  train_key := case when train_raw >= 82 then 'Muy alto'\n                    when train_raw >= 68 then 'Alto'\n                    when train_raw >= 52 then 'Medio'\n                    else 'Bajo' end;\n\n  risk := case when hard or crit_fail >= 3 then 'Alto'\n               when crit_fail >= 1 or idx < 60 then 'Moderado'\n               else 'Bajo' end;\n\n  ---------------------------------------------------------------\n  -- 6. consistencia\n  ---------------------------------------------------------------\n  for pair in select e from jsonb_array_elements(coalesce(p_instrument->'consPairs','[]'::jsonb)) e loop\n    if jsonb_typeof(perq->(pair->>'self')) = 'number' then\n      selfv := (perq->>(pair->>'self'))::numeric;\n      select count(*), avg((perq->>b.val)::numeric) into behn, behv\n      from jsonb_array_elements_text(coalesce(pair->'beh','[]'::jsonb)) as b(val)\n      where jsonb_typeof(perq->b.val) = 'number';\n      if behn > 0 then\n        cons_acc := cons_acc + abs(selfv - behv);\n        cons_n := cons_n + 1;\n        consdet := consdet || jsonb_build_array(jsonb_build_object(\n          'n', pair->>'n', 'self', round(selfv)::int,\n          'beh', round(behv)::int, 'gap', round(abs(selfv - behv))::int));\n      end if;\n    end if;\n  end loop;\n  if cons_n > 0 then\n    cons_idx := greatest(0, least(100, round(100 - (cons_acc / cons_n) * 1.1)::int));\n  end if;\n\n  ---------------------------------------------------------------\n  -- 7. decisi\u00f3n\n  ---------------------------------------------------------------\n  dec_ := case\n    when hard then 'NO'\n    when idx < 40 or crit_fail >= 3 then 'NO'\n    when crit_fail >= 1 or idx < 60\n      or (basic_tot > 0 and basic_ok::numeric / basic_tot < 0.8) then 'RES'\n    when idx >= 90\n      or (idx >= 82 and prof_code = 'D' and train_key in ('Alto','Muy alto')\n          and ideal_ok >= ceil(ideal_tot * 0.6)) then 'POT'\n    when idx >= 75 then 'ALTO'\n    else 'SI' end;\n\n  ---------------------------------------------------------------\n  -- 8. fortalezas, brechas, preguntas y plan\n  ---------------------------------------------------------------\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'strength',''))), '[]'::jsonb)\n    into strengths\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int >= 60\n    order by (dims->>(e->>'id'))::int desc\n    limit 3\n  ) z;\n\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'gap',''))), '[]'::jsonb)\n    into gaps\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int < 78\n    order by (dims->>(e->>'id'))::int asc\n    limit 3\n  ) z;\n\n  if jsonb_array_length(flags) > 0 then\n    probes := probes || jsonb_build_array(\n      'Revisar directamente la respuesta de riesgo \u00e9tico detectada ('\n      || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n      || '): pedir que explique su razonamiento y qu\u00e9 har\u00eda hoy de forma distinta.');\n  end if;\n\n  for g in select e from jsonb_array_elements(gaps) e loop\n    select e->>'probe' into st\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where e->>'short' = g->>'t' limit 1;\n    if st is not null and st <> '' and not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n\n  if cons_idx < 70 then\n    probes := probes || jsonb_build_array(\n      'El \u00edndice de consistencia es bajo: hay diferencia notable entre lo que el candidato declara de s\u00ed mismo y las decisiones que eligi\u00f3. Contrastar con ejemplos concretos y verificables.');\n  end if;\n  if prof_code = 'A' and idx >= 60 then\n    probes := probes || jsonb_build_array(\n      'El perfil resulta competente pero transaccional. Explorar si ha trabajado alguna vez con objetivo de desarrollo de cuenta y no solo de atenci\u00f3n de pedidos.');\n  end if;\n\n  for st in\n    select e->>'probe'\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where coalesce(e->>'probe','') <> ''\n    order by (dims->>(e->>'id'))::int asc\n  loop\n    exit when jsonb_array_length(probes) >= 3;\n    if not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n  probes := (select coalesce(jsonb_agg(v), '[]'::jsonb)\n             from (select value as v from jsonb_array_elements(probes) limit 5) z);\n\n  foreach ph in array array['d30','d60','d90'] loop\n    arr := '[]'::jsonb;\n    for line in select e from jsonb_array_elements(coalesce(p_instrument->'plan'->ph,'[]'::jsonb)) e loop\n      arr := arr || jsonb_build_array(jsonb_build_object(\n        't', line->>'t',\n        'g', coalesce(line->>'dim','') <> ''\n             and coalesce((dims->>(line->>'dim'))::int, 100) < 70));\n    end loop;\n    plan := plan || jsonb_build_object(ph, arr);\n  end loop;\n\n  ---------------------------------------------------------------\n  return jsonb_build_object(\n    'dims', dims, 'index', idx::int, 'perQ', perq,\n    'alerts', alerts, 'flags', flags,\n    'BASIC', basic, 'IDEAL', ideal,\n    'basicOk', basic_ok, 'idealOk', ideal_ok,\n    'prof', prof_code, 'trainRaw', train_raw::int, 'trainKey', train_key,\n    'risk', risk, 'dec', dec_,\n    'strengths', strengths, 'gaps', gaps, 'probes', probes, 'plan', plan,\n    'consistency', jsonb_build_object('idx', cons_idx, 'det', consdet)\n  );\nend\n$fn$;\n\n-- Descompone el registro que env\u00eda la aplicaci\u00f3n en las tablas\n-- normalizadas. Es interna: no se expone a anon ni a authenticated.\ncreate or replace function isel__persist(p jsonb)\nreturns text\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_assessment text := p->>'id';\n  v_candidate  text;\n  v_result     jsonb;\n  v_def        jsonb;\n  v_scored     text;\n  v_client     int  := nullif(p->'result'->>'index','')::int;\n  v_paso       text := 'inicio';\nbegin\n  -- El resultado se recalcula aqu\u00ed desde las respuestas crudas y la definici\u00f3n\n  -- del instrumento. Lo que manda el navegador solo se guarda para comparar.\n  v_paso := 'calculo';\n  select definition into v_def from isel_instruments where id = p->>'instrumentId';\n  if v_def is not null then\n    v_result := isel_score(v_def, coalesce(p->'answers','{}'::jsonb), coalesce(p->'profile','{}'::jsonb));\n    v_scored := 'servidor';\n  else\n    v_result := p->'result';\n    v_scored := 'cliente';\n  end if;\n  select candidate_id into v_candidate from isel_assessments where id = v_assessment;\n  if v_candidate is null then\n    v_candidate := coalesce(p->>'candidateId', 'K' || encode(gen_random_bytes(8), 'hex'));\n  end if;\n\n  v_paso := 'candidato';\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_candidate,\n          coalesce(nullif(p->'profile'->>'nombre',''), 'Sin nombre'),\n          p->'profile'->>'email',\n          coalesce(p->'profile', '{}'::jsonb))\n  on conflict (id) do update\n    set full_name = excluded.full_name,\n        email     = coalesce(excluded.email, isel_candidates.email),\n        profile   = excluded.profile;\n\n  v_paso := 'evaluacion';\n  insert into isel_assessments (id, candidate_id, instrument_id, version, status,\n                                consent, answers, dims_def, result, index_score, decision,\n                                profile_code, risk, consistency, submitted_at,\n                                scored_by, client_index, score_mismatch)\n  values (v_assessment, v_candidate, p->>'instrumentId', p->>'version', 'completada',\n          p->'consent', p->'answers', p->'dimsDef', v_result,\n          (v_result->>'index')::int, v_result->>'dec', v_result->>'prof', v_result->>'risk',\n          (v_result->'consistency'->>'idx')::int,\n          coalesce((p->>'createdAt')::timestamptz, now()),\n          v_scored, v_client,\n          v_scored = 'servidor' and v_client is distinct from (v_result->>'index')::int)\n  on conflict (id) do update\n    set consent      = excluded.consent,\n        answers      = excluded.answers,\n        dims_def     = excluded.dims_def,\n        result       = excluded.result,\n        index_score  = excluded.index_score,\n        decision     = excluded.decision,\n        profile_code = excluded.profile_code,\n        risk         = excluded.risk,\n        consistency  = excluded.consistency,\n        status       = 'completada',\n        invite_token = null,\n        submitted_at = excluded.submitted_at,\n        scored_by      = excluded.scored_by,\n        client_index   = excluded.client_index,\n        score_mismatch = excluded.score_mismatch;\n\n  v_paso := 'respuestas';\n  delete from isel_answers where assessment_id = v_assessment;\n  insert into isel_answers (assessment_id, item_id, dimension_id, item_type, raw_answer, score)\n  select v_assessment, kv.key, x.it->>'dim', x.it->>'type', kv.value,\n         nullif(v_result->'perQ'->>kv.key, '')::numeric\n  from jsonb_each(coalesce(p->'answers', '{}'::jsonb)) kv\n  left join lateral (\n    select item as it\n    from isel_instruments ins,\n         jsonb_array_elements(ins.definition->'items') item\n    where ins.id = p->>'instrumentId' and item->>'id' = kv.key\n    limit 1\n  ) x on true;\n\n  v_paso := 'dimensiones';\n  delete from isel_dimension_scores where assessment_id = v_assessment;\n  insert into isel_dimension_scores (assessment_id, dimension_id, score, weight, minimum, is_critical)\n  select v_assessment, d->>'id', (v_result->'dims'->>(d->>'id'))::int,\n         (d->>'w')::numeric, (d->>'min')::int, (d->>'crit')::boolean\n  from jsonb_array_elements(coalesce(p->'dimsDef', '[]'::jsonb)) d;\n\n  v_paso := 'banderas';\n  delete from isel_critical_flags where assessment_id = v_assessment;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, 'respuesta_etica', f->>'id', f->>'txt'\n  from jsonb_array_elements(coalesce(v_result->'flags', '[]'::jsonb)) f;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, a->>'lvl', null, (a->>'t') || ' \u2014 ' || (a->>'d')\n  from jsonb_array_elements(coalesce(v_result->'alerts', '[]'::jsonb)) a;\n\n  v_paso := 'recomendacion';\n  insert into isel_recommendations (assessment_id, decision, level, profile_code, risk, potential,\n                                    basic_met, basic_total, ideal_met, ideal_total,\n                                    narrative, interview_questions)\n  values (v_assessment, v_result->>'dec', p->>'level', v_result->>'prof', v_result->>'risk',\n          v_result->>'trainKey',\n          (v_result->>'basicOk')::int, jsonb_array_length(coalesce(v_result->'BASIC','[]'::jsonb)),\n          (v_result->>'idealOk')::int, jsonb_array_length(coalesce(v_result->'IDEAL','[]'::jsonb)),\n          case when v_scored = 'servidor' then null else p->>'narrative' end,\n          array(select jsonb_array_elements_text(coalesce(v_result->'probes','[]'::jsonb))))\n  on conflict (assessment_id) do update\n    set decision = excluded.decision, level = excluded.level, profile_code = excluded.profile_code,\n        risk = excluded.risk, potential = excluded.potential,\n        basic_met = excluded.basic_met, basic_total = excluded.basic_total,\n        ideal_met = excluded.ideal_met, ideal_total = excluded.ideal_total,\n        narrative = excluded.narrative, interview_questions = excluded.interview_questions;\n\n  v_paso := 'plan';\n  delete from isel_development_plans where assessment_id = v_assessment;\n  insert into isel_development_plans (assessment_id, phase, activity, addresses_gap)\n  select v_assessment, ph.key, it->>'t', coalesce((it->>'g')::boolean, false)\n  from jsonb_each(coalesce(v_result->'plan', '{}'::jsonb)) ph,\n       jsonb_array_elements(ph.value) it;\n\n  return v_assessment;\nexception when others then\n  -- Reporta en qu\u00e9 paso muri\u00f3 y el error original, en vez de un mensaje opaco\n  raise exception 'ISEL persist fall\u00f3 en el paso \"%\": % (SQLSTATE %)', v_paso, sqlerrm, sqlstate;\nend\n$fn$;\n\n-- Guardar un registro desde el panel (requiere sesi\u00f3n)\ncreate or replace function isel_save_record(p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  v_id := isel__persist(p);\n  return jsonb_build_object('ok', true, 'id', v_id);\nend\n$fn$;\n\n-- Crear una invitaci\u00f3n para que el candidato conteste por su cuenta\ncreate or replace function isel_create_invite(p_instrument text, p_name text, p_email text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_token text := encode(gen_random_bytes(12), 'hex');\n  v_cand  text := 'K' || encode(gen_random_bytes(8), 'hex');\n  v_ass   text := 'A' || encode(gen_random_bytes(8), 'hex');\n  v_ver   text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  select version into v_ver from isel_instruments where id = p_instrument;\n  if v_ver is null then\n    raise exception 'El instrumento indicado no existe';\n  end if;\n\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_cand, coalesce(nullif(p_name,''), 'Candidato por invitaci\u00f3n'), p_email,\n          jsonb_build_object('nombre', p_name, 'email', p_email));\n\n  insert into isel_assessments (id, candidate_id, instrument_id, version, invite_token, status)\n  values (v_ass, v_cand, p_instrument, v_ver, v_token, 'pendiente');\n\n  return jsonb_build_object('token', v_token, 'assessmentId', v_ass, 'candidateId', v_cand, 'version', v_ver);\nend\n$fn$;\n\n-- Lo \u00fanico que puede leer un candidato con su enlace:\n-- la definici\u00f3n del instrumento y su propio nombre.\n-- Nunca puntajes, criterios ni datos de otros candidatos.\ncreate or replace function isel_get_invite(p_token text)\nreturns jsonb\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nstable\nas $fn$\n  select jsonb_build_object(\n    'assessmentId', a.id,\n    'status',       a.status,\n    'version',      a.version,\n    'instrumentId', a.instrument_id,\n    'candidate',    jsonb_build_object('nombre', c.full_name, 'email', c.email),\n    'instrument',   i.definition)\n  from isel_assessments a\n  join isel_instruments i on i.id = a.instrument_id\n  left join isel_candidates c on c.id = a.candidate_id\n  where a.invite_token = p_token\n    and a.status in ('pendiente','en_progreso');\n$fn$;\n\ncreate or replace function isel_start_invite(p_token text)\nreturns void\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nas $fn$\n  update isel_assessments\n     set status = 'en_progreso', started_at = coalesce(started_at, now())\n   where invite_token = p_token and status = 'pendiente';\n$fn$;\n\n-- Env\u00edo del candidato. El token se anula: un enlace, un uso.\ncreate or replace function isel_submit_invite(p_token text, p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  select id into v_id\n    from isel_assessments\n   where invite_token = p_token and status in ('pendiente','en_progreso');\n  if v_id is null then\n    raise exception 'La invitaci\u00f3n no es v\u00e1lida o ya fue utilizada';\n  end if;\n  perform isel__persist(jsonb_set(p, '{id}', to_jsonb(v_id)));\n  return jsonb_build_object('ok', true);\nend\n$fn$;\n\n-- ============================================================\n-- VERIFICACI\u00d3N Y REC\u00c1LCULO\n-- ============================================================\n\n-- Compara lo que calcul\u00f3 el navegador contra lo que calcula el servidor.\n-- Una diferencia no prueba manipulaci\u00f3n: tambi\u00e9n aparece si el instrumento\n-- cambi\u00f3 despu\u00e9s de aplicar la evaluaci\u00f3n. Lo que manda es la columna\n-- indice_servidor, que es la que se guarda como resultado.\ncreate or replace view isel_score_audit with (security_invoker = true) as\nselect c.full_name                 as candidato,\n       a.id                        as evaluacion,\n       a.version,\n       a.scored_by                 as calculado_por,\n       a.client_index              as indice_cliente,\n       a.index_score               as indice_servidor,\n       coalesce(a.score_mismatch, false) as difiere,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nwhere a.status = 'completada'\norder by coalesce(a.score_mismatch, false) desc, a.submitted_at desc;\n\n-- Vuelve a puntuar una evaluaci\u00f3n desde sus respuestas guardadas.\ncreate or replace function isel_rescore(p_assessment text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  a      isel_assessments%rowtype;\n  v_def  jsonb;\n  v_prof jsonb;\n  v_res  jsonb;\n  v_pay  jsonb;\nbegin\n  -- Permite llamarla con sesi\u00f3n de usuario (desde la app) o como due\u00f1o de la\n  -- base (desde el editor SQL), pero no desde la API sin autenticar.\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  select * into a from isel_assessments where id = p_assessment;\n  if a.id is null then raise exception 'La evaluaci\u00f3n % no existe', p_assessment; end if;\n\n  select definition into v_def from isel_instruments where id = a.instrument_id;\n  if v_def is null then raise exception 'No se encontr\u00f3 el instrumento % de esa evaluaci\u00f3n', a.instrument_id; end if;\n\n  select profile into v_prof from isel_candidates where id = a.candidate_id;\n  v_res := isel_score(v_def, coalesce(a.answers,'{}'::jsonb), coalesce(v_prof,'{}'::jsonb));\n\n  v_pay := jsonb_build_object(\n    'id', a.id, 'candidateId', a.candidate_id, 'instrumentId', a.instrument_id,\n    'version', a.version, 'createdAt', coalesce(a.submitted_at, now()),\n    'profile', coalesce(v_prof,'{}'::jsonb), 'answers', coalesce(a.answers,'{}'::jsonb),\n    'consent', a.consent, 'dimsDef', a.dims_def, 'result', v_res);\n\n  perform isel__persist(v_pay);\n  return jsonb_build_object('id', a.id, 'index', (v_res->>'index')::int, 'decision', v_res->>'dec');\nend\n$fn$;\n\n-- Recalcula todas las evaluaciones completadas.\ncreate or replace function isel_rescore_all()\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  r     record;\n  n     int := 0;\n  fails int := 0;\n  err   text;\nbegin\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  for r in select id from isel_assessments where status = 'completada' order by submitted_at loop\n    begin\n      perform isel_rescore(r.id);\n      n := n + 1;\n    exception when others then\n      fails := fails + 1;\n      if err is null then err := sqlerrm; end if;\n    end;\n  end loop;\n  return jsonb_build_object('recalculadas', n, 'con_error', fails, 'primer_error', err);\nend\n$fn$;\n\ngrant execute on function isel_rescore(text)  to authenticated;\ngrant execute on function isel_rescore_all()  to authenticated;\ngrant select on isel_score_audit to authenticated;\nrevoke execute on function isel_score(jsonb, jsonb, jsonb) from anon;\nrevoke execute on function isel__score_item(jsonb, jsonb) from anon;\nrevoke execute on function isel__req_value(jsonb, jsonb, jsonb, jsonb) from anon;\n\n-- ============================================================\n-- SEGURIDAD\n-- Sin pol\u00edticas, RLS activo bloquea todo: anon no toca las tablas\n-- y solo puede ejecutar las tres funciones del flujo de invitaci\u00f3n.\n-- ============================================================\nalter table isel_instruments       enable row level security;\nalter table isel_candidates        enable row level security;\nalter table isel_assessments       enable row level security;\nalter table isel_answers           enable row level security;\nalter table isel_dimension_scores  enable row level security;\nalter table isel_critical_flags    enable row level security;\nalter table isel_recommendations   enable row level security;\nalter table isel_development_plans enable row level security;\n\ndo $policies$\ndeclare t text;\nbegin\n  foreach t in array array['isel_instruments','isel_candidates','isel_assessments','isel_answers',\n                           'isel_dimension_scores','isel_critical_flags','isel_recommendations',\n                           'isel_development_plans']\n  loop\n    execute format('drop policy if exists isel_rw_authenticated on %I', t);\n    execute format(\n      'create policy isel_rw_authenticated on %I for all to authenticated using (true) with check (true)', t);\n  end loop;\nend\n$policies$;\n\nrevoke execute on function isel__persist(jsonb) from public;\nrevoke execute on function isel__persist(jsonb) from anon;\n\ngrant execute on function isel_get_invite(text)            to anon, authenticated;\ngrant execute on function isel_start_invite(text)          to anon, authenticated;\ngrant execute on function isel_submit_invite(text, jsonb)  to anon, authenticated;\ngrant execute on function isel_save_record(jsonb)          to authenticated;\ngrant execute on function isel_create_invite(text,text,text) to authenticated;\n\ngrant select on isel_records, isel_candidate_overview, isel_item_analysis to authenticated;\n\n-- ============================================================\n-- NOTA SOBRE EL C\u00c1LCULO\n-- El puntaje se calcula hoy en el navegador. Un candidato con\n-- conocimientos t\u00e9cnicos podr\u00eda alterar el resultado que env\u00eda.\n-- La mitigaci\u00f3n est\u00e1 en isel_answers: las respuestas crudas se\n-- guardan tal cual, as\u00ed que el resultado siempre puede\n-- recalcularse desde el panel o desde una Edge Function.\n-- Si la evaluaci\u00f3n se usa para decisiones formales, conviene\n-- mover isel__persist para que recalcule el puntaje en el\n-- servidor a partir de definition->'items' e ignore el jsonb\n-- 'result' que manda el cliente.\n-- ============================================================\n";
+const SQL_SCHEMA = "-- ============================================================\n-- ISEL \u00b7 Evaluaci\u00f3n de competencias comerciales\n-- Esquema para Supabase / PostgreSQL\n-- Ejecutar completo en el SQL Editor del proyecto.\n-- ============================================================\n\n-- En Supabase pgcrypto ya viene instalado en el esquema \"extensions\", no en\n-- \"public\". Por eso todas las funciones llevan extensions en su search_path:\n-- sin eso, gen_random_bytes() no se encuentra y la funci\u00f3n falla.\ncreate extension if not exists pgcrypto;\n\n-- ------------------------------------------------------------\n-- 1. INSTRUMENTOS (versiones de la evaluaci\u00f3n)\n-- La definici\u00f3n completa vive en jsonb: dimensiones, reactivos,\n-- requisitos, plan y pares de consistencia. Se versiona entera\n-- para que un candidato evaluado con 1.0 conserve su contexto\n-- aunque 1.1 cambie los pesos.\n-- ------------------------------------------------------------\ncreate table if not exists isel_instruments (\n  id          text primary key,\n  name        text not null,\n  area        text,\n  version     text not null,\n  status      text not null default 'borrador'\n              check (status in ('borrador','publicada','archivada')),\n  notes       text,\n  definition  jsonb not null,\n  created_at  timestamptz not null default now(),\n  updated_at  timestamptz not null default now()\n);\ncreate index if not exists isel_instruments_status_idx on isel_instruments(status);\n\n-- ------------------------------------------------------------\n-- 2. CANDIDATOS\n-- profile guarda escolaridad, experiencia, disponibilidad, etc.\n-- La edad se captura pero nunca entra al c\u00e1lculo.\n-- ------------------------------------------------------------\ncreate table if not exists isel_candidates (\n  id          text primary key,\n  full_name   text not null,\n  email       text,\n  profile     jsonb not null default '{}'::jsonb,\n  created_at  timestamptz not null default now()\n);\ncreate index if not exists isel_candidates_name_idx on isel_candidates(lower(full_name));\n\n-- ------------------------------------------------------------\n-- 3. EVALUACIONES APLICADAS\n-- Una fila por aplicaci\u00f3n. invite_token permite que el candidato\n-- conteste desde su celular sin ver el panel; se anula al enviar.\n-- ------------------------------------------------------------\ncreate table if not exists isel_assessments (\n  id             text primary key,\n  candidate_id   text references isel_candidates(id) on delete cascade,\n  instrument_id  text references isel_instruments(id),\n  version        text,\n  invite_token   text unique,\n  status         text not null default 'pendiente'\n                 check (status in ('pendiente','en_progreso','completada','cancelada')),\n  consent        jsonb,\n  answers        jsonb,\n  dims_def       jsonb,\n  result         jsonb,\n  index_score    int,\n  decision       text,\n  profile_code   text,\n  risk           text,\n  consistency    int,\n  invited_at     timestamptz not null default now(),\n  started_at     timestamptz,\n  submitted_at   timestamptz\n);\n-- Se agrega aparte porque create table if not exists no modifica una tabla\n-- que ya existe. Es seguro volver a ejecutarlo.\nalter table isel_assessments add column if not exists consent jsonb;\n\n-- Procedencia del puntaje: el servidor recalcula y aqu\u00ed queda constancia\n-- de lo que report\u00f3 el navegador, para poder detectar manipulaci\u00f3n.\nalter table isel_assessments add column if not exists scored_by text;\nalter table isel_assessments add column if not exists client_index int;\nalter table isel_assessments add column if not exists score_mismatch boolean;\n\ncreate index if not exists isel_assessments_status_idx on isel_assessments(status);\ncreate index if not exists isel_assessments_cand_idx   on isel_assessments(candidate_id);\ncreate index if not exists isel_assessments_date_idx   on isel_assessments(submitted_at desc);\n\n-- ------------------------------------------------------------\n-- 4. RESPUESTAS INDIVIDUALES\n-- Normalizadas para poder hacer an\u00e1lisis de reactivos: qu\u00e9 tanto\n-- discrimina cada pregunta entre candidatos buenos y malos.\n-- Guardar la respuesta cruda permite recalcular el puntaje si\n-- despu\u00e9s se recalibra el instrumento.\n-- ------------------------------------------------------------\ncreate table if not exists isel_answers (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  item_id       text not null,\n  dimension_id  text,\n  item_type     text,\n  raw_answer    jsonb,\n  score         numeric,\n  primary key (assessment_id, item_id)\n);\ncreate index if not exists isel_answers_item_idx on isel_answers(item_id);\n\n-- ------------------------------------------------------------\n-- 5. PUNTAJES POR DIMENSI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_dimension_scores (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  dimension_id  text not null,\n  score         int,\n  weight        numeric,\n  minimum       int,\n  is_critical   boolean,\n  primary key (assessment_id, dimension_id)\n);\n\n-- ------------------------------------------------------------\n-- 6. BANDERAS CR\u00cdTICAS\n-- kind: 'respuesta_etica' (opci\u00f3n marcada como falta grave),\n--       'crit' (dimensi\u00f3n bajo umbral de corte),\n--       'warn' (competencia cr\u00edtica bajo el m\u00ednimo del puesto).\n-- ------------------------------------------------------------\ncreate table if not exists isel_critical_flags (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  kind          text not null,\n  item_id       text,\n  detail        text,\n  created_at    timestamptz not null default now()\n);\ncreate index if not exists isel_flags_assessment_idx on isel_critical_flags(assessment_id);\n\n-- ------------------------------------------------------------\n-- 7. RECOMENDACI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_recommendations (\n  assessment_id       text primary key references isel_assessments(id) on delete cascade,\n  decision            text,\n  level               text,\n  profile_code        text,\n  risk                text,\n  potential           text,\n  basic_met           int,\n  basic_total         int,\n  ideal_met           int,\n  ideal_total         int,\n  narrative           text,\n  interview_questions text[]\n);\n\n-- ------------------------------------------------------------\n-- 8. PLAN DE DESARROLLO\n-- ------------------------------------------------------------\ncreate table if not exists isel_development_plans (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  phase         text not null check (phase in ('d30','d60','d90')),\n  activity      text not null,\n  addresses_gap boolean not null default false\n);\ncreate index if not exists isel_plans_assessment_idx on isel_development_plans(assessment_id);\n\n-- ============================================================\n-- VISTAS\n-- ============================================================\n\n-- Reconstruye el registro que consume la aplicaci\u00f3n\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_records;\ncreate view isel_records with (security_invoker = true) as\nselect\n  a.id,\n  a.candidate_id                        as \"candidateId\",\n  coalesce(a.submitted_at, a.invited_at) as \"createdAt\",\n  coalesce(i.name, 'Puesto no especificado') as puesto,\n  a.version,\n  a.instrument_id                       as \"instrumentId\",\n  a.dims_def                            as \"dimsDef\",\n  c.profile,\n  a.consent,\n  a.answers,\n  a.result,\n  a.scored_by                        as \"scoredBy\",\n  a.client_index                     as \"clientIndex\",\n  coalesce(a.score_mismatch, false)  as \"scoreMismatch\",\n  r.narrative\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_instruments i on i.id = a.instrument_id\nleft join isel_recommendations r on r.assessment_id = a.id\nwhere a.status = 'completada';\n\n-- Tablero ejecutivo\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_candidate_overview;\ncreate view isel_candidate_overview with (security_invoker = true) as\nselect c.full_name, a.id as assessment_id, a.version, a.index_score, a.decision,\n       a.profile_code, a.risk, rec.basic_met, rec.basic_total, rec.ideal_met, rec.ideal_total,\n       (select count(*) from isel_critical_flags f where f.assessment_id = a.id and f.kind = 'respuesta_etica') as ethical_flags,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_recommendations rec on rec.assessment_id = a.id\nwhere a.status = 'completada'\norder by a.index_score desc nulls last;\n\n-- An\u00e1lisis de reactivos: qu\u00e9 tanto discrimina cada pregunta.\n-- Un reactivo con desviaci\u00f3n cercana a cero no separa candidatos\n-- y conviene revisarlo o retirarlo.\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_item_analysis;\ncreate view isel_item_analysis with (security_invoker = true) as\nselect ans.item_id, ans.dimension_id, ans.item_type,\n       count(*)                       as respuestas,\n       round(avg(ans.score), 1)       as puntaje_medio,\n       round(stddev_pop(ans.score), 1) as dispersion,\n       round(corr(ans.score, a.index_score::numeric)::numeric, 2) as correlacion_indice\nfrom isel_answers ans\njoin isel_assessments a on a.id = ans.assessment_id\nwhere a.status = 'completada' and ans.score is not null\ngroup by ans.item_id, ans.dimension_id, ans.item_type;\n\n-- ============================================================\n-- FUNCIONES\n-- ============================================================\n\n-- ============================================================\n-- MOTOR DE PUNTUACI\u00d3N EN EL SERVIDOR\n-- Calcula el resultado desde las respuestas crudas y la definici\u00f3n\n-- del instrumento. El jsonb 'result' que manda el navegador se\n-- ignora por completo; solo se conserva su \u00edndice para poder\n-- detectar manipulaci\u00f3n.\n-- ============================================================\n\n\n-- ---- puntaje de un reactivo ----\ncreate or replace function isel__score_item(it jsonb, ans jsonb)\nreturns numeric\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t       text := it->>'type';\n  n       int;\n  mx      int;\n  best    numeric := 0;\n  got     numeric := 0;\n  over    int;\n  disp    numeric := 0;\n  maxdisp numeric;\n  o       jsonb;\n  i       int;\nbegin\n  if ans is null or jsonb_typeof(ans) = 'null' then\n    return null;\n  end if;\n\n  if t = 'likert' then\n    return ((ans #>> '{}')::int - 1) * 25;\n  end if;\n\n  if t in ('scenario','technical') then\n    i := (ans #>> '{}')::int;\n    o := it->'opts'->i;\n    if o is null then return null; end if;\n    return (o->>'s')::numeric;\n  end if;\n\n  if t = 'multi' then\n    if jsonb_typeof(ans) <> 'array' then return null; end if;\n    mx := coalesce((it->>'max')::int, jsonb_array_length(it->'opts'));\n\n    select coalesce(sum(z.p), 0) into best\n    from (\n      select (e->>'p')::numeric as p\n      from jsonb_array_elements(it->'opts') e\n      where (e->>'p')::numeric > 0\n      order by (e->>'p')::numeric desc\n      limit mx\n    ) z;\n    if best = 0 then return null; end if;\n\n    select coalesce(sum(coalesce((it->'opts'->(v.val::int)->>'p')::numeric, 0)), 0) into got\n    from jsonb_array_elements_text(ans) as v(val);\n\n    over := greatest(0, jsonb_array_length(ans) - mx);\n    return greatest(0, least(100, round(got / best * 100) - over * 8));\n  end if;\n\n  if t = 'ranking' then\n    n := jsonb_array_length(it->'opts');\n    if n < 2 then return null; end if;\n\n    select coalesce(sum(abs(coalesce((it->'opts'->(v.val::int)->>'r')::numeric, v.ord) - v.ord)), 0)\n      into disp\n    from jsonb_array_elements_text(ans) with ordinality as v(val, ord);\n\n    maxdisp := floor(n * n / 2.0);\n    if maxdisp = 0 then return null; end if;\n    return greatest(0, least(100, round((1 - disp / maxdisp) * 100)));\n  end if;\n\n  return null;\nend\n$fn$;\n\n-- ---- valor de un requisito ----\ncreate or replace function isel__req_value(src jsonb, dims jsonb, perq jsonb, prof jsonb)\nreturns int\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t   text := src->>'type';\n  v   numeric;\n  cnt int;\nbegin\n  if t = 'operativo' then\n    return case\n      when coalesce(prof->>'licencia','') = 'S\u00ed'\n       and coalesce(prof->>'viajar','No') <> 'No'\n       and coalesce(prof->>'campo','No')  <> 'No'\n      then 100 else 0 end;\n  end if;\n\n  if t = 'dim' then\n    return coalesce((dims->>(src->>'dim'))::int, 0);\n  end if;\n\n  select count(*), coalesce(avg((perq->>x.val)::numeric), 0)\n    into cnt, v\n  from jsonb_array_elements_text(coalesce(src->'ids','[]'::jsonb)) as x(val)\n  where perq ? x.val and jsonb_typeof(perq->x.val) = 'number';\n\n  if cnt > 0 then return round(v)::int; end if;\n  return coalesce((dims->>(src->>'fallback'))::int, 0);\nend\n$fn$;\n\n-- ---- motor completo ----\ncreate or replace function isel_score(p_instrument jsonb, p_answers jsonb, p_profile jsonb)\nreturns jsonb\nlanguage plpgsql\nstable\nset search_path = public, extensions\nas $fn$\ndeclare\n  it         jsonb;\n  d          jsonb;\n  perq       jsonb := '{}'::jsonb;\n  dims       jsonb := '{}'::jsonb;\n  flags      jsonb := '[]'::jsonb;\n  alerts     jsonb := '[]'::jsonb;\n  basic      jsonb := '[]'::jsonb;\n  ideal      jsonb := '[]'::jsonb;\n  strengths  jsonb := '[]'::jsonb;\n  gaps       jsonb := '[]'::jsonb;\n  probes     jsonb := '[]'::jsonb;\n  plan       jsonb := '{}'::jsonb;\n  consdet    jsonb := '[]'::jsonb;\n  sc         numeric;\n  num        numeric;\n  den        numeric;\n  wsum       numeric := 0;\n  idx        numeric := 0;\n  dv         int;\n  o          jsonb;\n  ansv       jsonb;\n  row_       jsonb;\n  st         text;\n  basic_ok   int := 0;\n  ideal_ok   int := 0;\n  basic_tot  int := 0;\n  ideal_tot  int := 0;\n  prof_code  text;\n  train_raw  numeric;\n  train_key  text;\n  crit_fail  int := 0;\n  hard       boolean := false;\n  risk       text;\n  dec_       text;\n  cons_idx   int := 100;\n  cons_acc   numeric := 0;\n  cons_n     int := 0;\n  hard_dims  text[] := '{}';\n  pair       jsonb;\n  selfv      numeric;\n  behv       numeric;\n  behn       int;\n  g          jsonb;\n  prof_entry jsonb;\n  prof_last  jsonb;\n  ph         text;\n  line       jsonb;\n  arr        jsonb;\n  tmp        numeric;\nbegin\n  ---------------------------------------------------------------\n  -- 1. puntaje por reactivo\n  ---------------------------------------------------------------\n  for it in\n    select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n    where coalesce((e->>'active')::boolean, true)\n  loop\n    ansv := p_answers -> (it->>'id');\n    sc := isel__score_item(it, ansv);\n    perq := perq || jsonb_build_object(it->>'id', case when sc is null then 'null'::jsonb else to_jsonb(sc::int) end);\n\n    if it->>'type' in ('scenario','technical')\n       and ansv is not null and jsonb_typeof(ansv) = 'number' then\n      o := it->'opts'->((ansv #>> '{}')::int);\n      if o is not null and coalesce((o->>'flag')::boolean, false) then\n        flags := flags || jsonb_build_array(jsonb_build_object(\n          'id', it->>'id', 'dim', it->>'dim', 'txt', o->>'t'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 2. puntaje por dimensi\u00f3n e \u00edndice global\n  ---------------------------------------------------------------\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    num := 0; den := 0;\n    for it in\n      select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n      where coalesce((e->>'active')::boolean, true) and e->>'dim' = d->>'id'\n    loop\n      if jsonb_typeof(perq->(it->>'id')) = 'number' then\n        num := num + (perq->>(it->>'id'))::numeric * coalesce((it->>'w')::numeric, 1);\n        den := den + coalesce((it->>'w')::numeric, 1);\n      end if;\n    end loop;\n    dv := case when den > 0 then round(num/den)::int else 0 end;\n    dims := dims || jsonb_build_object(d->>'id', dv);\n    wsum := wsum + coalesce((d->>'w')::numeric, 0);\n    idx  := idx + dv * coalesce((d->>'w')::numeric, 0);\n  end loop;\n  if wsum = 0 then wsum := 1; end if;\n  idx := round(idx / wsum);\n\n  ---------------------------------------------------------------\n  -- 3. banderas y alertas\n  ---------------------------------------------------------------\n  if jsonb_array_length(flags) > 0 then\n    hard := true;\n    alerts := alerts || jsonb_build_array(jsonb_build_object(\n      'lvl','crit','t','Respuesta de riesgo \u00e9tico',\n      'd','El candidato eligi\u00f3 al menos una acci\u00f3n que compromete la integridad profesional ('\n          || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n          || '). Esta se\u00f1al se eval\u00faa por separado del promedio.'));\n  end if;\n\n  for row_ in\n    select * from jsonb_array_elements(\n      coalesce(p_instrument->'hardRules',\n        '[{\"dim\":\"etica\",\"below\":60,\"t\":\"\u00c9tica\"},\n          {\"dim\":\"comunicacion\",\"below\":50,\"t\":\"Comunicaci\u00f3n\"},\n          {\"dim\":\"consultiva\",\"below\":45,\"t\":\"Venta consultiva\"}]'::jsonb)) e\n  loop\n    if dims ? (row_->>'dim') and (dims->>(row_->>'dim'))::int < (row_->>'below')::int then\n      hard := true;\n      hard_dims := hard_dims || (row_->>'dim');\n      alerts := alerts || jsonb_build_array(jsonb_build_object(\n        'lvl','crit',\n        't', (row_->>'t') || ' por debajo del umbral de corte (' || (row_->>'below') || ')',\n        'd', 'Obtuvo ' || (dims->>(row_->>'dim')) ||\n             '. Es una competencia indispensable y no se compensa con el resto del perfil.'));\n    end if;\n  end loop;\n\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    if coalesce((d->>'crit')::boolean,false) and (dims->>(d->>'id'))::int < (d->>'min')::int then\n      crit_fail := crit_fail + 1;\n      if not (d->>'id' = any(hard_dims)) then\n        alerts := alerts || jsonb_build_array(jsonb_build_object(\n          'lvl','warn',\n          't', (d->>'short') || ' por debajo del m\u00ednimo del puesto (' || (d->>'min') || ')',\n          'd', 'Obtuvo ' || (dims->>(d->>'id')) ||\n               '. Competencia cr\u00edtica: requiere validaci\u00f3n espec\u00edfica en entrevista.'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 4. requisitos b\u00e1sicos e ideales\n  ---------------------------------------------------------------\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'basic','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when row_->'src'->>'type' = 'operativo' then 'no'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then basic_ok := basic_ok + 1; end if;\n    basic_tot := basic_tot + 1;\n    basic := basic || jsonb_build_array(row_ || jsonb_build_object(\n      'v', dv, 'st', st, 'bin', row_->'src'->>'type' = 'operativo'));\n  end loop;\n\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'ideal','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then ideal_ok := ideal_ok + 1; end if;\n    ideal_tot := ideal_tot + 1;\n    ideal := ideal || jsonb_build_array(row_ || jsonb_build_object('v', dv, 'st', st));\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 5. perfil, entrenabilidad, riesgo y decisi\u00f3n\n  ---------------------------------------------------------------\n  -- El perfil se clasifica con las reglas del instrumento, no con reglas fijas\n  -- del puesto de vendedor: gana la primera cuyas condiciones se cumplen todas.\n  prof_entry := null;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'profiles','[]'::jsonb),\n      '[{\"code\":\"D\",\"k\":\"Desarrollador estrat\u00e9gico de cuentas\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":78},{\"dim\":\"prospeccion\",\"min\":72},\n                 {\"dim\":\"pipeline\",\"min\":72},{\"dim\":\"comunicacion\",\"min\":75},{\"dim\":\"index\",\"min\":78}]},\n        {\"code\":\"C\",\"k\":\"Consultor comercial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":68},{\"dim\":\"tecnica\",\"min\":58},\n                 {\"dim\":\"negociacion\",\"min\":58},{\"dim\":\"index\",\"min\":66}]},\n        {\"code\":\"B\",\"k\":\"Vendedor industrial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"index\",\"min\":56},{\"dim\":\"prospeccion\",\"min\":52},{\"dim\":\"consultiva\",\"min\":55}]},\n        {\"code\":\"A\",\"k\":\"Comercial transaccional\",\"d\":\"\",\"when\":[]}]'::jsonb)) e\n  loop\n    if not exists (\n      select 1 from jsonb_array_elements(coalesce(row_->'when','[]'::jsonb)) c\n      where case when c->>'dim' = 'index' then idx\n                 else coalesce((dims->>(c->>'dim'))::numeric, idx) end < (c->>'min')::numeric)\n    then\n      prof_entry := row_;\n      exit;\n    end if;\n    prof_last := row_;\n  end loop;\n  if prof_entry is null then prof_entry := prof_last; end if;\n  prof_code := coalesce(prof_entry->>'code', 'A');\n\n  -- La entrenabilidad tambi\u00e9n se pondera con lo que declare el instrumento.\n  train_raw := 0; tmp := 0;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'trainability','[]'::jsonb),\n      '[{\"dim\":\"aprendizaje\",\"w\":0.30},{\"item\":\"A02\",\"fallback\":\"aprendizaje\",\"w\":0.15},\n        {\"dim\":\"organizacion\",\"w\":0.15},{\"dim\":\"etica\",\"w\":0.15},\n        {\"dim\":\"tecnica\",\"w\":0.10},{\"dim\":\"resultados\",\"w\":0.15}]'::jsonb)) e\n  loop\n    train_raw := train_raw + coalesce((row_->>'w')::numeric, 0) * (\n      case\n        when row_ ? 'item' and jsonb_typeof(perq->(row_->>'item')) = 'number'\n          then (perq->>(row_->>'item'))::numeric\n        else coalesce((dims->>coalesce(row_->>'dim', row_->>'fallback'))::numeric, idx)\n      end);\n    tmp := tmp + coalesce((row_->>'w')::numeric, 0);\n  end loop;\n  train_raw := round(case when tmp > 0 then train_raw / tmp else idx end);\n  train_key := case when train_raw >= 82 then 'Muy alto'\n                    when train_raw >= 68 then 'Alto'\n                    when train_raw >= 52 then 'Medio'\n                    else 'Bajo' end;\n\n  risk := case when hard or crit_fail >= 3 then 'Alto'\n               when crit_fail >= 1 or idx < 60 then 'Moderado'\n               else 'Bajo' end;\n\n  ---------------------------------------------------------------\n  -- 6. consistencia\n  ---------------------------------------------------------------\n  for pair in select e from jsonb_array_elements(coalesce(p_instrument->'consPairs','[]'::jsonb)) e loop\n    if jsonb_typeof(perq->(pair->>'self')) = 'number' then\n      selfv := (perq->>(pair->>'self'))::numeric;\n      select count(*), avg((perq->>b.val)::numeric) into behn, behv\n      from jsonb_array_elements_text(coalesce(pair->'beh','[]'::jsonb)) as b(val)\n      where jsonb_typeof(perq->b.val) = 'number';\n      if behn > 0 then\n        cons_acc := cons_acc + abs(selfv - behv);\n        cons_n := cons_n + 1;\n        consdet := consdet || jsonb_build_array(jsonb_build_object(\n          'n', pair->>'n', 'self', round(selfv)::int,\n          'beh', round(behv)::int, 'gap', round(abs(selfv - behv))::int));\n      end if;\n    end if;\n  end loop;\n  if cons_n > 0 then\n    cons_idx := greatest(0, least(100, round(100 - (cons_acc / cons_n) * 1.1)::int));\n  end if;\n\n  ---------------------------------------------------------------\n  -- 7. decisi\u00f3n\n  ---------------------------------------------------------------\n  dec_ := case\n    when hard then 'NO'\n    when idx < 40 or crit_fail >= 3 then 'NO'\n    when crit_fail >= 1 or idx < 60\n      or (basic_tot > 0 and basic_ok::numeric / basic_tot < 0.8) then 'RES'\n    when idx >= 90\n      or (idx >= 82 and prof_code = 'D' and train_key in ('Alto','Muy alto')\n          and ideal_ok >= ceil(ideal_tot * 0.6)) then 'POT'\n    when idx >= 75 then 'ALTO'\n    else 'SI' end;\n\n  ---------------------------------------------------------------\n  -- 8. fortalezas, brechas, preguntas y plan\n  ---------------------------------------------------------------\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'strength',''))), '[]'::jsonb)\n    into strengths\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int >= 60\n    order by (dims->>(e->>'id'))::int desc\n    limit 3\n  ) z;\n\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'gap',''))), '[]'::jsonb)\n    into gaps\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int < 78\n    order by (dims->>(e->>'id'))::int asc\n    limit 3\n  ) z;\n\n  if jsonb_array_length(flags) > 0 then\n    probes := probes || jsonb_build_array(\n      'Revisar directamente la respuesta de riesgo \u00e9tico detectada ('\n      || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n      || '): pedir que explique su razonamiento y qu\u00e9 har\u00eda hoy de forma distinta.');\n  end if;\n\n  for g in select e from jsonb_array_elements(gaps) e loop\n    select e->>'probe' into st\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where e->>'short' = g->>'t' limit 1;\n    if st is not null and st <> '' and not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n\n  if cons_idx < 70 then\n    probes := probes || jsonb_build_array(\n      'El \u00edndice de consistencia es bajo: hay diferencia notable entre lo que el candidato declara de s\u00ed mismo y las decisiones que eligi\u00f3. Contrastar con ejemplos concretos y verificables.');\n  end if;\n  if coalesce((prof_entry->>'warnLow')::boolean, false) and idx >= 60 then\n    probes := probes || jsonb_build_array(coalesce(nullif(prof_entry->>'warnText',''),\n      'El perfil resulta competente pero limitado para el alcance del puesto. Explorar con ejemplos concretos hasta d\u00f3nde ha llegado su responsabilidad real.'));\n  end if;\n\n  for st in\n    select e->>'probe'\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where coalesce(e->>'probe','') <> ''\n    order by (dims->>(e->>'id'))::int asc\n  loop\n    exit when jsonb_array_length(probes) >= 3;\n    if not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n  probes := (select coalesce(jsonb_agg(v), '[]'::jsonb)\n             from (select value as v from jsonb_array_elements(probes) limit 5) z);\n\n  foreach ph in array array['d30','d60','d90'] loop\n    arr := '[]'::jsonb;\n    for line in select e from jsonb_array_elements(coalesce(p_instrument->'plan'->ph,'[]'::jsonb)) e loop\n      arr := arr || jsonb_build_array(jsonb_build_object(\n        't', line->>'t',\n        'g', coalesce(line->>'dim','') <> ''\n             and coalesce((dims->>(line->>'dim'))::int, 100) < 70));\n    end loop;\n    plan := plan || jsonb_build_object(ph, arr);\n  end loop;\n\n  ---------------------------------------------------------------\n  return jsonb_build_object(\n    'dims', dims, 'index', idx::int, 'perQ', perq,\n    'alerts', alerts, 'flags', flags,\n    'BASIC', basic, 'IDEAL', ideal,\n    'basicOk', basic_ok, 'idealOk', ideal_ok,\n    'prof', prof_code,\n    'profK', coalesce(prof_entry->>'k', prof_code),\n    'profD', coalesce(prof_entry->>'d', ''),\n    'trainRaw', train_raw::int, 'trainKey', train_key,\n    'risk', risk, 'dec', dec_,\n    'strengths', strengths, 'gaps', gaps, 'probes', probes, 'plan', plan,\n    'consistency', jsonb_build_object('idx', cons_idx, 'det', consdet)\n  );\nend\n$fn$;\n\n-- Descompone el registro que env\u00eda la aplicaci\u00f3n en las tablas\n-- normalizadas. Es interna: no se expone a anon ni a authenticated.\ncreate or replace function isel__persist(p jsonb)\nreturns text\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_assessment text := p->>'id';\n  v_candidate  text;\n  v_result     jsonb;\n  v_def        jsonb;\n  v_scored     text;\n  v_client     int  := nullif(p->'result'->>'index','')::int;\n  v_paso       text := 'inicio';\nbegin\n  -- El resultado se recalcula aqu\u00ed desde las respuestas crudas y la definici\u00f3n\n  -- del instrumento. Lo que manda el navegador solo se guarda para comparar.\n  v_paso := 'calculo';\n  select definition into v_def from isel_instruments where id = p->>'instrumentId';\n  if v_def is not null then\n    v_result := isel_score(v_def, coalesce(p->'answers','{}'::jsonb), coalesce(p->'profile','{}'::jsonb));\n    v_scored := 'servidor';\n  else\n    v_result := p->'result';\n    v_scored := 'cliente';\n  end if;\n  select candidate_id into v_candidate from isel_assessments where id = v_assessment;\n  if v_candidate is null then\n    v_candidate := coalesce(p->>'candidateId', 'K' || encode(gen_random_bytes(8), 'hex'));\n  end if;\n\n  v_paso := 'candidato';\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_candidate,\n          coalesce(nullif(p->'profile'->>'nombre',''), 'Sin nombre'),\n          p->'profile'->>'email',\n          coalesce(p->'profile', '{}'::jsonb))\n  on conflict (id) do update\n    set full_name = excluded.full_name,\n        email     = coalesce(excluded.email, isel_candidates.email),\n        profile   = excluded.profile;\n\n  v_paso := 'evaluacion';\n  insert into isel_assessments (id, candidate_id, instrument_id, version, status,\n                                consent, answers, dims_def, result, index_score, decision,\n                                profile_code, risk, consistency, submitted_at,\n                                scored_by, client_index, score_mismatch)\n  values (v_assessment, v_candidate, p->>'instrumentId', p->>'version', 'completada',\n          p->'consent', p->'answers', p->'dimsDef', v_result,\n          (v_result->>'index')::int, v_result->>'dec', v_result->>'prof', v_result->>'risk',\n          (v_result->'consistency'->>'idx')::int,\n          coalesce((p->>'createdAt')::timestamptz, now()),\n          v_scored, v_client,\n          v_scored = 'servidor' and v_client is distinct from (v_result->>'index')::int)\n  on conflict (id) do update\n    set consent      = excluded.consent,\n        answers      = excluded.answers,\n        dims_def     = excluded.dims_def,\n        result       = excluded.result,\n        index_score  = excluded.index_score,\n        decision     = excluded.decision,\n        profile_code = excluded.profile_code,\n        risk         = excluded.risk,\n        consistency  = excluded.consistency,\n        status       = 'completada',\n        invite_token = null,\n        submitted_at = excluded.submitted_at,\n        scored_by      = excluded.scored_by,\n        client_index   = excluded.client_index,\n        score_mismatch = excluded.score_mismatch;\n\n  v_paso := 'respuestas';\n  delete from isel_answers where assessment_id = v_assessment;\n  insert into isel_answers (assessment_id, item_id, dimension_id, item_type, raw_answer, score)\n  select v_assessment, kv.key, x.it->>'dim', x.it->>'type', kv.value,\n         nullif(v_result->'perQ'->>kv.key, '')::numeric\n  from jsonb_each(coalesce(p->'answers', '{}'::jsonb)) kv\n  left join lateral (\n    select item as it\n    from isel_instruments ins,\n         jsonb_array_elements(ins.definition->'items') item\n    where ins.id = p->>'instrumentId' and item->>'id' = kv.key\n    limit 1\n  ) x on true;\n\n  v_paso := 'dimensiones';\n  delete from isel_dimension_scores where assessment_id = v_assessment;\n  insert into isel_dimension_scores (assessment_id, dimension_id, score, weight, minimum, is_critical)\n  select v_assessment, d->>'id', (v_result->'dims'->>(d->>'id'))::int,\n         (d->>'w')::numeric, (d->>'min')::int, (d->>'crit')::boolean\n  from jsonb_array_elements(coalesce(p->'dimsDef', '[]'::jsonb)) d;\n\n  v_paso := 'banderas';\n  delete from isel_critical_flags where assessment_id = v_assessment;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, 'respuesta_etica', f->>'id', f->>'txt'\n  from jsonb_array_elements(coalesce(v_result->'flags', '[]'::jsonb)) f;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, a->>'lvl', null, (a->>'t') || ' \u2014 ' || (a->>'d')\n  from jsonb_array_elements(coalesce(v_result->'alerts', '[]'::jsonb)) a;\n\n  v_paso := 'recomendacion';\n  insert into isel_recommendations (assessment_id, decision, level, profile_code, risk, potential,\n                                    basic_met, basic_total, ideal_met, ideal_total,\n                                    narrative, interview_questions)\n  values (v_assessment, v_result->>'dec', p->>'level', v_result->>'prof', v_result->>'risk',\n          v_result->>'trainKey',\n          (v_result->>'basicOk')::int, jsonb_array_length(coalesce(v_result->'BASIC','[]'::jsonb)),\n          (v_result->>'idealOk')::int, jsonb_array_length(coalesce(v_result->'IDEAL','[]'::jsonb)),\n          case when v_scored = 'servidor' then null else p->>'narrative' end,\n          array(select jsonb_array_elements_text(coalesce(v_result->'probes','[]'::jsonb))))\n  on conflict (assessment_id) do update\n    set decision = excluded.decision, level = excluded.level, profile_code = excluded.profile_code,\n        risk = excluded.risk, potential = excluded.potential,\n        basic_met = excluded.basic_met, basic_total = excluded.basic_total,\n        ideal_met = excluded.ideal_met, ideal_total = excluded.ideal_total,\n        narrative = excluded.narrative, interview_questions = excluded.interview_questions;\n\n  v_paso := 'plan';\n  delete from isel_development_plans where assessment_id = v_assessment;\n  insert into isel_development_plans (assessment_id, phase, activity, addresses_gap)\n  select v_assessment, ph.key, it->>'t', coalesce((it->>'g')::boolean, false)\n  from jsonb_each(coalesce(v_result->'plan', '{}'::jsonb)) ph,\n       jsonb_array_elements(ph.value) it;\n\n  return v_assessment;\nexception when others then\n  -- Reporta en qu\u00e9 paso muri\u00f3 y el error original, en vez de un mensaje opaco\n  raise exception 'ISEL persist fall\u00f3 en el paso \"%\": % (SQLSTATE %)', v_paso, sqlerrm, sqlstate;\nend\n$fn$;\n\n-- Guardar un registro desde el panel (requiere sesi\u00f3n)\ncreate or replace function isel_save_record(p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  v_id := isel__persist(p);\n  return jsonb_build_object('ok', true, 'id', v_id);\nend\n$fn$;\n\n-- Crear una invitaci\u00f3n para que el candidato conteste por su cuenta\ncreate or replace function isel_create_invite(p_instrument text, p_name text, p_email text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_token text := encode(gen_random_bytes(12), 'hex');\n  v_cand  text := 'K' || encode(gen_random_bytes(8), 'hex');\n  v_ass   text := 'A' || encode(gen_random_bytes(8), 'hex');\n  v_ver   text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  select version into v_ver from isel_instruments where id = p_instrument;\n  if v_ver is null then\n    raise exception 'El instrumento indicado no existe';\n  end if;\n\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_cand, coalesce(nullif(p_name,''), 'Candidato por invitaci\u00f3n'), p_email,\n          jsonb_build_object('nombre', p_name, 'email', p_email));\n\n  insert into isel_assessments (id, candidate_id, instrument_id, version, invite_token, status)\n  values (v_ass, v_cand, p_instrument, v_ver, v_token, 'pendiente');\n\n  return jsonb_build_object('token', v_token, 'assessmentId', v_ass, 'candidateId', v_cand, 'version', v_ver);\nend\n$fn$;\n\n-- Lo \u00fanico que puede leer un candidato con su enlace:\n-- la definici\u00f3n del instrumento y su propio nombre.\n-- Nunca puntajes, criterios ni datos de otros candidatos.\ncreate or replace function isel_get_invite(p_token text)\nreturns jsonb\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nstable\nas $fn$\n  select jsonb_build_object(\n    'assessmentId', a.id,\n    'status',       a.status,\n    'version',      a.version,\n    'instrumentId', a.instrument_id,\n    'candidate',    jsonb_build_object('nombre', c.full_name, 'email', c.email),\n    'instrument',   i.definition)\n  from isel_assessments a\n  join isel_instruments i on i.id = a.instrument_id\n  left join isel_candidates c on c.id = a.candidate_id\n  where a.invite_token = p_token\n    and a.status in ('pendiente','en_progreso');\n$fn$;\n\ncreate or replace function isel_start_invite(p_token text)\nreturns void\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nas $fn$\n  update isel_assessments\n     set status = 'en_progreso', started_at = coalesce(started_at, now())\n   where invite_token = p_token and status = 'pendiente';\n$fn$;\n\n-- Env\u00edo del candidato. El token se anula: un enlace, un uso.\ncreate or replace function isel_submit_invite(p_token text, p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  select id into v_id\n    from isel_assessments\n   where invite_token = p_token and status in ('pendiente','en_progreso');\n  if v_id is null then\n    raise exception 'La invitaci\u00f3n no es v\u00e1lida o ya fue utilizada';\n  end if;\n  perform isel__persist(jsonb_set(p, '{id}', to_jsonb(v_id)));\n  return jsonb_build_object('ok', true);\nend\n$fn$;\n\n-- ============================================================\n-- VERIFICACI\u00d3N Y REC\u00c1LCULO\n-- ============================================================\n\n-- Compara lo que calcul\u00f3 el navegador contra lo que calcula el servidor.\n-- Una diferencia no prueba manipulaci\u00f3n: tambi\u00e9n aparece si el instrumento\n-- cambi\u00f3 despu\u00e9s de aplicar la evaluaci\u00f3n. Lo que manda es la columna\n-- indice_servidor, que es la que se guarda como resultado.\ncreate or replace view isel_score_audit with (security_invoker = true) as\nselect c.full_name                 as candidato,\n       a.id                        as evaluacion,\n       a.version,\n       a.scored_by                 as calculado_por,\n       a.client_index              as indice_cliente,\n       a.index_score               as indice_servidor,\n       coalesce(a.score_mismatch, false) as difiere,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nwhere a.status = 'completada'\norder by coalesce(a.score_mismatch, false) desc, a.submitted_at desc;\n\n-- Vuelve a puntuar una evaluaci\u00f3n desde sus respuestas guardadas.\ncreate or replace function isel_rescore(p_assessment text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  a      isel_assessments%rowtype;\n  v_def  jsonb;\n  v_prof jsonb;\n  v_res  jsonb;\n  v_pay  jsonb;\nbegin\n  -- Permite llamarla con sesi\u00f3n de usuario (desde la app) o como due\u00f1o de la\n  -- base (desde el editor SQL), pero no desde la API sin autenticar.\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  select * into a from isel_assessments where id = p_assessment;\n  if a.id is null then raise exception 'La evaluaci\u00f3n % no existe', p_assessment; end if;\n\n  select definition into v_def from isel_instruments where id = a.instrument_id;\n  if v_def is null then raise exception 'No se encontr\u00f3 el instrumento % de esa evaluaci\u00f3n', a.instrument_id; end if;\n\n  select profile into v_prof from isel_candidates where id = a.candidate_id;\n  v_res := isel_score(v_def, coalesce(a.answers,'{}'::jsonb), coalesce(v_prof,'{}'::jsonb));\n\n  v_pay := jsonb_build_object(\n    'id', a.id, 'candidateId', a.candidate_id, 'instrumentId', a.instrument_id,\n    'version', a.version, 'createdAt', coalesce(a.submitted_at, now()),\n    'profile', coalesce(v_prof,'{}'::jsonb), 'answers', coalesce(a.answers,'{}'::jsonb),\n    'consent', a.consent, 'dimsDef', a.dims_def, 'result', v_res);\n\n  perform isel__persist(v_pay);\n  return jsonb_build_object('id', a.id, 'index', (v_res->>'index')::int, 'decision', v_res->>'dec');\nend\n$fn$;\n\n-- Recalcula todas las evaluaciones completadas.\ncreate or replace function isel_rescore_all()\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  r     record;\n  n     int := 0;\n  fails int := 0;\n  err   text;\nbegin\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  for r in select id from isel_assessments where status = 'completada' order by submitted_at loop\n    begin\n      perform isel_rescore(r.id);\n      n := n + 1;\n    exception when others then\n      fails := fails + 1;\n      if err is null then err := sqlerrm; end if;\n    end;\n  end loop;\n  return jsonb_build_object('recalculadas', n, 'con_error', fails, 'primer_error', err);\nend\n$fn$;\n\ngrant execute on function isel_rescore(text)  to authenticated;\ngrant execute on function isel_rescore_all()  to authenticated;\ngrant select on isel_score_audit to authenticated;\nrevoke execute on function isel_score(jsonb, jsonb, jsonb) from anon;\nrevoke execute on function isel__score_item(jsonb, jsonb) from anon;\nrevoke execute on function isel__req_value(jsonb, jsonb, jsonb, jsonb) from anon;\n\n-- ============================================================\n-- SEGURIDAD\n-- Sin pol\u00edticas, RLS activo bloquea todo: anon no toca las tablas\n-- y solo puede ejecutar las tres funciones del flujo de invitaci\u00f3n.\n-- ============================================================\nalter table isel_instruments       enable row level security;\nalter table isel_candidates        enable row level security;\nalter table isel_assessments       enable row level security;\nalter table isel_answers           enable row level security;\nalter table isel_dimension_scores  enable row level security;\nalter table isel_critical_flags    enable row level security;\nalter table isel_recommendations   enable row level security;\nalter table isel_development_plans enable row level security;\n\ndo $policies$\ndeclare t text;\nbegin\n  foreach t in array array['isel_instruments','isel_candidates','isel_assessments','isel_answers',\n                           'isel_dimension_scores','isel_critical_flags','isel_recommendations',\n                           'isel_development_plans']\n  loop\n    execute format('drop policy if exists isel_rw_authenticated on %I', t);\n    execute format(\n      'create policy isel_rw_authenticated on %I for all to authenticated using (true) with check (true)', t);\n  end loop;\nend\n$policies$;\n\nrevoke execute on function isel__persist(jsonb) from public;\nrevoke execute on function isel__persist(jsonb) from anon;\n\ngrant execute on function isel_get_invite(text)            to anon, authenticated;\ngrant execute on function isel_start_invite(text)          to anon, authenticated;\ngrant execute on function isel_submit_invite(text, jsonb)  to anon, authenticated;\ngrant execute on function isel_save_record(jsonb)          to authenticated;\ngrant execute on function isel_create_invite(text,text,text) to authenticated;\n\ngrant select on isel_records, isel_candidate_overview, isel_item_analysis to authenticated;\n\n-- ============================================================\n-- NOTA SOBRE EL C\u00c1LCULO\n-- El puntaje lo calcula isel_score dentro de la base, a partir de\n-- las respuestas crudas y de la definici\u00f3n del instrumento. El\n-- jsonb 'result' que manda el navegador se descarta; solo se\n-- conserva su \u00edndice en client_index para poder detectar si el\n-- dispositivo report\u00f3 algo distinto (score_mismatch).\n-- Lo que ning\u00fan sistema puede evitar es que un candidato responda\n-- de forma deshonesta. La defensa contra eso est\u00e1 en el dise\u00f1o de\n-- los reactivos, no en el c\u00f3digo.\n-- ============================================================\n";
 
 function inviteLink(token){
   const base = location.origin + location.pathname + location.search;
@@ -4257,7 +6312,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -4455,6 +6510,13 @@ APP.addEventListener('click', async e=>{
     return go('versions');
   }
   if(d.delins!==undefined){ await DB.deleteInstrument(d.delins); S.msg='Borrador eliminado.'; return go('versions'); }
+  if(d.showtpl!==undefined){ S.showTpl = !S.showTpl; S.msg=''; return render(); }
+  if(d.newtpl!==undefined){
+    const ins = fromTemplate(d.newtpl);
+    await DB.saveInstrument(ins);
+    S.showTpl = false;
+    return openInstrument(ins.id);
+  }
   if(d.newins!==undefined){ const b=blankInstrument(); await DB.saveInstrument(b); return openInstrument(b.id); }
 
   /* --- borrador --- */
