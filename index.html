@@ -507,6 +507,9 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
 .rule-strip i{flex:1}
 .rule-lab{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ink-3)}
+
+.testbar{background:var(--amber-l);border-bottom:2px solid var(--amber);color:#7A4E00;
+  font-size:12.5px;font-weight:600;letter-spacing:.04em;padding:8px 22px;text-align:center}
 </style>
 <div id="app"></div>
 <script>
@@ -2232,8 +2235,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260920-0416';
-const BUILD_NOTAS = 'Portada nueva con catálogo de puestos y acceso · nombre de la empresa corregido · selección de puesto antes de evaluar · gestor de invitaciones';
+const BUILD = 'B20260920-0434';
+const BUILD_NOTAS = 'Almacenamiento real del navegador · avance del candidato recuperable · sin caída silenciosa a modo local · portada nueva';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -4515,22 +4518,56 @@ function consistency(perQ, ins){
 const CFG = {mode:'local', url:'', anonKey:'', gate:''};
 let SESSION = null;
 
+/* Almacenamiento del dispositivo. En un navegador normal es localStorage;
+   window.storage solo existe en el entorno de desarrollo. Antes se usaba
+   solo el segundo, así que en el sitio publicado todo vivía en memoria y se
+   perdía al recargar, incluida la cola de evaluaciones sin enviar. */
 const MEM = {};
+const STORE = (function(){
+  try{
+    if(typeof localStorage !== 'undefined'){
+      const k = '__isel_probe__';
+      localStorage.setItem(k, '1'); localStorage.removeItem(k);
+      return {
+        kind: 'localStorage',
+        get: k => { const v = localStorage.getItem(k); return v === null ? undefined : v; },
+        set: (k,v) => localStorage.setItem(k, v),
+        del: k => localStorage.removeItem(k),
+        keys: p => Object.keys(localStorage).filter(k=>k.indexOf(p)===0)
+      };
+    }
+  }catch(e){}
+  if(typeof window !== 'undefined' && window.storage){
+    return {
+      kind: 'artifact',
+      get: async k => { const r = await window.storage.get(k); return r ? r.value : undefined; },
+      set: (k,v) => window.storage.set(k, v),
+      del: k => window.storage.delete(k),
+      keys: async p => { const r = await window.storage.list(p); return (r && r.keys) || []; }
+    };
+  }
+  return {kind:'memoria', get:()=>undefined, set:()=>{}, del:()=>{}, keys:()=>[]};
+})();
+
 const LS = {
   async get(k, def){
     try{
-      const r = await window.storage.get(k);
-      if(r){ MEM[k] = JSON.parse(r.value); return MEM[k]; }
+      const raw = await STORE.get(k);
+      if(raw !== undefined && raw !== null){ MEM[k] = JSON.parse(raw); return MEM[k]; }
     }catch(e){ DB.storageOk = false; }
     return (k in MEM) ? MEM[k] : def;
   },
   async set(k, v){
     MEM[k] = v;
-    try{ await window.storage.set(k, JSON.stringify(v)); DB.storageOk = true; }
+    try{ await STORE.set(k, JSON.stringify(v)); DB.storageOk = (STORE.kind !== 'memoria'); }
     catch(e){ DB.storageOk = false; }
     return v;
   },
-  async del(k){ delete MEM[k]; try{ await window.storage.delete(k); }catch(e){} }
+  async del(k){ delete MEM[k]; try{ await STORE.del(k); }catch(e){} },
+  async keys(prefix){
+    try{ const k = await STORE.keys(prefix); if(k && k.length) return k; }catch(e){}
+    return Object.keys(MEM).filter(k=>k.indexOf(prefix)===0);
+  }
 };
 
 /* ---- Supabase por REST (PostgREST + GoTrue), sin SDK ---- */
@@ -4982,10 +5019,19 @@ const DEMO_PEOPLE = [
 async function bootstrap(){
   await DB.loadConfig();
   let ins = [];
+  let fallo = null;
   try{ ins = await DB.listInstruments(); }
-  catch(e){ DB.lastError = e.message; }
+  catch(e){ DB.lastError = e.message; fallo = e.message; }
 
-  if(!ins.length){
+  /* Si está configurado Supabase y no responde, no se inventa un mundo local:
+     eso hacía parecer que la herramienta funcionaba con datos que no existen. */
+  if(DB.remote && fallo && DB.signedIn){
+    S.connFail = fallo;
+    return {ins:[], cands:[]};
+  }
+  S.connFail = null;
+
+  if(!ins.length && !(DB.remote && !DB.signedIn)){
     const b = baseInstrument();
     ins = [b];
     try{ await DB.saveInstrument(b); }catch(e){ DB.lastError = e.message; }
@@ -5006,8 +5052,7 @@ async function bootstrap(){
   }
   const activas = ins.filter(i=>i.isActive && i.status==='publicada');
   const sel = ins.find(i=>i.id===S.selectedIns) || activas[0] || ins[0];
-  useInstrument(sel);
-  S.selectedIns = sel.id;
+  if(sel){ useInstrument(sel); S.selectedIns = sel.id; }
 
   let cands = [];
   try{ cands = await DB.listCandidates(); }
@@ -5025,6 +5070,41 @@ async function bootstrap(){
     await LS.set('isel:candidates', cands);
   }
   return {ins, cands};
+}
+
+/* Avance en curso. Si el candidato cierra la pestaña, se queda sin señal o el
+   teléfono mata la página, al volver al enlace recupera lo que llevaba. */
+const avanceKey = () => 'isel:avance:' + (S.inviteToken || S.selectedIns || 'directo');
+let avanceTimer = null;
+function guardarAvance(){
+  clearTimeout(avanceTimer);
+  avanceTimer = setTimeout(()=>{
+    LS.set(avanceKey(), {
+      ins: INS && INS.id, version: INS && INS.version,
+      profile: S.profile, answers: S.answers, page: S.page,
+      shuffle: S.shuffle, consent: S.consent, at: Date.now()
+    });
+  }, 400);
+}
+const avanceVale = a => !!(a && a.answers && Object.keys(a.answers).length
+  && Date.now() - (a.at||0) < 1000*60*60*24*7);   /* se descarta tras una semana */
+
+async function recuperarAvance(){
+  if(S.candidateMode){
+    const a = await LS.get(avanceKey(), null);
+    if(!avanceVale(a)) return null;
+    a._key = avanceKey();
+    return a;
+  }
+  let mejor = null;
+  for(const k of await LS.keys('isel:avance:')){
+    const a = await LS.get(k, null);
+    if(avanceVale(a) && (!mejor || (a.at||0) > (mejor.at||0))){ mejor = a; mejor._key = k; }
+  }
+  return mejor;
+}
+async function limpiarAvance(a){
+  await LS.del((a && a._key) || avanceKey());
 }
 
 /* Orden aleatorio de opciones.
@@ -5063,18 +5143,23 @@ const S = {
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
   confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
-  pickVer:{}, fInvFam:'',
+  pickVer:{}, fInvFam:'', connFail:null, retomar:null, retomarVisto:false, avanceActual:null,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
 };
 
+function avisoPrueba(){
+  if(DB.remote || S.candidateMode) return '';
+  return `<div class="testbar no-print">MODO DE PRUEBA · los datos viven solo en este navegador y no se comparten con el equipo
+    <button class="btn btn-ghost btn-sm" data-go="settings" style="margin-left:12px">Conectar a Supabase</button></div>`;
+}
 function topbar(){
   const inEd = ['versions','editor','itemedit'].includes(S.view);
   if(S.candidateMode) return `<div class="topbar no-print"><div class="shell topbar-in">
     <span class="brand"><span class="brand-mark">ISEL</span>
     <span class="brand-txt">Evaluación de competencias comerciales</span></span></div></div>`;
-  const estado = !DB.remote ? {c:'var(--steel-300)', t:'Local'}
+  const estado = !DB.remote ? {c:'var(--amber)', t:'Prueba'}
     : DB.signedIn ? {c:'var(--r-green)', t:'Online'}
     : {c:'var(--amber)', t:'Login'};
   return `<div class="topbar no-print"><div class="shell topbar-in">
@@ -5085,7 +5170,7 @@ function topbar(){
     <button class="tlink ${inEd?'on':''}" data-go="versions">Evaluaciones</button>
     <button class="tlink ${S.view==='settings'?'on':''}" data-go="settings">
       <span class="statdot" style="background:${estado.c}"></span>${estado.t}</button>
-  </div></div>`;
+  </div></div>` + avisoPrueba();
 }
 
 function radar(dimsScores, series, defs){
@@ -5130,6 +5215,17 @@ const pill = (t,c) => `<span class="pill" style="color:${c};border-color:${c}">$
 
 /* ---------- PORTADA ---------- */
 function viewHome(){
+  if(S.connFail) return topbar()+`<div class="shell-narrow" style="padding-top:60px">
+    <div class="alert"><h3>No se pudo conectar con la base de datos</h3>
+      <p>La aplicación está configurada para operar en línea y el proyecto no respondió, así que no se muestra
+      información: unos datos a medias serían peores que ninguno.</p>
+      <p class="tiny" style="margin-top:8px"><b>Detalle:</b> <code>${esc(S.connFail)}</code></p></div>
+    <div class="navrow">
+      <button class="btn" data-reintentar>Reintentar</button>
+      <button class="btn btn-ghost" data-go="settings">Revisar conexión</button></div>
+    <p class="note">Si el problema persiste, revisa en Conexión que la llave y la URL sigan siendo válidas,
+    o vuelve a iniciar sesión. Los datos guardados no se pierden por esto.</p>
+  </div>`;
   const todas = S.instruments || [];
   const activas = todas.filter(i=>i.isActive && i.status==='publicada');
   const publicadas = todas.filter(i=>i.status==='publicada');
@@ -6075,12 +6171,14 @@ function viewSettings(){
     ${S.msg?`<div class="alert warn" style="margin-bottom:18px"><h3>${esc(S.msg)}</h3></div>`:''}
 
     <div class="modecard">
-      <button class="modeopt ${CFG.mode==='local'?'on':''}" data-mode="local">
-        <b>Local</b><span>Todo vive en este navegador. Sirve para calibrar el instrumento y hacer pruebas.
-        Los enlaces de invitación solo funcionan en este mismo equipo y los datos se pierden si se borra el almacenamiento.</span></button>
       <button class="modeopt ${CFG.mode==='supabase'?'on':''}" data-mode="supabase">
-        <b>Supabase</b><span>Base compartida con control de acceso. El equipo ve los mismos candidatos,
-        los enlaces de invitación funcionan desde cualquier dispositivo y las respuestas quedan normalizadas para análisis.</span></button>
+        <b>En línea</b><span>Modo de operación. Base compartida con control de acceso: el equipo ve los mismos
+        candidatos, los enlaces funcionan desde cualquier dispositivo, el puntaje se calcula en el servidor y las
+        respuestas quedan normalizadas para análisis.</span></button>
+      <button class="modeopt ${CFG.mode==='local'?'on':''}" data-mode="local">
+        <b>Modo de prueba</b><span>Solo para ensayar sin tocar datos reales. Vive en este navegador, nadie más lo ve,
+        los enlaces de invitación no salen de este equipo y el puntaje se calcula aquí, no en el servidor.
+        No debe usarse con candidatos reales.</span></button>
     </div>
 
     ${CFG.fromFile?`<div class="alert warn" style="margin-bottom:16px">
@@ -6244,7 +6342,12 @@ function viewInvite(){
       <div class="chk"><div class="m">·</div><div class="d">Contesta con lo que harías en realidad.<em>Responder lo que suena bien distorsiona el resultado y se detecta.</em></div></div>
       <div class="chk"><div class="m">·</div><div class="d">Puedes regresar a la pregunta anterior.<em>Al enviar, la evaluación se cierra y el enlace deja de funcionar.</em></div></div>
     </div></div>
-    <div class="btn-row"><button class="btn" data-startinvite>Comenzar</button></div>
+    ${S.retomar?`<div class="alert warn" style="margin-top:22px"><h3>Tienes una evaluación a medias</h3>
+      Llevabas ${Object.keys(S.retomar.answers||{}).length} respuestas. Puedes continuar donde te quedaste.
+      <div class="navrow" style="margin-top:12px">
+        <button class="btn btn-sm" data-retomar>Continuar donde iba</button>
+        <button class="btn btn-ghost btn-sm" data-desdecero>Empezar de nuevo</button></div></div>`
+    :`<div class="btn-row"><button class="btn" data-startinvite>Comenzar</button></div>`}
   </div>`;
 }
 
@@ -6457,6 +6560,11 @@ function viewPick(){
     <div class="sect-h"><h2>¿Qué puesto vas a evaluar?</h2><span class="sub">${fams.length} disponibles</span></div>
     <p class="note" style="margin:0 0 18px">Cada puesto tiene su propio banco de reactivos, sus pesos y sus reglas de decisión.
     Por omisión se aplica la versión activa; puedes elegir otra si el proceso ya empezó con ella.</p>
+    ${S.retomar?`<div class="alert warn" style="margin-bottom:16px"><h3>Hay una evaluación a medias en este equipo</h3>
+      ${Object.keys(S.retomar.answers||{}).length} respuestas de la versión ${esc(S.retomar.version||'')}.
+      <div class="navrow" style="margin-top:12px">
+        <button class="btn btn-sm" data-retomar>Continuar donde iba</button>
+        <button class="btn btn-ghost btn-sm" data-desdecero>Descartar y empezar de nuevo</button></div></div>`:''}
     ${fams.map(f=>{
       const g = grupos[f];
       const elegida = versionElegida(f, grupos);
@@ -6590,6 +6698,10 @@ async function go(v){
   /* En modo candidato solo existen las pantallas de la evaluación */
   if(S.candidateMode && !['invite','form','quiz','thanks'].includes(v)) v = 'invite';
   if(v==='pick' && !(S.instruments||[]).length){ try{ S.instruments = await DB.listInstruments(); }catch(e){} }
+  if((v==='pick' || v==='home') && !S.candidateMode && !S.retomarVisto){
+    const prev = await recuperarAvance();
+    if(prev){ S.retomar = prev; S.retomarVisto = true; }
+  }
   if(GATED.includes(v) && !accessOk()){ S.view='login'; return render(); }
   try{
     if(v==='home'){
@@ -6644,7 +6756,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -6662,6 +6774,12 @@ APP.addEventListener('click', async e=>{
     t.disabled = true; t.textContent = 'Probando…';
     try{ S.conn = await DB.testConnection(); }
     catch(e){ S.conn = {ok:false, steps:[{ok:false, t:e.message}]}; }
+    return render();
+  }
+  if(d.reintentar!==undefined){
+    S.connFail = null;
+    const b = await bootstrap();
+    S.instruments = b.ins; S.list = b.cands;
     return render();
   }
   if(d.dlconfig!==undefined){
@@ -6716,12 +6834,31 @@ APP.addEventListener('click', async e=>{
   if(d.startpick!==undefined){
     const x = (S.instruments||[]).find(i=>i.id===d.startpick);
     if(x){ useInstrument(x); S.selectedIns = x.id; }
-    S.profile = {}; S.answers = {}; S.page = 0; S.consent = false;
+    S.profile = {}; S.answers = {}; S.page = 0; S.consent = false; S.retomar = null;
     return go('form');
   }
   if(d.startinvite!==undefined){
+    const a = await recuperarAvance();
+    if(a && !S.retomarVisto){ S.retomar = a; S.retomarVisto = true; return render(); }
     S.profile = Object.assign({}, S.invite.candidate);
-    S.answers={}; S.page=0;
+    S.answers={}; S.page=0; S.retomar=null;
+    return go('form');
+  }
+  if(d.retomar!==undefined){
+    const a = S.retomar;
+    if(a.ins && (!INS || INS.id !== a.ins)){
+      const x = (S.instruments||[]).find(i=>i.id===a.ins);
+      if(x){ useInstrument(x); S.selectedIns = x.id; }
+    }
+    S.profile = a.profile||{}; S.answers = a.answers||{}; S.page = Math.min(a.page||0, BANK.length-1);
+    S.shuffle = a.shuffle||buildShuffle(INS); S.consent = !!a.consent;
+    S.avanceActual = a; S.retomar = null;
+    return go('quiz');
+  }
+  if(d.desdecero!==undefined){
+    await limpiarAvance(S.retomar);
+    S.retomar = null; S.answers={}; S.page=0;
+    S.profile = S.candidateMode && S.invite ? Object.assign({}, S.invite.candidate) : {};
     return go('form');
   }
   if(d.retrysave!==undefined){
@@ -6774,14 +6911,14 @@ APP.addEventListener('click', async e=>{
     }
     S.answers={}; S.page=0; S.shuffle = buildShuffle(INS); return go('quiz');
   }
-  if(d.pick!==undefined){ S.answers[q.id]=+d.pick; return render(); }
-  if(d.lik!==undefined){ S.answers[q.id]=+d.lik; return render(); }
-  if(d.multi!==undefined){ const i=+d.multi, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; return render(); }
-  if(d.rank!==undefined){ const i=+d.rank, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; return render(); }
-  if(d.rankreset!==undefined){ S.answers[q.id]=[]; return render(); }
-  if(d.prev!==undefined){ S.page=Math.max(0,S.page-1); return render(); }
+  if(d.pick!==undefined){ S.answers[q.id]=+d.pick; guardarAvance(); return render(); }
+  if(d.lik!==undefined){ S.answers[q.id]=+d.lik; guardarAvance(); return render(); }
+  if(d.multi!==undefined){ const i=+d.multi, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; guardarAvance(); return render(); }
+  if(d.rank!==undefined){ const i=+d.rank, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; guardarAvance(); return render(); }
+  if(d.rankreset!==undefined){ S.answers[q.id]=[]; guardarAvance(); return render(); }
+  if(d.prev!==undefined){ S.page=Math.max(0,S.page-1); guardarAvance(); return render(); }
   if(d.next!==undefined){
-    if(S.page < BANK.length-1){ S.page++; return render(); }
+    if(S.page < BANK.length-1){ S.page++; guardarAvance(); return render(); }
     const rec = buildRecord(S.profile, S.answers, INS);
     if(S.candidateMode){
       try{ await DB.submitInvite(S.inviteToken, rec); }
@@ -6793,6 +6930,7 @@ APP.addEventListener('click', async e=>{
         S.sendFailed = true;
         return render();
       }
+      await limpiarAvance(S.retomar);
       S.view='thanks'; return render();
     }
     S.rec = rec;
@@ -6803,6 +6941,7 @@ APP.addEventListener('click', async e=>{
          resultado, no el que calculó este navegador. */
       const guardado = S.list.find(r=>r.id===rec.id);
       if(guardado) S.rec = guardado;
+      await limpiarAvance(S.retomar);
     }
     catch(e){
       await DB.queue(rec);
