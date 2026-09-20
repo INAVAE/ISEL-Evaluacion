@@ -462,6 +462,51 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
 
 .privacy p{font-size:14px;line-height:1.55;color:var(--ink-2);margin-bottom:7px}
 .privacy p:last-child{margin-bottom:0}
+
+/* ---------- portada ---------- */
+.cover{display:grid;grid-template-columns:1.35fr .95fr;gap:48px;align-items:start;padding:58px 0 40px}
+@media(max-width:920px){.cover{grid-template-columns:1fr;gap:32px;padding:38px 0 28px}}
+.cover h1{max-width:13ch}
+.cover-lead{font-size:18px;color:var(--ink-2);margin-top:20px;max-width:52ch;line-height:1.55}
+
+/* placa de equipo: el dato técnico grabado, como en un gabinete industrial */
+.plate{border:2px solid var(--ink);background:var(--paper);position:relative}
+.plate::before,.plate::after{content:'';position:absolute;width:7px;height:7px;border:1px solid var(--steel-300);
+  border-radius:50%;background:var(--steel-75);top:9px}
+.plate::before{left:9px}.plate::after{right:9px}
+.plate-h{border-bottom:2px solid var(--ink);padding:12px 18px 11px;text-align:center}
+.plate-h b{font-family:var(--cond);font-size:17px;font-weight:700;letter-spacing:.14em;display:block}
+.plate-h span{font-size:10.5px;letter-spacing:.16em;color:var(--ink-3);text-transform:uppercase}
+.plate-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;
+  padding:9px 18px;border-bottom:1px solid var(--steel-100)}
+.plate-row:last-child{border-bottom:none}
+.plate-row .k{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.plate-row .v{font-family:var(--cond);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.plate-foot{border-top:2px solid var(--ink);padding:8px 18px;font-size:10.5px;letter-spacing:.1em;
+  color:var(--ink-3);text-transform:uppercase;display:flex;justify-content:space-between;gap:10px}
+
+.catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.evcard{border:var(--line);border-top:3px solid var(--blue);background:var(--paper);padding:18px;display:flex;flex-direction:column}
+.evcard h3{font-size:17.5px;line-height:1.25}
+.evcard .ar{font-size:12.5px;color:var(--ink-3);margin-top:3px}
+.evcard .specs{display:flex;gap:18px;margin:14px 0;padding:11px 0;border-top:1px solid var(--steel-100);border-bottom:1px solid var(--steel-100)}
+.evcard .specs div{flex:1}
+.evcard .specs b{font-family:var(--cond);font-size:21px;font-weight:600;display:block;line-height:1}
+.evcard .specs span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.evcard .acts{margin-top:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+.quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.qtile{border:var(--line);background:var(--paper);padding:15px 16px;text-align:left;display:block;width:100%}
+.qtile:hover{border-color:var(--blue);background:var(--blue-l)}
+.qtile b{font-family:var(--cond);font-size:27px;font-weight:600;display:block;line-height:1}
+.qtile span{font-size:13px;color:var(--ink-2);display:block;margin-top:3px}
+.qtile em{font-style:normal;font-size:11.5px;color:var(--ink-3);display:block;margin-top:2px}
+
+.gatecard{border:var(--line);border-left:3px solid var(--blue);background:var(--paper);padding:20px;max-width:430px}
+.rule-strip{display:flex;height:5px;margin:30px 0 8px}
+.rule-strip i{flex:1}
+.rule-lab{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3)}
 </style>
 <div id="app"></div>
 <script>
@@ -2172,7 +2217,7 @@ const CONS_SEED = [
    de usarse con candidatos reales. Se edita desde el editor de la evaluación. */
 const PRIVACY_SEED = {
   enabled: true,
-  responsible: 'ISEL · Instrumentos y Servicios Electrónicos',
+  responsible: 'ISEL · Implementos y Servicios Electrónicos',
   contact: 'Escribe aquí el correo de contacto para ejercer derechos ARCO',
   text: [
     'Tus respuestas y los datos que proporciones se usarán únicamente para evaluar tu candidatura al puesto indicado.',
@@ -2187,8 +2232,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260920-0404';
-const BUILD_NOTAS = 'Selección de puesto antes de evaluar · gestor de invitaciones · archivar versiones · una activa por puesto';
+const BUILD = 'B20260920-0416';
+const BUILD_NOTAS = 'Portada nueva con catálogo de puestos y acceso · nombre de la empresa corregido · selección de puesto antes de evaluar · gestor de invitaciones';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -4268,6 +4313,8 @@ function migrateInstrument(ins){
   }
   if(!Array.isArray(ins.consPairs)) ins.consPairs = [];
   if(!ins.family) ins.family = slug(ins.name);
+  if(ins.privacy && typeof ins.privacy.responsible === 'string')
+    ins.privacy.responsible = ins.privacy.responsible.replace('Instrumentos y Servicios', 'Implementos y Servicios');
   if(!Array.isArray(ins.profiles) || !ins.profiles.length) ins.profiles = clone(PROFILES_SEED);
   if(!Array.isArray(ins.trainability) || !ins.trainability.length) ins.trainability = clone(TRAIN_SEED);
   if(!ins.plan) ins.plan = {d30:[],d60:[],d90:[]};
@@ -5081,37 +5128,97 @@ function checklist(rows){
 }
 const pill = (t,c) => `<span class="pill" style="color:${c};border-color:${c}">${t}</span>`;
 
-/* ---------- PANTALLA 1 — BIENVENIDA ---------- */
+/* ---------- PORTADA ---------- */
 function viewHome(){
-  const ticks = Array.from({length:20},(_,i)=>`<div class="gauge-tick ${i%4===0?'major':''}" data-v="${i*5}"></div>`).join('');
+  const todas = S.instruments || [];
+  const activas = todas.filter(i=>i.isActive && i.status==='publicada');
+  const publicadas = todas.filter(i=>i.status==='publicada');
+  const dentro = accessOk();
+  const reactivos = activas.reduce((a,i)=>a + i.items.filter(x=>x.active!==false).length, 0);
+  const evaluados = dentro ? (S.list||[]).length : null;
+  const invitaciones = dentro ? (S.invites||[]).length : null;
+
+  const plate = `<div class="plate">
+    <div class="plate-h"><b>ISEL</b><span>Sistema de evaluación de competencias</span></div>
+    <div class="plate-row"><span class="k">Puestos evaluables</span><span class="v">${activas.length}</span></div>
+    <div class="plate-row"><span class="k">Reactivos en operación</span><span class="v">${reactivos}</span></div>
+    <div class="plate-row"><span class="k">Versiones publicadas</span><span class="v">${publicadas.length}</span></div>
+    ${evaluados!==null?`<div class="plate-row"><span class="k">Candidatos evaluados</span><span class="v">${evaluados}</span></div>`:''}
+    ${invitaciones!==null?`<div class="plate-row"><span class="k">Invitaciones abiertas</span><span class="v">${invitaciones}</span></div>`:''}
+    <div class="plate-row"><span class="k">Cálculo</span><span class="v" style="font-size:14px">${DB.remote?'Servidor':'Local'}</span></div>
+    <div class="plate-foot"><span>Build ${BUILD}</span><span>${DB.remote?(DB.signedIn?'En línea':'Sin sesión'):'Sin conexión'}</span></div>
+  </div>`;
+
+  const escala = `<div class="rule-strip">
+      <i style="background:var(--r-red);flex:39"></i><i style="background:var(--r-orange);flex:20"></i>
+      <i style="background:var(--r-yellow);flex:15"></i><i style="background:var(--r-green);flex:15"></i>
+      <i style="background:var(--r-blue);flex:11"></i></div>
+    <div class="rule-lab"><span>Insuficiente</span><span>En desarrollo</span><span>Competente</span><span>Fuerte</span><span>Sobresaliente</span></div>`;
+
+  const catalogo = activas.length ? `<div class="sect">
+      <div class="sect-h"><h2>Puestos evaluables</h2><span class="sub">versión activa de cada uno</span></div>
+      <div class="catalog">${activas.map(i=>{
+        const n = i.items.filter(x=>x.active!==false).length;
+        const otras = todas.filter(x=>famOf(x)===famOf(i) && x.status==='publicada').length;
+        return `<div class="evcard">
+          <h3>${esc(i.name)}</h3>
+          <div class="ar">${esc(i.area||'')}</div>
+          <div class="specs">
+            <div><b>${n}</b><span>reactivos</span></div>
+            <div><b>${i.dims.length}</b><span>dimensiones</span></div>
+            <div><b>${Math.round(n*0.6)}</b><span>minutos aprox.</span></div>
+          </div>
+          <div class="tiny" style="margin-bottom:12px">Versión ${esc(i.version)}${otras>1?` · ${otras} publicadas`:''}</div>
+          <div class="acts">
+            <button class="btn btn-sm" data-startpick="${i.id}">Aplicar ahora</button>
+            <button class="btn btn-ghost btn-sm" data-go="invites">Enviar por enlace</button>
+          </div></div>`;
+      }).join('')}</div>
+    </div>` : `<div class="sect"><div class="empty"><b>No hay evaluaciones activas</b>
+      Publica una versión desde Evaluaciones para poder aplicarla.</div></div>`;
+
+  const accesos = `<div class="sect">
+    <div class="sect-h"><h2>Accesos</h2></div>
+    <div class="quick">
+      <button class="qtile" data-go="admin"><b>${(S.list||[]).length}</b><span>Candidatos evaluados</span>
+        <em>Informes, comparativo y borrado</em></button>
+      <button class="qtile" data-go="invites"><b>${(S.invites||[]).length}</b><span>Invitaciones abiertas</span>
+        <em>Enviar y dar seguimiento</em></button>
+      <button class="qtile" data-go="versions"><b>${publicadas.length}</b><span>Evaluaciones</span>
+        <em>Editar reactivos y versiones</em></button>
+      <button class="qtile" data-go="analysis"><b>${reactivos}</b><span>Análisis de reactivos</span>
+        <em>Qué preguntas discriminan</em></button>
+    </div></div>`;
+
+  const puerta = `<div class="sect">
+    <div class="gatecard">
+      <h3 style="font-size:18px">Acceso al sistema</h3>
+      <p class="sub" style="margin:6px 0 16px">Herramienta de uso interno. El panel, el editor y la aplicación de
+      evaluaciones requieren una cuenta autorizada.</p>
+      <div class="navrow" style="margin:0">
+        <button class="btn btn-sm" data-go="login">Iniciar sesión</button>
+        <button class="btn btn-ghost btn-sm" data-go="settings">Conexión</button>
+      </div>
+      <p class="tiny" style="margin-top:14px">Si llegaste por una invitación, usa el enlace que te enviaron:
+      abre directamente tu evaluación sin necesidad de cuenta.</p>
+    </div></div>`;
+
   return topbar()+`<div class="shell">
-    <section class="hero">
-      <h1>Evaluación de competencias comerciales</h1>
-      <div class="hero-sub">${esc(INS.name)}</div>
-      <p class="lede">Una simulación del trabajo real: casos de planta, decisiones de cotización, negociación y seguimiento. Al terminar entrega un índice de idoneidad, un perfil comercial y un plan de desarrollo. Es una herramienta de apoyo a la decisión, no un diagnóstico psicológico.</p>
-      <div class="gauge">
-        <div class="gauge-ticks">${ticks}<div class="gauge-tick major" data-v="100"></div></div>
-        <div class="gauge-bands">
-          <div class="gauge-band gb0"><b>Insuficiente</b><span>0–39</span></div>
-          <div class="gauge-band gb1"><b>En desarrollo</b><span>40–59</span></div>
-          <div class="gauge-band gb2"><b>Competente</b><span>60–74</span></div>
-          <div class="gauge-band gb3"><b>Fuerte</b><span>75–89</span></div>
-          <div class="gauge-band gb4"><b>Sobresaliente</b><span>90–100</span></div>
-        </div>
+    <section class="cover">
+      <div>
+        <h1>Evaluación de competencias comerciales</h1>
+        <p class="cover-lead">Simulaciones de trabajo real —casos de planta, decisiones de cotización, negociación,
+        seguimiento y dirección de equipo— que devuelven un perfil de competencias, una recomendación justificable
+        y un plan de desarrollo. Es apoyo a la decisión de contratación, no un diagnóstico psicológico.</p>
+        ${escala}
+        <p class="tiny" style="margin-top:14px;max-width:60ch">El cálculo no utiliza edad, sexo, estado civil, religión,
+        origen ni situación familiar. La recomendación depende exclusivamente de competencias relacionadas con las
+        funciones del puesto.</p>
       </div>
-      <div class="btn-row">
-        <button class="btn" data-go="pick">Comenzar evaluación</button>
-        <span class="sub">${(S.instruments||[]).filter(i=>i.isActive && i.status==='publicada').length>1
-          ? 'Se elige el puesto en el siguiente paso'
-          : BANK.length+' reactivos · versión '+esc(INS.version)}</span>
-      </div>
-      ${BANK.length?'':`<div class="alert warn"><h3>Esta evaluación no tiene reactivos activos</h3>Agrega reactivos desde el editor antes de aplicarla.</div>`}
-      <div class="dimlist">
-        ${DIMS.map(d=>`<div class="dimrow"><b>${pctW(d.w)}%</b><span>${esc(d.n)}</span><i>${BANK.filter(q=>q.dim===d.id).length} reactivos</i></div>`).join('')}
-      </div>
-      <p class="note">El motor de decisión no utiliza edad, sexo, estado civil, religión, origen ni situación familiar. La recomendación depende exclusivamente de competencias relacionadas con las funciones del puesto.</p>
+      ${plate}
     </section>
-    <div class="foot">ISEL · Instrumentos y Servicios Electrónicos · Evaluación ${esc(INS.version)} · aplicación ${BUILD}</div>
+    ${dentro ? catalogo + accesos : puerta}
+    <div class="foot">ISEL · Implementos y Servicios Electrónicos · Aplicación ${BUILD}</div>
   </div>`;
 }
 
@@ -5367,7 +5474,7 @@ function viewReport(){
     <div style="border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:20px;display:flex;align-items:baseline;gap:14px">
       <span class="brand-mark">ISEL</span>
       <div><div style="font-family:var(--cond);font-size:24px;font-weight:600">Informe de evaluación de competencias comerciales</div>
-      <div class="sub">Instrumentos y Servicios Electrónicos · Documento interno de apoyo a la decisión de contratación</div></div></div>
+      <div class="sub">Implementos y Servicios Electrónicos · Documento interno de apoyo a la decisión de contratación</div></div></div>
     <div class="panel" style="margin-bottom:18px"><div class="panel-b grid g4" style="gap:10px 22px">
       ${[['Nombre',rec.profile.nombre],['Escolaridad',rec.profile.escolaridad],['Especialidad',rec.profile.especialidad],['Último puesto',rec.profile.ultimoPuesto],
          ['Años en ventas',rec.profile.expComercial],['Venta B2B',rec.profile.expB2B],['Experiencia industrial',rec.profile.expIndustrial],['Automatización',rec.profile.expAutomat],
@@ -6485,8 +6592,12 @@ async function go(v){
   if(v==='pick' && !(S.instruments||[]).length){ try{ S.instruments = await DB.listInstruments(); }catch(e){} }
   if(GATED.includes(v) && !accessOk()){ S.view='login'; return render(); }
   try{
-    if(v==='home' && !(S.instruments||[]).length){
+    if(v==='home'){
       try{ S.instruments = await DB.listInstruments(); }catch(e){}
+      if(accessOk()){
+        try{ S.list = await DB.listCandidates(); }catch(e){}
+        try{ S.invites = await DB.listInvites(); }catch(e){}
+      }
     }
     if(['admin','compare','versions','editor','answers','analysis'].includes(v)) S.list = await DB.listCandidates();
     if(['versions','admin','answers','analysis','pick','invites'].includes(v)){ S.instruments = await DB.listInstruments(); }
