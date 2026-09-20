@@ -5568,7 +5568,7 @@ function viewVersions(){
       const act = g.find(i=>i.isActive && i.status==='publicada');
       return `<div style="margin-bottom:22px">
       <div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">${esc(g[0].name)}</h2>
-        <span class="sub">${g.length} versión${g.length>1?'es':''} · ${act?'activa '+esc(act.version):'sin versión activa'}</span></div>
+        <span class="sub">${g.length} versión${g.length>1?'es':''}${g.filter(i=>i.status==='archivada').length?' ('+g.filter(i=>i.status==='archivada').length+' archivada'+(g.filter(i=>i.status==='archivada').length>1?'s':'')+')':''} · ${act?'activa '+esc(act.version):'sin versión activa'}</span></div>
     <div class="panel"><div class="panel-b tbl-scroll"><table class="tbl">
       <thead><tr><th>Versión</th><th>Estado</th><th>Dimensiones</th><th>Reactivos</th><th>Evaluados</th><th>Actualizada</th><th></th></tr></thead>
       <tbody>${g.map(ins=>{
@@ -5582,6 +5582,8 @@ function viewVersions(){
           <button class="btn btn-ghost btn-sm" data-openins="${ins.id}">${isLocked(ins)?'Consultar':'Editar'}</button>
           <button class="btn btn-ghost btn-sm" data-dupins="${ins.id}">Nueva versión</button>
           ${ins.status==='publicada' && !live?`<button class="btn btn-ghost btn-sm" data-useins="${ins.id}">Usar</button>`:''}
+          ${ins.status==='publicada' && !live?`<button class="btn btn-ghost btn-sm" data-archins="${ins.id}">Archivar</button>`:''}
+          ${ins.status==='archivada'?`<button class="btn btn-ghost btn-sm" data-unarchins="${ins.id}">Restaurar</button>`:''}
           ${ins.status==='borrador' && !used?`<button class="btn btn-ghost btn-sm" data-delins="${ins.id}">Eliminar</button>`:''}
         </td></tr>`;
       }).join('')}</tbody></table></div></div></div>`;
@@ -6379,7 +6381,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startinvite],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -6580,6 +6582,20 @@ APP.addEventListener('click', async e=>{
     return go('versions');
   }
   if(d.delins!==undefined){ await DB.deleteInstrument(d.delins); S.msg='Borrador eliminado.'; return go('versions'); }
+  if(d.archins!==undefined || d.unarchins!==undefined){
+    const id = d.archins || d.unarchins;
+    const all = await DB.listInstruments();
+    const x = all.find(i=>i.id===id);
+    if(x){
+      if(d.archins!==undefined){ x.status='archivada'; x.isActive=false; }
+      else x.status='publicada';
+      await DB.saveInstrument(x);
+      S.msg = d.archins!==undefined
+        ? 'Versión ' + x.version + ' archivada. Ya no aparece al generar invitaciones; los candidatos evaluados con ella conservan su informe.'
+        : 'Versión ' + x.version + ' restaurada. Vuelve a estar disponible para invitaciones.';
+    }
+    return go('versions');
+  }
   if(d.showtpl!==undefined){ S.showTpl = !S.showTpl; S.msg=''; return render(); }
   if(d.newtpl!==undefined){
     const ins = fromTemplate(d.newtpl);
