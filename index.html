@@ -2185,6 +2185,11 @@ const PRIVACY_SEED = {
   ack: 'He leído el aviso y autorizo el tratamiento de mis datos para este proceso de selección.'
 };
 
+/* Sello de compilación: sirve para confirmar qué archivo está cargado
+   realmente en el navegador cuando algo "no aparece". */
+const BUILD = 'B20260920-0404';
+const BUILD_NOTAS = 'Selección de puesto antes de evaluar · gestor de invitaciones · archivar versiones · una activa por puesto';
+
 const clone = o => JSON.parse(JSON.stringify(o));
 
 /* Las versiones de un mismo puesto forman una familia. Puede haber una
@@ -5106,7 +5111,7 @@ function viewHome(){
       </div>
       <p class="note">El motor de decisión no utiliza edad, sexo, estado civil, religión, origen ni situación familiar. La recomendación depende exclusivamente de competencias relacionadas con las funciones del puesto.</p>
     </section>
-    <div class="foot">ISEL · Instrumentos y Servicios Electrónicos · Versión de evaluación ${esc(INS.version)}</div>
+    <div class="foot">ISEL · Instrumentos y Servicios Electrónicos · Evaluación ${esc(INS.version)} · aplicación ${BUILD}</div>
   </div>`;
 }
 
@@ -5953,6 +5958,13 @@ function viewSettings(){
   return topbar()+`<div class="shell-narrow" style="padding-top:30px;padding-bottom:60px">
     <div class="sect-h"><h2>Conexión de datos</h2>
       <span class="sub">${DB.remote?'Supabase':'Almacenamiento local'}</span></div>
+    <div class="panel" style="margin-bottom:18px"><div class="panel-b" style="padding:13px 16px">
+      <div class="tiny">Versión de la aplicación cargada en este navegador</div>
+      <div style="font-family:var(--cond);font-size:22px;font-weight:600">${BUILD}</div>
+      <div class="tiny" style="margin-top:4px">${BUILD_NOTAS}</div>
+      <div class="tiny" style="margin-top:6px">Si no coincide con la que esperabas, el navegador está sirviendo una copia en caché:
+      recarga con Ctrl+Shift+R o abre una ventana de incógnito.</div>
+    </div></div>
     ${S.msg?`<div class="alert warn" style="margin-bottom:18px"><h3>${esc(S.msg)}</h3></div>`:''}
 
     <div class="modecard">
