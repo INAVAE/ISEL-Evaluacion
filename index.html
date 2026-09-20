@@ -2186,6 +2186,13 @@ const PRIVACY_SEED = {
 };
 
 const clone = o => JSON.parse(JSON.stringify(o));
+
+/* Las versiones de un mismo puesto forman una familia. Puede haber una
+   evaluación activa por familia, para poder evaluar a la vez a un gerente
+   y a un vendedor sin que una desplace a la otra. */
+const slug = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40) || 'puesto';
+const famOf = ins => ins.family || slug(ins.name);
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
 
 function baseInstrument(){
@@ -2206,7 +2213,9 @@ function baseInstrument(){
     consPairs: clone(CONS_SEED),
     privacy: clone(PRIVACY_SEED),
     profiles: clone(PROFILES_SEED),
-    trainability: clone(TRAIN_SEED)
+    trainability: clone(TRAIN_SEED),
+    family: 'vendedor-externo',
+    isActive: true
   };
 }
 const GERENTE_SEED = {
@@ -4198,7 +4207,9 @@ const GERENTE_SEED = {
    "t": "Rendición de cuentas"
   }
  ],
- "shuffleOptions": true
+ "shuffleOptions": true,
+ "family": "gerente-ventas",
+ "isActive": false
 };
 
 /* Catálogo de plantillas: base para crear la evaluación de otro puesto.
@@ -4230,7 +4241,8 @@ function blankInstrument(){
     dims:[{id:'dim1', code:'D', n:'Dimensión 1', short:'Dimensión 1', w:1, crit:true, min:55,
            strength:'', gap:'', probe:''}],
     items:[], basic:[], ideal:[], plan:{d30:[],d60:[],d90:[]}, consPairs:[],
-    privacy: clone(PRIVACY_SEED)
+    privacy: clone(PRIVACY_SEED),
+    family: uid('fam-'), isActive: false
   };
 }
 
@@ -4250,6 +4262,7 @@ function migrateInstrument(ins){
     if(ins.privacy.enabled === undefined) ins.privacy.enabled = true;
   }
   if(!Array.isArray(ins.consPairs)) ins.consPairs = [];
+  if(!ins.family) ins.family = slug(ins.name);
   if(!Array.isArray(ins.profiles) || !ins.profiles.length) ins.profiles = clone(PROFILES_SEED);
   if(!Array.isArray(ins.trainability) || !ins.trainability.length) ins.trainability = clone(TRAIN_SEED);
   if(!ins.plan) ins.plan = {d30:[],d60:[],d90:[]};
@@ -4681,6 +4694,22 @@ const DB = {
       headers:{Prefer:'resolution=merge-duplicates'},
       body: JSON.stringify({id:ins.id, name:ins.name, area:ins.area, version:ins.version,
         status:ins.status, notes:ins.notes, definition:ins, updated_at:ins.updatedAt})});
+    DB.memI = [];
+    return DB.listInstruments();
+  },
+  /* Activar una versión desactiva las otras del mismo puesto, no todas. */
+  async setActive(id){
+    const all = await DB.listInstruments();
+    const target = all.find(i=>i.id===id);
+    if(!target) return all;
+    const fam = famOf(target);
+    for(const i of all){
+      const debe = (i.id===id);
+      if(famOf(i)===fam && !!i.isActive !== debe){
+        i.isActive = debe;
+        await DB.saveInstrument(i);
+      }
+    }
     return DB.listInstruments();
   },
   async deleteInstrument(id){
@@ -4909,9 +4938,24 @@ async function bootstrap(){
     ins = [b];
     try{ await DB.saveInstrument(b); }catch(e){ DB.lastError = e.message; }
   }
-  const active = ins.find(i=>i.id===S.activeIns) || ins.find(i=>i.status==='publicada') || ins[0];
-  useInstrument(active);
-  S.activeIns = active.id;
+
+  /* Una activa por puesto. Si un puesto no tiene ninguna marcada, se toma su
+     versión publicada más reciente para no dejarlo sin evaluación aplicable. */
+  const fams = {};
+  ins.forEach(i=>{ (fams[famOf(i)] = fams[famOf(i)] || []).push(i); });
+  for(const f of Object.keys(fams)){
+    const grupo = fams[f];
+    if(grupo.some(i=>i.isActive && i.status==='publicada')) continue;
+    const cand = grupo.filter(i=>i.status==='publicada').sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''))[0];
+    if(cand && !cand.isActive){
+      cand.isActive = true;
+      try{ await DB.saveInstrument(cand); }catch(e){}
+    }
+  }
+  const activas = ins.filter(i=>i.isActive && i.status==='publicada');
+  const sel = ins.find(i=>i.id===S.selectedIns) || activas[0] || ins[0];
+  useInstrument(sel);
+  S.selectedIns = sel.id;
 
   let cands = [];
   try{ cands = await DB.listCandidates(); }
@@ -4922,7 +4966,7 @@ async function bootstrap(){
   if(!cands.length && !DB.remote){
     cands = DEMO_PEOPLE.map((p,k)=>{
       const {bias, ...prof} = p;
-      const rec = buildRecord(prof, demoAnswers(bias, active), active);
+      const rec = buildRecord(prof, demoAnswers(bias, sel), sel);
       rec.createdAt = new Date(Date.now() - (k*6+2)*86400000).toISOString();
       return rec;
     });
@@ -4966,7 +5010,7 @@ const S = {
   instruments:[], activeIns:null, draft:null, dirty:false, tab:'items',
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
-  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false,
+  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -5049,6 +5093,14 @@ function viewHome(){
           <div class="gauge-band gb4"><b>Sobresaliente</b><span>90–100</span></div>
         </div>
       </div>
+      ${(S.instruments||[]).filter(i=>i.isActive && i.status==='publicada').length>1?`
+        <div class="field" style="max-width:560px;margin-top:26px">
+          <label for="selins">Puesto a evaluar</label>
+          <select id="selins" data-selins>
+            ${S.instruments.filter(i=>i.isActive && i.status==='publicada').map(i=>
+              `<option value="${i.id}" ${i.id===S.selectedIns?'selected':''}>${esc(i.name)} · ${esc(i.version)}</option>`).join('')}
+          </select>
+        </div>`:''}
       <div class="btn-row">
         <button class="btn" data-go="form" ${BANK.length?'':'disabled'}>Comenzar evaluación</button>
         <span class="sub">${BANK.length} reactivos · 20 a 30 minutos · versión ${esc(INS.version)}</span>
@@ -5503,17 +5555,26 @@ function validate(ins){
 /* ---- lista de versiones ---- */
 function viewVersions(){
   const rows = S.instruments;
+  const grupos = {};
+  rows.forEach(i=>{ (grupos[famOf(i)] = grupos[famOf(i)] || []).push(i); });
   return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
-    <div class="sect-h"><h2>Evaluaciones y versiones</h2><span class="sub">${rows.length} instrumentos</span></div>
-    <p class="note" style="margin:0 0 16px">Una evaluación publicada queda bloqueada para conservar la trazabilidad de los candidatos ya evaluados con ella. Para cambiarla, crea una versión nueva a partir de la existente.</p>
+    <div class="sect-h"><h2>Evaluaciones y versiones</h2>
+      <span class="sub">${Object.keys(grupos).length} puestos · ${rows.length} versiones</span></div>
+    <p class="note" style="margin:0 0 16px">Cada puesto puede tener una versión activa al mismo tiempo, así que se puede evaluar a un gerente y a un vendedor en paralelo.
+    Una versión publicada queda bloqueada para conservar la trazabilidad de los candidatos ya evaluados con ella; para cambiarla, crea una versión nueva.</p>
     ${S.msg?`<div class="alert warn" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
+    ${Object.keys(grupos).map(f=>{
+      const g = grupos[f].slice().sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+      const act = g.find(i=>i.isActive && i.status==='publicada');
+      return `<div style="margin-bottom:22px">
+      <div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">${esc(g[0].name)}</h2>
+        <span class="sub">${g.length} versión${g.length>1?'es':''} · ${act?'activa '+esc(act.version):'sin versión activa'}</span></div>
     <div class="panel"><div class="panel-b tbl-scroll"><table class="tbl">
-      <thead><tr><th>Evaluación</th><th>Versión</th><th>Estado</th><th>Dimensiones</th><th>Reactivos</th><th>Evaluados</th><th>Actualizada</th><th></th></tr></thead>
-      <tbody>${rows.map(ins=>{
+      <thead><tr><th>Versión</th><th>Estado</th><th>Dimensiones</th><th>Reactivos</th><th>Evaluados</th><th>Actualizada</th><th></th></tr></thead>
+      <tbody>${g.map(ins=>{
         const used = S.list.filter(c=>c.instrumentId===ins.id).length;
-        const live = ins.id===S.activeIns;
-        return `<tr><td class="nmc">${esc(ins.name)}<div class="tiny">${esc(ins.area||'')}</div></td>
-        <td class="tiny">${esc(ins.version)}</td>
+        const live = !!ins.isActive && ins.status==='publicada';
+        return `<tr><td class="nmc">${esc(ins.version)}<div class="tiny">${esc(ins.area||'')}</div></td>
         <td>${badgeOf(ins)} ${live?'<span class="badge b-live">En uso</span>':''}</td>
         <td>${ins.dims.length}</td><td>${countActive(ins)} de ${ins.items.length}</td>
         <td>${used}</td><td class="tiny">${fdate(ins.updatedAt)}</td>
@@ -5523,10 +5584,11 @@ function viewVersions(){
           ${ins.status==='publicada' && !live?`<button class="btn btn-ghost btn-sm" data-useins="${ins.id}">Usar</button>`:''}
           ${ins.status==='borrador' && !used?`<button class="btn btn-ghost btn-sm" data-delins="${ins.id}">Eliminar</button>`:''}
         </td></tr>`;
-      }).join('')}</tbody></table></div></div>
+      }).join('')}</tbody></table></div></div></div>`;
+    }).join('')}
     <div class="navrow">
       <button class="btn" data-showtpl>${S.showTpl?'Ocultar plantillas':'Crear evaluación para otro puesto'}</button>
-      <button class="btn btn-ghost" data-dupins="${S.activeIns}">Duplicar la evaluación en uso</button>
+      <button class="btn btn-ghost" data-dupins="${S.selectedIns}">Duplicar la evaluación seleccionada</button>
     </div>
     ${S.showTpl?`<div class="panel" style="margin-top:16px"><div class="panel-h"><h3>Crear desde plantilla</h3></div>
       <div class="panel-b">
@@ -5556,7 +5618,7 @@ function edHead(ins){
         <div class="ed-meta"><span>${esc(ins.version)}</span><span>${countActive(ins)} reactivos activos</span>
         <span>${used} candidatos evaluados</span><span>Actualizada ${fdate(ins.updatedAt)}</span></div></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        ${badgeOf(ins)}${ins.id===S.activeIns?'<span class="badge b-live">En uso</span>':''}
+        ${badgeOf(ins)}${(ins.isActive && ins.status==='publicada')?'<span class="badge b-live">En uso</span>':''}
         <button class="btn btn-ghost btn-sm" data-go="versions">Todas las versiones</button>
       </div></div>
     ${lock?`<p class="mini" style="margin-top:12px">Esta versión está ${ins.status}. Se muestra en modo consulta porque ya puede tener candidatos asociados. Usa <b>Nueva versión</b> para editarla.</p>
@@ -6001,9 +6063,11 @@ function invitePanel(){
       <div class="filters" style="margin-bottom:16px">
         <div class="field"><label for="i-nom">Nombre del candidato</label><input id="i-nom" data-inv="nombre" value="${esc(S.invForm.nombre||'')}"></div>
         <div class="field"><label for="i-mail">Correo (opcional)</label><input id="i-mail" data-inv="email" value="${esc(S.invForm.email||'')}"></div>
-        <div class="field"><label for="i-ins">Evaluación</label><select id="i-ins" data-inv="instrumentId">
-          ${S.instruments.filter(i=>i.status==='publicada').map(i=>
-            `<option value="${i.id}" ${(S.invForm.instrumentId||S.activeIns)===i.id?'selected':''}>${esc(i.name)} · ${esc(i.version)}</option>`).join('')}
+        <div class="field"><label for="i-ins">Puesto y versión</label><select id="i-ins" data-inv="instrumentId">
+          ${S.instruments.filter(i=>i.status==='publicada')
+            .sort((a,b)=>(b.isActive?1:0)-(a.isActive?1:0))
+            .map(i=>`<option value="${i.id}" ${(S.invForm.instrumentId||S.selectedIns)===i.id?'selected':''}>
+              ${esc(i.name)} · ${esc(i.version)}${i.isActive?' (activa)':''}</option>`).join('')}
         </select></div>
         <button class="btn btn-sm" data-newinvite>Generar enlace</button>
       </div>
@@ -6268,6 +6332,9 @@ async function go(v){
   if(S.candidateMode && !['invite','form','quiz','thanks'].includes(v)) v = 'invite';
   if(GATED.includes(v) && !accessOk()){ S.view='login'; return render(); }
   try{
+    if(v==='home' && !(S.instruments||[]).length){
+      try{ S.instruments = await DB.listInstruments(); }catch(e){}
+    }
     if(['admin','compare','versions','editor','answers','analysis'].includes(v)) S.list = await DB.listCandidates();
     if(['versions','admin','answers','analysis'].includes(v)){ S.instruments = await DB.listInstruments(); }
     if(v==='admin'){
@@ -6370,8 +6437,8 @@ APP.addEventListener('click', async e=>{
     const f = S.invForm;
     if(!f.nombre){ S.msg='Escribe el nombre del candidato antes de generar el enlace.'; return render(); }
     try{
-      S.lastInvite = await DB.createInvite(f.instrumentId||S.activeIns, f.nombre, f.email||'');
-      S.invForm = {instrumentId: f.instrumentId||S.activeIns};
+      S.lastInvite = await DB.createInvite(f.instrumentId||S.selectedIns, f.nombre, f.email||'');
+      S.invForm = {instrumentId: f.instrumentId||S.selectedIns};
       S.invites = await DB.listInvites(); S.msg='';
     }catch(e){ S.msg='No se pudo crear la invitación: '+e.message; }
     return render();
@@ -6490,7 +6557,7 @@ APP.addEventListener('click', async e=>{
   }
   if(d.seed!==undefined){
     try{ await DB.resetAll(); }catch(e){ S.msg=e.message; return render(); }
-    S.activeIns=null; const b=await bootstrap(); S.instruments=b.ins; S.list=b.cands; S.sel=[]; S.lastInvite=null;
+    S.selectedIns=null; const b=await bootstrap(); S.instruments=b.ins; S.list=b.cands; S.sel=[]; S.lastInvite=null;
     return go('admin');
   }
   if(d.print!==undefined) return window.print();
@@ -6504,9 +6571,12 @@ APP.addEventListener('click', async e=>{
   if(d.openins!==undefined) return openInstrument(d.openins);
   if(d.dupins!==undefined) return duplicateInstrument(d.dupins);
   if(d.useins!==undefined){
-    const all = await DB.listInstruments();
-    const x = all.find(i=>i.id===d.useins);
-    if(x){ useInstrument(x); S.activeIns=x.id; S.msg='Ahora las evaluaciones nuevas usan '+x.version+'.'; }
+    try{
+      S.instruments = await DB.setActive(d.useins);
+      const x = S.instruments.find(i=>i.id===d.useins);
+      if(x){ useInstrument(x); S.selectedIns=x.id;
+        S.msg = x.name + ' ahora se aplica con la versión ' + x.version + '. Los demás puestos no cambian.'; }
+    }catch(e){ S.msg = 'No se pudo activar: ' + e.message; }
     return go('versions');
   }
   if(d.delins!==undefined){ await DB.deleteInstrument(d.delins); S.msg='Borrador eliminado.'; return go('versions'); }
@@ -6522,14 +6592,15 @@ APP.addEventListener('click', async e=>{
   /* --- borrador --- */
   if(d.savedraft!==undefined){
     S.instruments = await DB.saveInstrument(ins); S.dirty=false;
-    if(ins.id===S.activeIns) useInstrument(ins);
+    if(ins.id===S.selectedIns) useInstrument(ins);
     return render();
   }
   if(d.publish!==undefined){
     ins.status='publicada';
-    S.instruments = await DB.saveInstrument(ins);
-    useInstrument(ins); S.activeIns=ins.id; S.dirty=false;
-    S.msg='Versión '+ins.version+' publicada y en uso para nuevas evaluaciones.';
+    await DB.saveInstrument(ins);
+    S.instruments = await DB.setActive(ins.id);
+    useInstrument(ins); S.selectedIns=ins.id; S.dirty=false;
+    S.msg='Versión '+ins.version+' publicada y activa para '+ins.name+'. Los demás puestos siguen con su versión.';
     return go('versions');
   }
 
@@ -6658,6 +6729,11 @@ APP.addEventListener('change', async e=>{
     return render();
   }
   if(d.fdim!==undefined){ S.fDim=t.value; return render(); }
+  if(d.selins!==undefined){
+    const x = (S.instruments||[]).find(i=>i.id===t.value);
+    if(x){ useInstrument(x); S.selectedIns = x.id; S.answers={}; S.page=0; }
+    return render();
+  }
   if(d.ittype!==undefined){
     it.type = t.value;
     if(it.type==='likert'){ it.labs = it.labs||['',' ']; it.w = it.w>0.6?0.5:it.w; }
