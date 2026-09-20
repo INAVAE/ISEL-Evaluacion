@@ -2235,8 +2235,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260920-0434';
-const BUILD_NOTAS = 'Almacenamiento real del navegador · avance del candidato recuperable · sin caída silenciosa a modo local · portada nueva';
+const BUILD = 'B20260920-0458';
+const BUILD_NOTAS = 'Acceso único por sesión de Supabase · barra superior reducida antes de entrar · almacenamiento real del navegador · avance del candidato recuperable';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -4516,6 +4516,7 @@ function consistency(perQ, ins){
 /* Configuración de conexión. Se guarda local; la clave anónima de
    Supabase es pública por diseño y la seguridad real vive en RLS. */
 const CFG = {mode:'local', url:'', anonKey:'', gate:''};
+const FILE_CFG = {url:'', anonKey:''};
 let SESSION = null;
 
 /* Almacenamiento del dispositivo. En un navegador normal es localStorage;
@@ -4669,9 +4670,12 @@ const DB = {
       if(r.ok){
         const j = await r.json();
         if(j && j.url && j.anonKey){
-          CFG.mode = j.mode || 'supabase';
-          CFG.url = j.url;
-          CFG.anonKey = j.anonKey;
+          FILE_CFG.url = j.url; FILE_CFG.anonKey = j.anonKey;
+          if(!CFG.url || CFG.fromFile !== false){
+            CFG.url = j.url;
+            CFG.anonKey = j.anonKey;
+            if(!c || !c.mode) CFG.mode = j.mode || 'supabase';
+          }
           CFG.fromFile = true;
         }
       }
@@ -4685,12 +4689,16 @@ const DB = {
   },
 
   /* --- sesión --- */
-  get signedIn(){
-    if(!DB.remote) return true;
+  /* Hay sesión de Supabase, sin importar dónde se guarden los datos. */
+  get hasSession(){
     if(!SESSION || !SESSION.access_token) return false;
     if(SESSION.refresh_token) return true;
     return !SESSION.expires_at || Date.now() < SESSION.expires_at * 1000;
   },
+  /* El proyecto está configurado: si viene de config.json no se puede anular
+     desde la interfaz, así que el acceso no se abre borrando los campos. */
+  get configured(){ return !!(FILE_CFG.url || (CFG.url && CFG.anonKey)); },
+  get signedIn(){ return !DB.remote || DB.hasSession; },
   async signIn(email, password){
     const data = stampSession(await sbFetch('/auth/v1/token?grant_type=password',
       {method:'POST', body: JSON.stringify({email, password})}));
@@ -5159,13 +5167,20 @@ function topbar(){
   if(S.candidateMode) return `<div class="topbar no-print"><div class="shell topbar-in">
     <span class="brand"><span class="brand-mark">ISEL</span>
     <span class="brand-txt">Evaluación de competencias comerciales</span></span></div></div>`;
+  const dentro = accessOk();
+  const marca = `<a class="brand" href="#" data-go="home"><span class="brand-mark">ISEL</span>
+    <span class="brand-txt">Evaluación de competencias comerciales</span></a>`;
+
+  if(!dentro) return `<div class="topbar no-print"><div class="shell topbar-in">
+    ${marca}<span class="topbar-sp"></span>
+    <button class="tlink ${S.view==='login'?'on':''}" data-go="login">Iniciar sesión</button>
+  </div></div>`;
+
   const estado = !DB.remote ? {c:'var(--amber)', t:'Prueba'}
-    : DB.signedIn ? {c:'var(--r-green)', t:'Online'}
-    : {c:'var(--amber)', t:'Login'};
+    : DB.hasSession ? {c:'var(--r-green)', t:'En línea'}
+    : {c:'var(--amber)', t:'Sin sesión'};
   return `<div class="topbar no-print"><div class="shell topbar-in">
-    <a class="brand" href="#" data-go="home"><span class="brand-mark">ISEL</span>
-    <span class="brand-txt">Evaluación de competencias comerciales</span></a>
-    <span class="topbar-sp"></span>
+    ${marca}<span class="topbar-sp"></span>
     <button class="tlink ${S.view==='admin'||S.view==='compare'?'on':''}" data-go="admin">Candidatos</button>
     <button class="tlink ${inEd?'on':''}" data-go="versions">Evaluaciones</button>
     <button class="tlink ${S.view==='settings'?'on':''}" data-go="settings">
@@ -5241,8 +5256,8 @@ function viewHome(){
     <div class="plate-row"><span class="k">Versiones publicadas</span><span class="v">${publicadas.length}</span></div>
     ${evaluados!==null?`<div class="plate-row"><span class="k">Candidatos evaluados</span><span class="v">${evaluados}</span></div>`:''}
     ${invitaciones!==null?`<div class="plate-row"><span class="k">Invitaciones abiertas</span><span class="v">${invitaciones}</span></div>`:''}
-    <div class="plate-row"><span class="k">Cálculo</span><span class="v" style="font-size:14px">${DB.remote?'Servidor':'Local'}</span></div>
-    <div class="plate-foot"><span>Build ${BUILD}</span><span>${DB.remote?(DB.signedIn?'En línea':'Sin sesión'):'Sin conexión'}</span></div>
+    <div class="plate-row"><span class="k">Cálculo del puntaje</span><span class="v" style="font-size:14px">${DB.remote?'Servidor':'Local'}</span></div>
+    <div class="plate-foot"><span>Build ${BUILD}</span><span>${!DB.remote?'Modo de prueba':(DB.hasSession?'En línea':'Sin sesión')}</span></div>
   </div>`;
 
   const escala = `<div class="rule-strip">
@@ -5293,7 +5308,7 @@ function viewHome(){
       evaluaciones requieren una cuenta autorizada.</p>
       <div class="navrow" style="margin:0">
         <button class="btn btn-sm" data-go="login">Iniciar sesión</button>
-        <button class="btn btn-ghost btn-sm" data-go="settings">Conexión</button>
+        ${DB.configured?'':'<button class="btn btn-ghost btn-sm" data-go="settings">Configurar conexión</button>'}
       </div>
       <p class="tiny" style="margin-top:14px">Si llegaste por una invitación, usa el enlace que te enviaron:
       abre directamente tu evaluación sin necesidad de cuenta.</p>
@@ -6190,9 +6205,9 @@ function viewSettings(){
       <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Credenciales del proyecto</h3></div>
         <div class="panel-b">
           <div class="field"><label for="c-url">URL del proyecto</label>
-            <input id="c-url" data-cfg="url" value="${esc(CFG.url)}" placeholder="https://xxxxxxxx.supabase.co"></div>
+            <input id="c-url" data-cfg="url" value="${esc(CFG.url)}" placeholder="https://xxxxxxxx.supabase.co" ${CFG.fromFile?'readonly':''}></div>
           <div class="field"><label for="c-key">Llave pública del proyecto</label>
-            <input id="c-key" data-cfg="anonKey" value="${esc(CFG.anonKey)}" placeholder="sb_publishable_…  o bien  eyJhbGciOi…"></div>
+            <input id="c-key" data-cfg="anonKey" value="${esc(CFG.anonKey)}" placeholder="sb_publishable_…  o bien  eyJhbGciOi…" ${CFG.fromFile?'readonly':''}></div>
           <p class="mini">En Supabase, <b>Project Settings → API Keys</b>. Sirve la <b>Publishable key</b>
           (<code>sb_publishable_…</code>) o la <b>anon public</b> de la pestaña de llaves heredadas.
           Nunca la <b>secret</b> ni la <b>service_role</b>: esas saltan toda la seguridad y el navegador las rechaza.
@@ -6202,7 +6217,7 @@ function viewSettings(){
           de seguridad a nivel de fila del esquema, que impide a un visitante sin sesión leer candidatos,
           puntajes o criterios de calificación.</p>
           <div class="navrow"><button class="btn btn-sm" data-testconn>Probar conexión</button>
-            <button class="btn btn-ghost btn-sm" data-testsave ${DB.signedIn?'':'disabled'}>Probar guardado</button>
+            <button class="btn btn-ghost btn-sm" data-testsave ${DB.remote && DB.hasSession?'':'disabled'}>Probar guardado</button>
             <button class="btn btn-ghost btn-sm" data-saveconn>Guardar</button>
             <button class="btn btn-ghost btn-sm" data-dlconfig>Descargar config.json</button></div>
           <p class="mini">Descarga ese archivo y súbelo al repositorio, junto a <code>index.html</code>.
@@ -6218,12 +6233,13 @@ function viewSettings(){
             <span>${esc(x.t)}</span></li>`).join('')}</ul>`:''}
         </div></div>
 
-      <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Sesión del panel</h3></div>
+      <div class="panel" style="margin-bottom:16px" data-sesion><div class="panel-h"><h3>Sesión</h3></div>
         <div class="panel-b">
-          ${DB.signedIn && SESSION
-            ? `<p class="sub">Sesión iniciada como <b>${esc((SESSION.user&&SESSION.user.email)||'usuario')}</b>.</p>
+          ${DB.hasSession && SESSION
+            ? `<p class="sub">Sesión iniciada como <b>${esc((SESSION.user&&SESSION.user.email)||'usuario')}</b>.
+               Las cuentas se dan de alta en Supabase, en Authentication → Users.</p>
                <div class="navrow"><button class="btn btn-ghost btn-sm" data-signout>Cerrar sesión</button></div>`
-            : `<p class="sub">Sin sesión. El panel de candidatos y el editor requieren una cuenta de Supabase.</p>
+            : `<p class="sub">Sin sesión. Toda la herramienta requiere una cuenta autorizada, incluido el modo de prueba.</p>
                <div class="navrow"><button class="btn btn-sm" data-go="login">Iniciar sesión</button></div>`}
         </div></div>
 
@@ -6253,20 +6269,27 @@ function viewSettings(){
 }
 
 function viewLogin(){
+  const conf = DB.configured;
   return topbar()+`<div class="shell"><div class="logincard">
-    <h2 style="font-size:26px">Acceso al panel</h2>
-    <p class="sub" style="margin:6px 0 20px">${DB.remote
-      ? 'Cuenta de Supabase con permiso de lectura sobre el esquema ISEL.'
-      : 'Introduce el código de acceso configurado en este equipo.'}</p>
+    <h2 style="font-size:26px">Acceso al sistema</h2>
+    <p class="sub" style="margin:6px 0 20px">${conf
+      ? 'Cuenta autorizada de ISEL. Las altas y bajas se administran desde Supabase.'
+      : 'Todavía no hay un proyecto configurado en este dispositivo.'}</p>
     ${S.msg?`<div class="alert" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
-    ${DB.remote?`
-      <div class="field"><label for="l-mail">Correo</label><input id="l-mail" type="email" data-login="email" value="${esc(S.loginEmail||'')}"></div>
-      <div class="field"><label for="l-pass">Contraseña</label><input id="l-pass" type="password" data-login="password"></div>
+    ${conf?`
+      <div class="field"><label for="l-mail">Correo</label>
+        <input id="l-mail" type="email" data-login="email" value="${esc(S.loginEmail||'')}" autocomplete="username"></div>
+      <div class="field"><label for="l-pass">Contraseña</label>
+        <input id="l-pass" type="password" data-login="password" autocomplete="current-password"></div>
+      <div class="navrow"><button class="btn" data-dologin>Entrar</button></div>
+      <p class="tiny" style="margin-top:16px">Una vez dentro puedes trabajar en línea, que es el modo normal, o pasar
+      al modo de prueba desde Conexión para ensayar sin tocar datos reales. En ambos casos hace falta esta sesión.</p>
+      <p class="tiny" style="margin-top:10px">Si llegaste por una invitación, abre el enlace que te enviaron:
+      lleva directo a tu evaluación y no necesita cuenta.</p>
     `:`
-      <div class="field"><label for="l-gate">Código de acceso</label><input id="l-gate" type="password" data-login="gate"></div>
+      <p class="tiny" style="margin-bottom:16px">Configura la URL del proyecto y su llave pública para poder iniciar sesión.</p>
+      <div class="navrow"><button class="btn" data-go="settings">Configurar conexión</button></div>
     `}
-    <div class="navrow"><button class="btn" data-dologin>Entrar</button>
-      <span class="sp"></span><button class="btn btn-ghost btn-sm" data-go="settings">Conexión</button></div>
   </div></div>`;
 }
 
@@ -6674,10 +6697,12 @@ function viewInvites(){
 /* ============================================================
    ROUTER Y EVENTOS
    ============================================================ */
-const GATED = ['admin','compare','versions','editor','itemedit','answers','analysis','invites'];
+const GATED = ['admin','compare','versions','editor','itemedit','answers','analysis','invites','pick','form','quiz'];
 function accessOk(){
   if(S.candidateMode) return false;
-  if(DB.remote) return DB.signedIn;
+  /* La autorización la administra Supabase. El modo (en línea o de prueba)
+     solo decide dónde se guardan los datos, no quién puede entrar. */
+  if(DB.configured) return DB.hasSession;
   return !CFG.gate || S.unlocked;
 }
 function render(){
@@ -6685,7 +6710,7 @@ function render(){
            admin:viewAdmin,compare:viewCompare,versions:viewVersions,editor:viewEditor,itemedit:viewItemEdit,
            settings:viewSettings,login:viewLogin,invite:viewInvite,thanks:viewThanks,
            answers:viewAnswers,analysis:viewAnalysis,pick:viewPick,invites:viewInvites};
-  if(GATED.includes(S.view) && !accessOk()) S.view = 'login';
+  if(!S.candidateMode && (GATED.includes(S.view) || (S.view==='settings' && DB.configured)) && !accessOk()) S.view = 'login';
   APP.innerHTML = (V[S.view]||viewHome)();
   if(S._last !== S.view){ window.scrollTo(0,0); S._last = S.view; }
   if(S._focus){
@@ -6702,7 +6727,7 @@ async function go(v){
     const prev = await recuperarAvance();
     if(prev){ S.retomar = prev; S.retomarVisto = true; }
   }
-  if(GATED.includes(v) && !accessOk()){ S.view='login'; return render(); }
+  if(!S.candidateMode && (GATED.includes(v) || (v==='settings' && DB.configured)) && !accessOk()){ S.view='login'; return render(); }
   try{
     if(v==='home'){
       try{ S.instruments = await DB.listInstruments(); }catch(e){}
@@ -6798,16 +6823,24 @@ APP.addEventListener('click', async e=>{
     catch(e){ S.diag = {ok:false, msg: e.message}; }
     return render();
   }
-  if(d.signout!==undefined){ await DB.signOut(); S.msg='Sesión cerrada.'; return go('settings'); }
+  if(d.signout!==undefined){
+    await DB.signOut();
+    S.list=[]; S.invites=[]; S.instruments=[]; S.rec=null; S.selectedIns=null;
+    S.msg='Sesión cerrada.';
+    return go('home');
+  }
   if(d.copysql!==undefined) return copyText(SQL_SCHEMA, t);
   if(d.copylink!==undefined) return copyText(d.copylink, t);
   if(d.dologin!==undefined){
     S.msg='';
-    if(DB.remote){
+    if(DB.configured){
       try{
         await DB.signIn(S.login.email||'', S.login.password||'');
-        S.login={}; const b=await bootstrap(); S.instruments=b.ins; S.list=b.cands;
-        return go('admin');
+        S.login={}; S.msg='';
+        const b = await bootstrap();
+        S.instruments = b.ins; S.list = b.cands;
+        try{ S.invites = await DB.listInvites(); }catch(e){}
+        return go('home');
       }catch(e){ S.msg = authError(e.message); return render(); }
     }
     if((S.login.gate||'') === CFG.gate){ S.unlocked=true; S.login={}; return go('admin'); }
