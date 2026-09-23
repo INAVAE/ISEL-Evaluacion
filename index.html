@@ -2245,8 +2245,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260923-0230';
-const BUILD_NOTAS = 'Vigencia de invitaciones 24 h y 1.5 h de entrega · condiciones de aplicación en el informe · cerrar sesión e inactividad';
+const BUILD = 'B20260923-1738';
+const BUILD_NOTAS = 'Compatible con el autorrelleno del navegador · vigencia de invitaciones · condiciones de aplicación en el informe';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -5301,6 +5301,20 @@ const displayOrder = q => (S.shuffle && S.shuffle[q.id]) || q.opts.map((_,i)=>i)
    MÓDULO 6 — INTERFAZ
    ============================================================ */
 const $ = s => document.querySelector(s);
+const $$ = s => (document.querySelectorAll ? Array.from(document.querySelectorAll(s)) : []);
+
+/* El autorrelleno del navegador escribe el valor sin disparar 'input', así que
+   el estado se queda vacío. Antes de usar un formulario se lee lo que hay en
+   pantalla, que es la verdad. */
+function leerCampos(attr, destino){
+  $$('['+attr+']').forEach(el=>{
+    if(el.type === 'checkbox' || el.type === 'radio') return;
+    const k = el.getAttribute ? el.getAttribute(attr) : null;
+    if(k === null || k === undefined) return;
+    if(el.value !== undefined && el.value !== null) destino[k] = el.value;
+  });
+  return destino;
+}
 const APP = $('#app');
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fdate = iso => new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
@@ -7097,11 +7111,13 @@ APP.addEventListener('click', async e=>{
   /* --- conexión y acceso --- */
   if(d.mode!==undefined){ await DB.saveConfig({mode:d.mode}); S.conn=null; S.msg=''; return go('settings'); }
   if(d.saveconn!==undefined){
+    leerCampos('data-cfg', CFG);
     await DB.saveConfig({}); S.msg='Configuración guardada.';
     const b = await bootstrap(); S.instruments=b.ins; S.list=b.cands;
     return render();
   }
   if(d.testconn!==undefined){
+    leerCampos('data-cfg', CFG);
     await DB.saveConfig({});
     t.disabled = true; t.textContent = 'Probando…';
     try{ S.conn = await DB.testConnection(); }
@@ -7140,6 +7156,7 @@ APP.addEventListener('click', async e=>{
   if(d.copylink!==undefined) return copyText(d.copylink, t);
   if(d.dologin!==undefined){
     S.msg='';
+    leerCampos('data-login', S.login);
     if(DB.configured){
       try{
         await DB.signIn(S.login.email||'', S.login.password||'');
@@ -7157,6 +7174,7 @@ APP.addEventListener('click', async e=>{
   /* --- invitaciones --- */
   if(d.toggleinv!==undefined){ S.showInvites=!S.showInvites; S.msg=''; return render(); }
   if(d.newinvite!==undefined){
+    leerCampos('data-inv', S.invForm);
     const f = S.invForm;
     if(!f.nombre){ S.msg='Escribe el nombre del candidato antes de generar el enlace.'; return render(); }
     try{
@@ -7266,6 +7284,7 @@ APP.addEventListener('click', async e=>{
   const q = BANK[S.page];
   if(d.consent!==undefined){ S.consent = !S.consent; return render(); }
   if(d.start!==undefined){
+    leerCampos('data-f', S.profile);
     const miss = PROFILE_Q.filter(f=>f.req && !S.profile[f.k]);
     if(miss.length){ $('#form-msg').textContent='Faltan campos obligatorios: '+miss.map(m=>m.l).join(', ')+'.'; return; }
     if(INS.privacy && INS.privacy.enabled && !S.consent){
@@ -7524,6 +7543,7 @@ APP.addEventListener('change', async e=>{
   if(d.fdim!==undefined){ S.fDim=t.value; return render(); }
   if(d.pickver!==undefined){ S.pickVer = S.pickVer||{}; S.pickVer[d.pickver] = t.value; return render(); }
   if(d.invfam!==undefined){
+    leerCampos('data-inv', S.invForm);
     S.invForm.family = t.value;
     const g = porFamilia(S.instruments, true)[t.value] || [];
     S.invForm.instrumentId = g[0] ? g[0].id : '';
