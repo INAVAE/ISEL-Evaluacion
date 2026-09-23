@@ -510,8 +510,15 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
 
 .testbar{background:var(--amber-l);border-bottom:2px solid var(--amber);color:#7A4E00;
   font-size:12.5px;font-weight:600;letter-spacing:.04em;padding:8px 22px;text-align:center}
+
+.tlink.ico{padding:7px 10px;display:inline-flex;align-items:center;justify-content:center}
+.ovl{position:fixed;inset:0;background:rgba(21,30,39,.55);display:flex;align-items:center;
+  justify-content:center;padding:22px;z-index:100}
+.ovl-card{background:var(--paper);border:var(--line);border-top:4px solid var(--amber);
+  padding:26px 28px;max-width:420px;width:100%}
 </style>
 <div id="app"></div>
+<div id="modal"></div>
 <script>
 "use strict";
 
@@ -2218,6 +2225,8 @@ const CONS_SEED = [
 
 /* BORRADOR. Este texto debe revisarlo quien lleve el tema legal en ISEL antes
    de usarse con candidatos reales. Se edita desde el editor de la evaluación. */
+const WINDOW_SEED = {abrirHoras: 24, terminarHoras: 1.5};
+
 const PRIVACY_SEED = {
   enabled: true,
   responsible: 'ISEL · Implementos y Servicios Electrónicos',
@@ -2227,6 +2236,7 @@ const PRIVACY_SEED = {
     'La información se almacena en una base de datos controlada por ISEL y solo la consultan las personas que participan en el proceso de selección.',
     'No se comparte con terceros ni se usa con fines distintos al proceso de contratación.',
     'La evaluación es una herramienta de apoyo a la decisión: no es una prueba psicológica ni determina por sí sola el resultado del proceso.',
+    'Durante la evaluación se registran tiempos de respuesta y condiciones de aplicación con fines de control de validez. No se registra tu dirección IP ni se accede a otras aplicaciones de tu dispositivo.',
     'Puedes solicitar el acceso, la corrección o la eliminación de tus datos en cualquier momento escribiendo al correo de contacto.',
     'Los expedientes de candidatos no contratados se conservan el tiempo que ISEL defina en su política interna y después se eliminan.'
   ].join('\n'),
@@ -2235,8 +2245,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260920-0458';
-const BUILD_NOTAS = 'Acceso único por sesión de Supabase · barra superior reducida antes de entrar · almacenamiento real del navegador · avance del candidato recuperable';
+const BUILD = 'B20260923-0230';
+const BUILD_NOTAS = 'Vigencia de invitaciones 24 h y 1.5 h de entrega · condiciones de aplicación en el informe · cerrar sesión e inactividad';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -2267,6 +2277,7 @@ function baseInstrument(){
     privacy: clone(PRIVACY_SEED),
     profiles: clone(PROFILES_SEED),
     trainability: clone(TRAIN_SEED),
+    ventana: clone(WINDOW_SEED),
     family: 'vendedor-externo',
     isActive: true
   };
@@ -4320,6 +4331,10 @@ function migrateInstrument(ins){
     ins.privacy.responsible = ins.privacy.responsible.replace('Instrumentos y Servicios', 'Implementos y Servicios');
   if(!Array.isArray(ins.profiles) || !ins.profiles.length) ins.profiles = clone(PROFILES_SEED);
   if(!Array.isArray(ins.trainability) || !ins.trainability.length) ins.trainability = clone(TRAIN_SEED);
+  if(!ins.ventana || typeof ins.ventana !== 'object') ins.ventana = clone(WINDOW_SEED);
+  if(ins.privacy && ins.privacy.text && ins.privacy.text.indexOf('tiempos de respuesta') < 0)
+    ins.privacy.text = ins.privacy.text.replace('Puedes solicitar el acceso',
+      'Durante la evaluación se registran tiempos de respuesta y condiciones de aplicación con fines de control de validez. No se registra tu dirección IP ni se accede a otras aplicaciones de tu dispositivo.\nPuedes solicitar el acceso');
   if(!ins.plan) ins.plan = {d30:[],d60:[],d90:[]};
   if(!Array.isArray(ins.basic)) ins.basic = [];
   if(!Array.isArray(ins.ideal)) ins.ideal = [];
@@ -4550,6 +4565,25 @@ const STORE = (function(){
   return {kind:'memoria', get:()=>undefined, set:()=>{}, del:()=>{}, keys:()=>[]};
 })();
 
+/* La sesión se guarda por pestaña: al cerrarla se pierde, que es justo lo que
+   se busca. Sobrevive a recargar, no a cerrar el navegador. */
+const SESS = (function(){
+  try{
+    if(typeof sessionStorage !== 'undefined'){
+      const k = '__isel_probe__';
+      sessionStorage.setItem(k,'1'); sessionStorage.removeItem(k);
+      return {get:k=>sessionStorage.getItem(k), set:(k,v)=>sessionStorage.setItem(k,v), del:k=>sessionStorage.removeItem(k)};
+    }
+  }catch(e){}
+  const m = {};
+  return {get:k=>(k in m? m[k]:null), set:(k,v)=>{m[k]=v;}, del:k=>{delete m[k];}};
+})();
+const SS = {
+  async get(k, def){ try{ const r = SESS.get(k); return r? JSON.parse(r) : def; }catch(e){ return def; } },
+  async set(k, v){ try{ SESS.set(k, JSON.stringify(v)); }catch(e){} return v; },
+  async del(k){ try{ SESS.del(k); }catch(e){} }
+};
+
 const LS = {
   async get(k, def){
     try{
@@ -4661,7 +4695,7 @@ const DB = {
   async loadConfig(){
     const c = await LS.get('isel:config', null);
     if(c) Object.assign(CFG, c);
-    SESSION = await LS.get('isel:session', null);
+    SESSION = await SS.get('isel:session', null);
     /* La conexión pertenece al sitio publicado, no a cada navegador: si junto
        a index.html hay un config.json, manda ése. Así el celular del candidato
        sabe a qué proyecto conectarse sin configurar nada. */
@@ -4703,7 +4737,7 @@ const DB = {
     const data = stampSession(await sbFetch('/auth/v1/token?grant_type=password',
       {method:'POST', body: JSON.stringify({email, password})}));
     SESSION = data;
-    await LS.set('isel:session', data);
+    await SS.set('isel:session', data);
     return data;
   },
   async refresh(){
@@ -4714,15 +4748,15 @@ const DB = {
       const d = stampSession(await sbFetch('/auth/v1/token?grant_type=refresh_token',
         {method:'POST', body: JSON.stringify({refresh_token: prev.refresh_token})}));
       SESSION = d;
-      await LS.set('isel:session', d);
+      await SS.set('isel:session', d);
       return d;
     }catch(e){
       SESSION = null;
-      await LS.del('isel:session');
+      await SS.del('isel:session');
       throw e;
     }
   },
-  async signOut(){ SESSION = null; await LS.del('isel:session'); },
+  async signOut(){ SESSION = null; await SS.del('isel:session'); paraVigilancia(); },
   async testConnection(){
     const out = {ok:false, steps:[]};
     if(/^sb_secret_/.test(CFG.anonKey)){
@@ -4826,6 +4860,7 @@ const DB = {
       id:r.id, candidateId:r.candidateId, createdAt:r.createdAt, puesto:r.puesto,
       version:r.version, instrumentId:r.instrumentId, dimsDef:r.dimsDef,
       profile:r.profile, answers:r.answers, consent:r.consent, result:r.result,
+      telemetry:r.telemetry, late:r.late,
       scoredBy:r.scoredBy, clientIndex:r.clientIndex, scoreMismatch:r.scoreMismatch}));
   },
   async saveCandidate(rec){
@@ -4843,20 +4878,25 @@ const DB = {
   async listInvites(){
     if(!DB.remote) return LS.get('isel:invites', []);
     const rows = await sbFetch(
-      '/rest/v1/isel_assessments?select=id,invite_token,version,status,invited_at,instrument_id,isel_candidates(full_name,email)&status=in.(pendiente,en_progreso)&order=invited_at.desc');
+      '/rest/v1/isel_assessments?select=id,invite_token,version,status,invited_at,expires_at,deadline_at,instrument_id,isel_candidates(full_name,email)&status=in.(pendiente,en_progreso)&order=invited_at.desc');
     return (rows||[]).map(r => ({
       token:r.invite_token, assessmentId:r.id, version:r.version, status:r.status,
       createdAt:r.invited_at, instrumentId:r.instrument_id,
+      expiresAt:r.expires_at, deadlineAt:r.deadline_at,
       nombre:(r.isel_candidates && r.isel_candidates.full_name) || 'Sin nombre',
       email:(r.isel_candidates && r.isel_candidates.email) || ''}));
   },
   async createInvite(instrumentId, nombre, email){
     if(!DB.remote){
       const all = await DB.listInvites();
+      const insL = (await DB.listInstruments()).find(i=>i.id===instrumentId);
+      const v = ventanaDe(insL);
       const inv = {token: uid('t').replace(/[^a-z0-9]/g,''), assessmentId: uid('A'),
         instrumentId, nombre, email, status:'pendiente',
-        version:(await DB.listInstruments()).find(i=>i.id===instrumentId).version,
-        createdAt:new Date().toISOString()};
+        version: insL.version,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + v.abrir*HORA).toISOString(),
+        deadlineAt: null, finishHours: v.terminar};
       all.unshift(inv);
       await LS.set('isel:invites', all);
       return inv;
@@ -4864,6 +4904,34 @@ const DB = {
     const r = await rpc('isel_create_invite', {p_instrument:instrumentId, p_name:nombre, p_email:email});
     return {token:r.token, assessmentId:r.assessmentId, instrumentId, nombre, email,
             status:'pendiente', version:r.version, createdAt:new Date().toISOString()};
+  },
+  async extendInvite(token, horas){
+    if(!DB.remote){
+      const all = await DB.listInvites();
+      const x = all.find(i=>i.token===token);
+      if(x){
+        x.expiresAt = new Date(Date.now() + horas*HORA).toISOString();
+        if(x.status!=='pendiente') x.deadlineAt = new Date(Date.now() + (x.finishHours||1.5)*HORA).toISOString();
+      }
+      return LS.set('isel:invites', all);
+    }
+    await rpc('isel_extend_invite', {p_token: token, p_horas: horas});
+    return DB.listInvites();
+  },
+  async regenerateInvite(token){
+    if(!DB.remote){
+      const all = await DB.listInvites();
+      const x = all.find(i=>i.token===token);
+      if(x){
+        x.token = uid('t').replace(/[^a-z0-9]/g,'');
+        x.status = 'pendiente'; x.deadlineAt = null;
+        x.expiresAt = new Date(Date.now() + (x.abrirHoras||24)*HORA).toISOString();
+        await LS.set('isel:invites', all);
+        return x;
+      }
+      return null;
+    }
+    return rpc('isel_regenerate_invite', {p_token: token});
   },
   async cancelInvite(token){
     if(!DB.remote){
@@ -4878,9 +4946,12 @@ const DB = {
     if(!DB.remote){
       const inv = (await DB.listInvites()).find(i=>i.token===token && i.status!=='completada');
       if(!inv) return null;
+      if(inv.status==='pendiente' && inv.expiresAt && new Date(inv.expiresAt) < new Date())
+        return {expirada:true, expiresAt:inv.expiresAt};
       const ins = (await DB.listInstruments()).find(i=>i.id===inv.instrumentId);
       if(!ins) return null;
       return {assessmentId:inv.assessmentId, status:inv.status, version:inv.version,
+              expiresAt:inv.expiresAt, deadlineAt:inv.deadlineAt, finishHours:inv.finishHours,
               candidate:{nombre:inv.nombre, email:inv.email}, instrument:ins};
     }
     const r = await rpc('isel_get_invite', {p_token: token});
@@ -5080,6 +5151,97 @@ async function bootstrap(){
   return {ins, cands};
 }
 
+/* ============================================================
+   CONDICIONES DE APLICACIÓN
+   Mide cómo se contestó la evaluación: tiempo por reactivo, cambios de
+   respuesta, salidas de la pestaña e interrupciones. No prueba nada por sí
+   solo; señala cuándo conviene contrastar las respuestas en la entrevista.
+   ============================================================ */
+const PPM = 200;   /* palabras por minuto de lectura normal */
+
+/* Segundos mínimos para leer un reactivo completo, caso y opciones incluidos. */
+function pisoLectura(q){
+  let t = (q.case||'') + ' ' + (q.q||'');
+  (q.opts||[]).forEach(o=>{ t += ' ' + (o.t||''); });
+  if(q.labs) t += ' ' + q.labs.join(' ');
+  const palabras = t.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(3, Math.round(palabras / PPM * 60));
+}
+
+function telemNuevo(){
+  return {
+    inicio: new Date().toISOString(),
+    items: {},            /* id: {s: segundos, v: visitas, c: cambios} */
+    fuera: {n:0, s:0},    /* salidas de la pestaña y segundos fuera */
+    retomas: 0,
+    equipo: (function(){
+      try{
+        const w = (typeof window!=='undefined' && window.innerWidth) || 0;
+        return {
+          tipo: w && w < 760 ? 'móvil' : 'escritorio',
+          ancho: w,
+          nav: (typeof navigator!=='undefined' && navigator.userAgent) ? navigator.userAgent.slice(0,120) : ''
+        };
+      }catch(e){ return {}; }
+    })()
+  };
+}
+let telemDesde = 0, telemItem = null, telemOculto = 0;
+
+function telemEntra(id){
+  if(!S.telem) return;
+  telemSale();
+  telemItem = id; telemDesde = Date.now();
+  const e = S.telem.items[id] = S.telem.items[id] || {s:0, v:0, c:0};
+  e.v++;
+}
+function telemSale(){
+  if(!S.telem || !telemItem || !telemDesde) return;
+  const e = S.telem.items[telemItem] = S.telem.items[telemItem] || {s:0, v:0, c:0};
+  e.s += Math.round((Date.now() - telemDesde)/1000);
+  telemDesde = 0;
+}
+function telemCambio(id){
+  if(!S.telem) return;
+  const e = S.telem.items[id] = S.telem.items[id] || {s:0, v:0, c:0};
+  e.c++;
+}
+
+/* Resumen que se guarda con la evaluación */
+function telemResumen(){
+  const t = S.telem;
+  if(!t) return null;
+  telemSale();
+  const items = BANK.filter(q=>S.answers[q.id]!==undefined);
+  const tiempos = items.map(q=>(t.items[q.id]||{}).s||0);
+  const pisos = items.map(pisoLectura);
+  const total = tiempos.reduce((a,b)=>a+b,0);
+  const pisoTotal = pisos.reduce((a,b)=>a+b,0);
+  const orden = [...tiempos].sort((a,b)=>a-b);
+  const mediana = orden.length ? orden[Math.floor(orden.length/2)] : 0;
+  let rapidos = 0;
+  items.forEach((q,i)=>{ if(tiempos[i] < pisos[i]*0.4) rapidos++; });
+  const prop = items.length ? rapidos/items.length : 0;
+
+  let lectura = 'normal';
+  if(prop >= 0.40 || (pisoTotal && total < pisoTotal*0.35)) lectura = 'atipico';
+  else if(prop >= 0.15 || t.fuera.n >= 8 || (total && t.fuera.s > total*0.25)) lectura = 'revisar';
+
+  return {
+    inicio: t.inicio, fin: new Date().toISOString(),
+    totalSeg: total, medianaSeg: mediana, pisoTotalSeg: pisoTotal,
+    reactivos: items.length, rapidos, propRapidos: Math.round(prop*100),
+    fuera: t.fuera, retomas: t.retomas, equipo: t.equipo,
+    items: t.items, lectura
+  };
+}
+
+const LECTURA = {
+  normal:  {k:'Normal',   c:'var(--r-green)', d:'El ritmo de respuesta es consistente con leer cada reactivo y decidir.'},
+  revisar: {k:'Revisar',  c:'var(--amber)',   d:'Hay señales que conviene contrastar: respuestas más rápidas de lo que toma leerlas, o tiempo fuera de la pestaña.'},
+  atipico: {k:'Atípico',  c:'var(--r-red)',   d:'El patrón no corresponde a alguien leyendo la evaluación completa. Conviene verificar las respuestas en entrevista.'}
+};
+
 /* Avance en curso. Si el candidato cierra la pestaña, se queda sin señal o el
    teléfono mata la página, al volver al enlace recupera lo que llevaba. */
 const avanceKey = () => 'isel:avance:' + (S.inviteToken || S.selectedIns || 'directo');
@@ -5090,7 +5252,7 @@ function guardarAvance(){
     LS.set(avanceKey(), {
       ins: INS && INS.id, version: INS && INS.version,
       profile: S.profile, answers: S.answers, page: S.page,
-      shuffle: S.shuffle, consent: S.consent, at: Date.now()
+      shuffle: S.shuffle, consent: S.consent, telem: S.telem, at: Date.now()
     });
   }, 400);
 }
@@ -5150,7 +5312,7 @@ const S = {
   instruments:[], activeIns:null, draft:null, dirty:false, tab:'items',
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
-  confirmDel:null, shuffle:{}, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
+  confirmDel:null, shuffle:{}, telem:null, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
   pickVer:{}, fInvFam:'', connFail:null, retomar:null, retomarVisto:false, avanceActual:null,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
@@ -5181,10 +5343,16 @@ function topbar(){
     : {c:'var(--amber)', t:'Sin sesión'};
   return `<div class="topbar no-print"><div class="shell topbar-in">
     ${marca}<span class="topbar-sp"></span>
+    <button class="tlink ico ${S.view==='home'?'on':''}" data-go="home" title="Inicio" aria-label="Inicio">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9"
+        stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg></button>
     <button class="tlink ${S.view==='admin'||S.view==='compare'?'on':''}" data-go="admin">Candidatos</button>
     <button class="tlink ${inEd?'on':''}" data-go="versions">Evaluaciones</button>
     <button class="tlink ${S.view==='settings'?'on':''}" data-go="settings">
       <span class="statdot" style="background:${estado.c}"></span>${estado.t}</button>
+    ${DB.hasSession?`<button class="tlink ico" data-signout title="Cerrar sesión" aria-label="Cerrar sesión">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9"
+        stroke-linecap="round" stroke-linejoin="round"><path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2"/><path d="M19 12H9"/><path d="m16 9 3 3-3 3"/></svg></button>`:''}
   </div></div>` + avisoPrueba();
 }
 
@@ -5401,7 +5569,15 @@ function viewQuiz(){
   const answered = a!==undefined && (q.type!=='ranking' || a.length===q.opts.length) && (q.type!=='multi' || a.length>0);
   return topbar()+`
   <div class="prog no-print"><div class="shell prog-in">
-    <div class="prog-meta"><span>Pregunta <b>${S.page+1}</b> de <b>${BANK.length}</b></span><span>${done} respondidas</span></div>
+    <div class="prog-meta"><span>Pregunta <b>${S.page+1}</b> de <b>${BANK.length}</b></span>
+      <span>${(function(){
+        if(S.candidateMode && S.invite && S.invite.deadlineAt){
+          const r = restante(S.invite.deadlineAt);
+          if(r && !r.venció && r.ms < 20*60000) return '<b style="color:var(--amber)">quedan '+r.txt+'</b>';
+          if(r && r.venció) return '<b style="color:var(--r-red)">plazo vencido</b>';
+        }
+        return done + ' respondidas';
+      })()}</span></div>
     <div class="prog-seg">${segs}</div>
     <div class="prog-bar"><i style="width:${Math.round((S.page+1)/BANK.length*100)}%"></i></div></div></div>
   <div class="shell-narrow qwrap">
@@ -5466,6 +5642,42 @@ function fourQuestions(rec){
         `<div class="chk" style="border-bottom:1px solid var(--steel-200)"><div class="d"><b style="font-size:14.5px">${k}</b>
         <em style="font-size:14px;color:var(--ink-2);margin-top:2px">${v}</em></div></div>`).join('')}</div>
       <p class="tiny" style="margin-top:14px">El número sintetiza, no decide. La recomendación se sostiene en el perfil de competencias, no en el promedio.</p>
+    </div></div></div>`;
+}
+
+function condicionesAplicacion(rec){
+  const t = rec.telemetry;
+  if(!t) return '';
+  const L = LECTURA[t.lectura] || LECTURA.normal;
+  const mm = seg => seg >= 60 ? Math.floor(seg/60)+' min '+(seg%60)+' s' : seg+' s';
+  const tarde = rec.late || (rec.result && rec.result.late);
+  return `<div class="sect">
+    <div class="sect-h"><h2>Condiciones de aplicación</h2>
+      <span class="pill" style="color:${L.c};border-color:${L.c}">${L.k}</span></div>
+    <div class="panel"><div class="panel-b">
+      <p class="sub" style="margin-bottom:14px;max-width:80ch">${L.d}</p>
+      ${t.lectura!=='normal'?`<div class="alert ${t.lectura==='atipico'?'':'warn'}" style="margin-bottom:16px">
+        <h3>Qué revisar</h3>
+        ${t.rapidos} de ${t.reactivos} reactivos se contestaron en menos tiempo del que toma leerlos completos.
+        ${t.fuera.n?`Además hubo ${t.fuera.n} salida${t.fuera.n>1?'s':''} de la pestaña, con ${mm(t.fuera.s)} fuera en total.`:''}
+        Conviene abrir el detalle de respuestas y pedirle en entrevista que explique dos o tres de sus decisiones.</div>`:''}
+      ${tarde?`<div class="alert warn" style="margin-bottom:16px"><h3>Entrega fuera de plazo</h3>
+        La evaluación se envió después del tiempo previsto. Se aceptó y se calificó con normalidad; el dato queda registrado.</div>`:''}
+      <div class="res-cells" style="border:1px solid var(--steel-200)">
+        <div class="cell"><div class="k">Duración total</div><div class="v">${mm(t.totalSeg)}</div></div>
+        <div class="cell"><div class="k">Mediana por reactivo</div><div class="v">${mm(t.medianaSeg)}</div></div>
+        <div class="cell"><div class="k">Bajo el tiempo de lectura</div><div class="v" style="color:${t.rapidos?L.c:'inherit'}">${t.rapidos} de ${t.reactivos}</div></div>
+        <div class="cell"><div class="k">Fuera de la pestaña</div><div class="v">${t.fuera.n} · ${mm(t.fuera.s)}</div></div>
+      </div>
+      <div class="res-cells" style="border:1px solid var(--steel-200);border-top:none">
+        <div class="cell"><div class="k">Interrupciones</div><div class="v">${t.retomas||0}</div></div>
+        <div class="cell"><div class="k">Dispositivo</div><div class="v" style="font-size:17px">${esc((t.equipo&&t.equipo.tipo)||'—')}</div></div>
+        <div class="cell"><div class="k">Inicio</div><div class="v" style="font-size:15px">${new Date(t.inicio).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>
+        <div class="cell"><div class="k">Envío</div><div class="v" style="font-size:15px">${new Date(t.fin).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div></div>
+      </div>
+      <p class="tiny" style="margin-top:12px">El tiempo de referencia de cada reactivo se calcula con el número de palabras
+      del caso, la pregunta y todas sus opciones, a velocidad de lectura normal. Esta sección describe cómo se aplicó la
+      evaluación; no determina por sí sola la validez del resultado ni afecta el puntaje.</p>
     </div></div></div>`;
 }
 
@@ -5539,6 +5751,7 @@ function resultsBody(rec, forPrint){
     <div class="grid g3">${[['Primeros 30 días','d30'],['31 a 60 días','d60'],['61 a 90 días','d90']].map(([t,k])=>
       `<div class="plan-col"><h3>${t}</h3><ul>${(r.plan[k]||[]).map(i=>`<li class="${i.g?'gap':''}">${esc(i.t)}</li>`).join('')||'<li>—</li>'}</ul></div>`).join('')}</div>
   </div>
+  ${condicionesAplicacion(rec)}
   ${r.consistency.det.length?`<div class="sect"><div class="sect-h"><h2>Control de consistencia</h2></div>
     <div class="panel"><div class="panel-b">
       <p class="sub" style="margin-bottom:12px">Contrasta lo que el candidato declara sobre sí mismo contra las decisiones que eligió en los escenarios. Es informativo: por sí solo no descarta a una persona.</p>
@@ -5647,7 +5860,9 @@ function viewAdmin(){
           <td>${esc(r.result.profK || (PROFILES[r.result.prof]||{}).k || r.result.prof)}</td><td>${r.result.basicOk}/${r.result.BASIC.length}</td>
           <td>${r.result.idealOk}/${r.result.IDEAL.length}</td>
           <td style="color:${rc};font-weight:600">${r.result.risk}</td><td>${pill(dc.k,dc.c)}</td>
-          <td class="tiny">${esc(r.version)}</td><td class="tiny">${fdate(r.createdAt)}</td>
+          <td class="tiny">${esc(r.version)}${r.late?'<div class="tiny" style="color:var(--amber)">tardía</div>':''}</td>
+          <td class="tiny">${fdate(r.createdAt)}${r.telemetry && r.telemetry.lectura!=='normal'
+            ? `<div class="tiny" style="color:${LECTURA[r.telemetry.lectura].c}">${LECTURA[r.telemetry.lectura].k.toLowerCase()}</div>`:''}</td>
           <td><button class="btn btn-ghost btn-sm" data-open="${r.id}">Ver</button></td></tr>`;
         }).join('')}</tbody></table></div>`
       : `<div class="empty"><b>Sin candidatos con esos filtros</b>Ajusta la recomendación o la fecha, o evalúa a un candidato nuevo.</div>`}</div>
@@ -6024,6 +6239,12 @@ function tabMeta(ins){
     <div class="full"><label class="fl">Puesto evaluado</label><input class="fi" data-meta="name" value="${esc(ins.name)}" ${ro}></div>
     <div class="full"><label class="fl">Área</label><input class="fi" data-meta="area" value="${esc(ins.area||'')}" ${ro}></div>
     <div><label class="fl">Clave de versión</label><input class="fi" data-meta="version" value="${esc(ins.version)}" ${ro}></div>
+    <div><label class="fl">Horas para abrir el enlace</label>
+      <input class="fi" type="number" min="1" max="336" step="1" data-vent="abrirHoras" value="${(ins.ventana||WINDOW_SEED).abrirHoras}" ${ro}>
+      <p class="mini" style="margin-top:6px">Desde que se genera la invitación. Pasado el plazo el enlace deja de abrir.</p></div>
+    <div><label class="fl">Horas para terminar</label>
+      <input class="fi" type="number" min="0.5" max="24" step="0.5" data-vent="terminarHoras" value="${(ins.ventana||WINDOW_SEED).terminarHoras}" ${ro}>
+      <p class="mini" style="margin-top:6px">Desde que el candidato comienza. Si se pasa, la evaluación se recibe igual y queda marcada como entrega tardía.</p></div>
     <div><label class="fl">Orden de las opciones</label>
       <label class="sw ${ins.shuffleOptions!==false?'on':''}" data-shuffle style="margin-top:9px" ${ro}><i></i>
         ${ins.shuffleOptions!==false?'Aleatorio en cada aplicación':'Fijo, como están capturadas'}</label>
@@ -6164,7 +6385,31 @@ function viewItemEdit(){
 /* ============================================================
    MÓDULO 8 — CONEXIÓN, ACCESO E INVITACIONES
    ============================================================ */
-const SQL_SCHEMA = "-- ============================================================\n-- ISEL \u00b7 Evaluaci\u00f3n de competencias comerciales\n-- Esquema para Supabase / PostgreSQL\n-- Ejecutar completo en el SQL Editor del proyecto.\n-- ============================================================\n\n-- En Supabase pgcrypto ya viene instalado en el esquema \"extensions\", no en\n-- \"public\". Por eso todas las funciones llevan extensions en su search_path:\n-- sin eso, gen_random_bytes() no se encuentra y la funci\u00f3n falla.\ncreate extension if not exists pgcrypto;\n\n-- ------------------------------------------------------------\n-- 1. INSTRUMENTOS (versiones de la evaluaci\u00f3n)\n-- La definici\u00f3n completa vive en jsonb: dimensiones, reactivos,\n-- requisitos, plan y pares de consistencia. Se versiona entera\n-- para que un candidato evaluado con 1.0 conserve su contexto\n-- aunque 1.1 cambie los pesos.\n-- ------------------------------------------------------------\ncreate table if not exists isel_instruments (\n  id          text primary key,\n  name        text not null,\n  area        text,\n  version     text not null,\n  status      text not null default 'borrador'\n              check (status in ('borrador','publicada','archivada')),\n  notes       text,\n  definition  jsonb not null,\n  created_at  timestamptz not null default now(),\n  updated_at  timestamptz not null default now()\n);\ncreate index if not exists isel_instruments_status_idx on isel_instruments(status);\n\n-- ------------------------------------------------------------\n-- 2. CANDIDATOS\n-- profile guarda escolaridad, experiencia, disponibilidad, etc.\n-- La edad se captura pero nunca entra al c\u00e1lculo.\n-- ------------------------------------------------------------\ncreate table if not exists isel_candidates (\n  id          text primary key,\n  full_name   text not null,\n  email       text,\n  profile     jsonb not null default '{}'::jsonb,\n  created_at  timestamptz not null default now()\n);\ncreate index if not exists isel_candidates_name_idx on isel_candidates(lower(full_name));\n\n-- ------------------------------------------------------------\n-- 3. EVALUACIONES APLICADAS\n-- Una fila por aplicaci\u00f3n. invite_token permite que el candidato\n-- conteste desde su celular sin ver el panel; se anula al enviar.\n-- ------------------------------------------------------------\ncreate table if not exists isel_assessments (\n  id             text primary key,\n  candidate_id   text references isel_candidates(id) on delete cascade,\n  instrument_id  text references isel_instruments(id),\n  version        text,\n  invite_token   text unique,\n  status         text not null default 'pendiente'\n                 check (status in ('pendiente','en_progreso','completada','cancelada')),\n  consent        jsonb,\n  answers        jsonb,\n  dims_def       jsonb,\n  result         jsonb,\n  index_score    int,\n  decision       text,\n  profile_code   text,\n  risk           text,\n  consistency    int,\n  invited_at     timestamptz not null default now(),\n  started_at     timestamptz,\n  submitted_at   timestamptz\n);\n-- Se agrega aparte porque create table if not exists no modifica una tabla\n-- que ya existe. Es seguro volver a ejecutarlo.\nalter table isel_assessments add column if not exists consent jsonb;\n\n-- Procedencia del puntaje: el servidor recalcula y aqu\u00ed queda constancia\n-- de lo que report\u00f3 el navegador, para poder detectar manipulaci\u00f3n.\nalter table isel_assessments add column if not exists scored_by text;\nalter table isel_assessments add column if not exists client_index int;\nalter table isel_assessments add column if not exists score_mismatch boolean;\n\ncreate index if not exists isel_assessments_status_idx on isel_assessments(status);\ncreate index if not exists isel_assessments_cand_idx   on isel_assessments(candidate_id);\ncreate index if not exists isel_assessments_date_idx   on isel_assessments(submitted_at desc);\n\n-- ------------------------------------------------------------\n-- 4. RESPUESTAS INDIVIDUALES\n-- Normalizadas para poder hacer an\u00e1lisis de reactivos: qu\u00e9 tanto\n-- discrimina cada pregunta entre candidatos buenos y malos.\n-- Guardar la respuesta cruda permite recalcular el puntaje si\n-- despu\u00e9s se recalibra el instrumento.\n-- ------------------------------------------------------------\ncreate table if not exists isel_answers (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  item_id       text not null,\n  dimension_id  text,\n  item_type     text,\n  raw_answer    jsonb,\n  score         numeric,\n  primary key (assessment_id, item_id)\n);\ncreate index if not exists isel_answers_item_idx on isel_answers(item_id);\n\n-- ------------------------------------------------------------\n-- 5. PUNTAJES POR DIMENSI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_dimension_scores (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  dimension_id  text not null,\n  score         int,\n  weight        numeric,\n  minimum       int,\n  is_critical   boolean,\n  primary key (assessment_id, dimension_id)\n);\n\n-- ------------------------------------------------------------\n-- 6. BANDERAS CR\u00cdTICAS\n-- kind: 'respuesta_etica' (opci\u00f3n marcada como falta grave),\n--       'crit' (dimensi\u00f3n bajo umbral de corte),\n--       'warn' (competencia cr\u00edtica bajo el m\u00ednimo del puesto).\n-- ------------------------------------------------------------\ncreate table if not exists isel_critical_flags (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  kind          text not null,\n  item_id       text,\n  detail        text,\n  created_at    timestamptz not null default now()\n);\ncreate index if not exists isel_flags_assessment_idx on isel_critical_flags(assessment_id);\n\n-- ------------------------------------------------------------\n-- 7. RECOMENDACI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_recommendations (\n  assessment_id       text primary key references isel_assessments(id) on delete cascade,\n  decision            text,\n  level               text,\n  profile_code        text,\n  risk                text,\n  potential           text,\n  basic_met           int,\n  basic_total         int,\n  ideal_met           int,\n  ideal_total         int,\n  narrative           text,\n  interview_questions text[]\n);\n\n-- ------------------------------------------------------------\n-- 8. PLAN DE DESARROLLO\n-- ------------------------------------------------------------\ncreate table if not exists isel_development_plans (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  phase         text not null check (phase in ('d30','d60','d90')),\n  activity      text not null,\n  addresses_gap boolean not null default false\n);\ncreate index if not exists isel_plans_assessment_idx on isel_development_plans(assessment_id);\n\n-- ============================================================\n-- VISTAS\n-- ============================================================\n\n-- Reconstruye el registro que consume la aplicaci\u00f3n\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_records;\ncreate view isel_records with (security_invoker = true) as\nselect\n  a.id,\n  a.candidate_id                        as \"candidateId\",\n  coalesce(a.submitted_at, a.invited_at) as \"createdAt\",\n  coalesce(i.name, 'Puesto no especificado') as puesto,\n  a.version,\n  a.instrument_id                       as \"instrumentId\",\n  a.dims_def                            as \"dimsDef\",\n  c.profile,\n  a.consent,\n  a.answers,\n  a.result,\n  a.scored_by                        as \"scoredBy\",\n  a.client_index                     as \"clientIndex\",\n  coalesce(a.score_mismatch, false)  as \"scoreMismatch\",\n  r.narrative\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_instruments i on i.id = a.instrument_id\nleft join isel_recommendations r on r.assessment_id = a.id\nwhere a.status = 'completada';\n\n-- Tablero ejecutivo\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_candidate_overview;\ncreate view isel_candidate_overview with (security_invoker = true) as\nselect c.full_name, a.id as assessment_id, a.version, a.index_score, a.decision,\n       a.profile_code, a.risk, rec.basic_met, rec.basic_total, rec.ideal_met, rec.ideal_total,\n       (select count(*) from isel_critical_flags f where f.assessment_id = a.id and f.kind = 'respuesta_etica') as ethical_flags,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_recommendations rec on rec.assessment_id = a.id\nwhere a.status = 'completada'\norder by a.index_score desc nulls last;\n\n-- An\u00e1lisis de reactivos: qu\u00e9 tanto discrimina cada pregunta.\n-- Un reactivo con desviaci\u00f3n cercana a cero no separa candidatos\n-- y conviene revisarlo o retirarlo.\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_item_analysis;\ncreate view isel_item_analysis with (security_invoker = true) as\nselect ans.item_id, ans.dimension_id, ans.item_type,\n       count(*)                       as respuestas,\n       round(avg(ans.score), 1)       as puntaje_medio,\n       round(stddev_pop(ans.score), 1) as dispersion,\n       round(corr(ans.score, a.index_score::numeric)::numeric, 2) as correlacion_indice\nfrom isel_answers ans\njoin isel_assessments a on a.id = ans.assessment_id\nwhere a.status = 'completada' and ans.score is not null\ngroup by ans.item_id, ans.dimension_id, ans.item_type;\n\n-- ============================================================\n-- FUNCIONES\n-- ============================================================\n\n-- ============================================================\n-- MOTOR DE PUNTUACI\u00d3N EN EL SERVIDOR\n-- Calcula el resultado desde las respuestas crudas y la definici\u00f3n\n-- del instrumento. El jsonb 'result' que manda el navegador se\n-- ignora por completo; solo se conserva su \u00edndice para poder\n-- detectar manipulaci\u00f3n.\n-- ============================================================\n\n\n-- ---- puntaje de un reactivo ----\ncreate or replace function isel__score_item(it jsonb, ans jsonb)\nreturns numeric\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t       text := it->>'type';\n  n       int;\n  mx      int;\n  best    numeric := 0;\n  got     numeric := 0;\n  over    int;\n  disp    numeric := 0;\n  maxdisp numeric;\n  o       jsonb;\n  i       int;\nbegin\n  if ans is null or jsonb_typeof(ans) = 'null' then\n    return null;\n  end if;\n\n  if t = 'likert' then\n    return ((ans #>> '{}')::int - 1) * 25;\n  end if;\n\n  if t in ('scenario','technical') then\n    i := (ans #>> '{}')::int;\n    o := it->'opts'->i;\n    if o is null then return null; end if;\n    return (o->>'s')::numeric;\n  end if;\n\n  if t = 'multi' then\n    if jsonb_typeof(ans) <> 'array' then return null; end if;\n    mx := coalesce((it->>'max')::int, jsonb_array_length(it->'opts'));\n\n    select coalesce(sum(z.p), 0) into best\n    from (\n      select (e->>'p')::numeric as p\n      from jsonb_array_elements(it->'opts') e\n      where (e->>'p')::numeric > 0\n      order by (e->>'p')::numeric desc\n      limit mx\n    ) z;\n    if best = 0 then return null; end if;\n\n    select coalesce(sum(coalesce((it->'opts'->(v.val::int)->>'p')::numeric, 0)), 0) into got\n    from jsonb_array_elements_text(ans) as v(val);\n\n    over := greatest(0, jsonb_array_length(ans) - mx);\n    return greatest(0, least(100, round(got / best * 100) - over * 8));\n  end if;\n\n  if t = 'ranking' then\n    n := jsonb_array_length(it->'opts');\n    if n < 2 then return null; end if;\n\n    select coalesce(sum(abs(coalesce((it->'opts'->(v.val::int)->>'r')::numeric, v.ord) - v.ord)), 0)\n      into disp\n    from jsonb_array_elements_text(ans) with ordinality as v(val, ord);\n\n    maxdisp := floor(n * n / 2.0);\n    if maxdisp = 0 then return null; end if;\n    return greatest(0, least(100, round((1 - disp / maxdisp) * 100)));\n  end if;\n\n  return null;\nend\n$fn$;\n\n-- ---- valor de un requisito ----\ncreate or replace function isel__req_value(src jsonb, dims jsonb, perq jsonb, prof jsonb)\nreturns int\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t   text := src->>'type';\n  v   numeric;\n  cnt int;\nbegin\n  if t = 'operativo' then\n    return case\n      when coalesce(prof->>'licencia','') = 'S\u00ed'\n       and coalesce(prof->>'viajar','No') <> 'No'\n       and coalesce(prof->>'campo','No')  <> 'No'\n      then 100 else 0 end;\n  end if;\n\n  if t = 'dim' then\n    return coalesce((dims->>(src->>'dim'))::int, 0);\n  end if;\n\n  select count(*), coalesce(avg((perq->>x.val)::numeric), 0)\n    into cnt, v\n  from jsonb_array_elements_text(coalesce(src->'ids','[]'::jsonb)) as x(val)\n  where perq ? x.val and jsonb_typeof(perq->x.val) = 'number';\n\n  if cnt > 0 then return round(v)::int; end if;\n  return coalesce((dims->>(src->>'fallback'))::int, 0);\nend\n$fn$;\n\n-- ---- motor completo ----\ncreate or replace function isel_score(p_instrument jsonb, p_answers jsonb, p_profile jsonb)\nreturns jsonb\nlanguage plpgsql\nstable\nset search_path = public, extensions\nas $fn$\ndeclare\n  it         jsonb;\n  d          jsonb;\n  perq       jsonb := '{}'::jsonb;\n  dims       jsonb := '{}'::jsonb;\n  flags      jsonb := '[]'::jsonb;\n  alerts     jsonb := '[]'::jsonb;\n  basic      jsonb := '[]'::jsonb;\n  ideal      jsonb := '[]'::jsonb;\n  strengths  jsonb := '[]'::jsonb;\n  gaps       jsonb := '[]'::jsonb;\n  probes     jsonb := '[]'::jsonb;\n  plan       jsonb := '{}'::jsonb;\n  consdet    jsonb := '[]'::jsonb;\n  sc         numeric;\n  num        numeric;\n  den        numeric;\n  wsum       numeric := 0;\n  idx        numeric := 0;\n  dv         int;\n  o          jsonb;\n  ansv       jsonb;\n  row_       jsonb;\n  st         text;\n  basic_ok   int := 0;\n  ideal_ok   int := 0;\n  basic_tot  int := 0;\n  ideal_tot  int := 0;\n  prof_code  text;\n  train_raw  numeric;\n  train_key  text;\n  crit_fail  int := 0;\n  hard       boolean := false;\n  risk       text;\n  dec_       text;\n  cons_idx   int := 100;\n  cons_acc   numeric := 0;\n  cons_n     int := 0;\n  hard_dims  text[] := '{}';\n  pair       jsonb;\n  selfv      numeric;\n  behv       numeric;\n  behn       int;\n  g          jsonb;\n  prof_entry jsonb;\n  prof_last  jsonb;\n  ph         text;\n  line       jsonb;\n  arr        jsonb;\n  tmp        numeric;\nbegin\n  ---------------------------------------------------------------\n  -- 1. puntaje por reactivo\n  ---------------------------------------------------------------\n  for it in\n    select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n    where coalesce((e->>'active')::boolean, true)\n  loop\n    ansv := p_answers -> (it->>'id');\n    sc := isel__score_item(it, ansv);\n    perq := perq || jsonb_build_object(it->>'id', case when sc is null then 'null'::jsonb else to_jsonb(sc::int) end);\n\n    if it->>'type' in ('scenario','technical')\n       and ansv is not null and jsonb_typeof(ansv) = 'number' then\n      o := it->'opts'->((ansv #>> '{}')::int);\n      if o is not null and coalesce((o->>'flag')::boolean, false) then\n        flags := flags || jsonb_build_array(jsonb_build_object(\n          'id', it->>'id', 'dim', it->>'dim', 'txt', o->>'t'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 2. puntaje por dimensi\u00f3n e \u00edndice global\n  ---------------------------------------------------------------\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    num := 0; den := 0;\n    for it in\n      select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n      where coalesce((e->>'active')::boolean, true) and e->>'dim' = d->>'id'\n    loop\n      if jsonb_typeof(perq->(it->>'id')) = 'number' then\n        num := num + (perq->>(it->>'id'))::numeric * coalesce((it->>'w')::numeric, 1);\n        den := den + coalesce((it->>'w')::numeric, 1);\n      end if;\n    end loop;\n    dv := case when den > 0 then round(num/den)::int else 0 end;\n    dims := dims || jsonb_build_object(d->>'id', dv);\n    wsum := wsum + coalesce((d->>'w')::numeric, 0);\n    idx  := idx + dv * coalesce((d->>'w')::numeric, 0);\n  end loop;\n  if wsum = 0 then wsum := 1; end if;\n  idx := round(idx / wsum);\n\n  ---------------------------------------------------------------\n  -- 3. banderas y alertas\n  ---------------------------------------------------------------\n  if jsonb_array_length(flags) > 0 then\n    hard := true;\n    alerts := alerts || jsonb_build_array(jsonb_build_object(\n      'lvl','crit','t','Respuesta de riesgo \u00e9tico',\n      'd','El candidato eligi\u00f3 al menos una acci\u00f3n que compromete la integridad profesional ('\n          || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n          || '). Esta se\u00f1al se eval\u00faa por separado del promedio.'));\n  end if;\n\n  for row_ in\n    select * from jsonb_array_elements(\n      coalesce(p_instrument->'hardRules',\n        '[{\"dim\":\"etica\",\"below\":60,\"t\":\"\u00c9tica\"},\n          {\"dim\":\"comunicacion\",\"below\":50,\"t\":\"Comunicaci\u00f3n\"},\n          {\"dim\":\"consultiva\",\"below\":45,\"t\":\"Venta consultiva\"}]'::jsonb)) e\n  loop\n    if dims ? (row_->>'dim') and (dims->>(row_->>'dim'))::int < (row_->>'below')::int then\n      hard := true;\n      hard_dims := hard_dims || (row_->>'dim');\n      alerts := alerts || jsonb_build_array(jsonb_build_object(\n        'lvl','crit',\n        't', (row_->>'t') || ' por debajo del umbral de corte (' || (row_->>'below') || ')',\n        'd', 'Obtuvo ' || (dims->>(row_->>'dim')) ||\n             '. Es una competencia indispensable y no se compensa con el resto del perfil.'));\n    end if;\n  end loop;\n\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    if coalesce((d->>'crit')::boolean,false) and (dims->>(d->>'id'))::int < (d->>'min')::int then\n      crit_fail := crit_fail + 1;\n      if not (d->>'id' = any(hard_dims)) then\n        alerts := alerts || jsonb_build_array(jsonb_build_object(\n          'lvl','warn',\n          't', (d->>'short') || ' por debajo del m\u00ednimo del puesto (' || (d->>'min') || ')',\n          'd', 'Obtuvo ' || (dims->>(d->>'id')) ||\n               '. Competencia cr\u00edtica: requiere validaci\u00f3n espec\u00edfica en entrevista.'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 4. requisitos b\u00e1sicos e ideales\n  ---------------------------------------------------------------\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'basic','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when row_->'src'->>'type' = 'operativo' then 'no'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then basic_ok := basic_ok + 1; end if;\n    basic_tot := basic_tot + 1;\n    basic := basic || jsonb_build_array(row_ || jsonb_build_object(\n      'v', dv, 'st', st, 'bin', row_->'src'->>'type' = 'operativo'));\n  end loop;\n\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'ideal','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then ideal_ok := ideal_ok + 1; end if;\n    ideal_tot := ideal_tot + 1;\n    ideal := ideal || jsonb_build_array(row_ || jsonb_build_object('v', dv, 'st', st));\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 5. perfil, entrenabilidad, riesgo y decisi\u00f3n\n  ---------------------------------------------------------------\n  -- El perfil se clasifica con las reglas del instrumento, no con reglas fijas\n  -- del puesto de vendedor: gana la primera cuyas condiciones se cumplen todas.\n  prof_entry := null;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'profiles','[]'::jsonb),\n      '[{\"code\":\"D\",\"k\":\"Desarrollador estrat\u00e9gico de cuentas\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":78},{\"dim\":\"prospeccion\",\"min\":72},\n                 {\"dim\":\"pipeline\",\"min\":72},{\"dim\":\"comunicacion\",\"min\":75},{\"dim\":\"index\",\"min\":78}]},\n        {\"code\":\"C\",\"k\":\"Consultor comercial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":68},{\"dim\":\"tecnica\",\"min\":58},\n                 {\"dim\":\"negociacion\",\"min\":58},{\"dim\":\"index\",\"min\":66}]},\n        {\"code\":\"B\",\"k\":\"Vendedor industrial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"index\",\"min\":56},{\"dim\":\"prospeccion\",\"min\":52},{\"dim\":\"consultiva\",\"min\":55}]},\n        {\"code\":\"A\",\"k\":\"Comercial transaccional\",\"d\":\"\",\"when\":[]}]'::jsonb)) e\n  loop\n    if not exists (\n      select 1 from jsonb_array_elements(coalesce(row_->'when','[]'::jsonb)) c\n      where case when c->>'dim' = 'index' then idx\n                 else coalesce((dims->>(c->>'dim'))::numeric, idx) end < (c->>'min')::numeric)\n    then\n      prof_entry := row_;\n      exit;\n    end if;\n    prof_last := row_;\n  end loop;\n  if prof_entry is null then prof_entry := prof_last; end if;\n  prof_code := coalesce(prof_entry->>'code', 'A');\n\n  -- La entrenabilidad tambi\u00e9n se pondera con lo que declare el instrumento.\n  train_raw := 0; tmp := 0;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'trainability','[]'::jsonb),\n      '[{\"dim\":\"aprendizaje\",\"w\":0.30},{\"item\":\"A02\",\"fallback\":\"aprendizaje\",\"w\":0.15},\n        {\"dim\":\"organizacion\",\"w\":0.15},{\"dim\":\"etica\",\"w\":0.15},\n        {\"dim\":\"tecnica\",\"w\":0.10},{\"dim\":\"resultados\",\"w\":0.15}]'::jsonb)) e\n  loop\n    train_raw := train_raw + coalesce((row_->>'w')::numeric, 0) * (\n      case\n        when row_ ? 'item' and jsonb_typeof(perq->(row_->>'item')) = 'number'\n          then (perq->>(row_->>'item'))::numeric\n        else coalesce((dims->>coalesce(row_->>'dim', row_->>'fallback'))::numeric, idx)\n      end);\n    tmp := tmp + coalesce((row_->>'w')::numeric, 0);\n  end loop;\n  train_raw := round(case when tmp > 0 then train_raw / tmp else idx end);\n  train_key := case when train_raw >= 82 then 'Muy alto'\n                    when train_raw >= 68 then 'Alto'\n                    when train_raw >= 52 then 'Medio'\n                    else 'Bajo' end;\n\n  risk := case when hard or crit_fail >= 3 then 'Alto'\n               when crit_fail >= 1 or idx < 60 then 'Moderado'\n               else 'Bajo' end;\n\n  ---------------------------------------------------------------\n  -- 6. consistencia\n  ---------------------------------------------------------------\n  for pair in select e from jsonb_array_elements(coalesce(p_instrument->'consPairs','[]'::jsonb)) e loop\n    if jsonb_typeof(perq->(pair->>'self')) = 'number' then\n      selfv := (perq->>(pair->>'self'))::numeric;\n      select count(*), avg((perq->>b.val)::numeric) into behn, behv\n      from jsonb_array_elements_text(coalesce(pair->'beh','[]'::jsonb)) as b(val)\n      where jsonb_typeof(perq->b.val) = 'number';\n      if behn > 0 then\n        cons_acc := cons_acc + abs(selfv - behv);\n        cons_n := cons_n + 1;\n        consdet := consdet || jsonb_build_array(jsonb_build_object(\n          'n', pair->>'n', 'self', round(selfv)::int,\n          'beh', round(behv)::int, 'gap', round(abs(selfv - behv))::int));\n      end if;\n    end if;\n  end loop;\n  if cons_n > 0 then\n    cons_idx := greatest(0, least(100, round(100 - (cons_acc / cons_n) * 1.1)::int));\n  end if;\n\n  ---------------------------------------------------------------\n  -- 7. decisi\u00f3n\n  ---------------------------------------------------------------\n  dec_ := case\n    when hard then 'NO'\n    when idx < 40 or crit_fail >= 3 then 'NO'\n    when crit_fail >= 1 or idx < 60\n      or (basic_tot > 0 and basic_ok::numeric / basic_tot < 0.8) then 'RES'\n    when idx >= 90\n      or (idx >= 82 and prof_code = 'D' and train_key in ('Alto','Muy alto')\n          and ideal_ok >= ceil(ideal_tot * 0.6)) then 'POT'\n    when idx >= 75 then 'ALTO'\n    else 'SI' end;\n\n  ---------------------------------------------------------------\n  -- 8. fortalezas, brechas, preguntas y plan\n  ---------------------------------------------------------------\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'strength',''))), '[]'::jsonb)\n    into strengths\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int >= 60\n    order by (dims->>(e->>'id'))::int desc\n    limit 3\n  ) z;\n\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'gap',''))), '[]'::jsonb)\n    into gaps\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int < 78\n    order by (dims->>(e->>'id'))::int asc\n    limit 3\n  ) z;\n\n  if jsonb_array_length(flags) > 0 then\n    probes := probes || jsonb_build_array(\n      'Revisar directamente la respuesta de riesgo \u00e9tico detectada ('\n      || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n      || '): pedir que explique su razonamiento y qu\u00e9 har\u00eda hoy de forma distinta.');\n  end if;\n\n  for g in select e from jsonb_array_elements(gaps) e loop\n    select e->>'probe' into st\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where e->>'short' = g->>'t' limit 1;\n    if st is not null and st <> '' and not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n\n  if cons_idx < 70 then\n    probes := probes || jsonb_build_array(\n      'El \u00edndice de consistencia es bajo: hay diferencia notable entre lo que el candidato declara de s\u00ed mismo y las decisiones que eligi\u00f3. Contrastar con ejemplos concretos y verificables.');\n  end if;\n  if coalesce((prof_entry->>'warnLow')::boolean, false) and idx >= 60 then\n    probes := probes || jsonb_build_array(coalesce(nullif(prof_entry->>'warnText',''),\n      'El perfil resulta competente pero limitado para el alcance del puesto. Explorar con ejemplos concretos hasta d\u00f3nde ha llegado su responsabilidad real.'));\n  end if;\n\n  for st in\n    select e->>'probe'\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where coalesce(e->>'probe','') <> ''\n    order by (dims->>(e->>'id'))::int asc\n  loop\n    exit when jsonb_array_length(probes) >= 3;\n    if not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n  probes := (select coalesce(jsonb_agg(v), '[]'::jsonb)\n             from (select value as v from jsonb_array_elements(probes) limit 5) z);\n\n  foreach ph in array array['d30','d60','d90'] loop\n    arr := '[]'::jsonb;\n    for line in select e from jsonb_array_elements(coalesce(p_instrument->'plan'->ph,'[]'::jsonb)) e loop\n      arr := arr || jsonb_build_array(jsonb_build_object(\n        't', line->>'t',\n        'g', coalesce(line->>'dim','') <> ''\n             and coalesce((dims->>(line->>'dim'))::int, 100) < 70));\n    end loop;\n    plan := plan || jsonb_build_object(ph, arr);\n  end loop;\n\n  ---------------------------------------------------------------\n  return jsonb_build_object(\n    'dims', dims, 'index', idx::int, 'perQ', perq,\n    'alerts', alerts, 'flags', flags,\n    'BASIC', basic, 'IDEAL', ideal,\n    'basicOk', basic_ok, 'idealOk', ideal_ok,\n    'prof', prof_code,\n    'profK', coalesce(prof_entry->>'k', prof_code),\n    'profD', coalesce(prof_entry->>'d', ''),\n    'trainRaw', train_raw::int, 'trainKey', train_key,\n    'risk', risk, 'dec', dec_,\n    'strengths', strengths, 'gaps', gaps, 'probes', probes, 'plan', plan,\n    'consistency', jsonb_build_object('idx', cons_idx, 'det', consdet)\n  );\nend\n$fn$;\n\n-- Descompone el registro que env\u00eda la aplicaci\u00f3n en las tablas\n-- normalizadas. Es interna: no se expone a anon ni a authenticated.\ncreate or replace function isel__persist(p jsonb)\nreturns text\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_assessment text := p->>'id';\n  v_candidate  text;\n  v_result     jsonb;\n  v_def        jsonb;\n  v_scored     text;\n  v_client     int  := nullif(p->'result'->>'index','')::int;\n  v_paso       text := 'inicio';\nbegin\n  -- El resultado se recalcula aqu\u00ed desde las respuestas crudas y la definici\u00f3n\n  -- del instrumento. Lo que manda el navegador solo se guarda para comparar.\n  v_paso := 'calculo';\n  select definition into v_def from isel_instruments where id = p->>'instrumentId';\n  if v_def is not null then\n    v_result := isel_score(v_def, coalesce(p->'answers','{}'::jsonb), coalesce(p->'profile','{}'::jsonb));\n    v_scored := 'servidor';\n  else\n    v_result := p->'result';\n    v_scored := 'cliente';\n  end if;\n  select candidate_id into v_candidate from isel_assessments where id = v_assessment;\n  if v_candidate is null then\n    v_candidate := coalesce(p->>'candidateId', 'K' || encode(gen_random_bytes(8), 'hex'));\n  end if;\n\n  v_paso := 'candidato';\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_candidate,\n          coalesce(nullif(p->'profile'->>'nombre',''), 'Sin nombre'),\n          p->'profile'->>'email',\n          coalesce(p->'profile', '{}'::jsonb))\n  on conflict (id) do update\n    set full_name = excluded.full_name,\n        email     = coalesce(excluded.email, isel_candidates.email),\n        profile   = excluded.profile;\n\n  v_paso := 'evaluacion';\n  insert into isel_assessments (id, candidate_id, instrument_id, version, status,\n                                consent, answers, dims_def, result, index_score, decision,\n                                profile_code, risk, consistency, submitted_at,\n                                scored_by, client_index, score_mismatch)\n  values (v_assessment, v_candidate, p->>'instrumentId', p->>'version', 'completada',\n          p->'consent', p->'answers', p->'dimsDef', v_result,\n          (v_result->>'index')::int, v_result->>'dec', v_result->>'prof', v_result->>'risk',\n          (v_result->'consistency'->>'idx')::int,\n          coalesce((p->>'createdAt')::timestamptz, now()),\n          v_scored, v_client,\n          v_scored = 'servidor' and v_client is distinct from (v_result->>'index')::int)\n  on conflict (id) do update\n    set consent      = excluded.consent,\n        answers      = excluded.answers,\n        dims_def     = excluded.dims_def,\n        result       = excluded.result,\n        index_score  = excluded.index_score,\n        decision     = excluded.decision,\n        profile_code = excluded.profile_code,\n        risk         = excluded.risk,\n        consistency  = excluded.consistency,\n        status       = 'completada',\n        invite_token = null,\n        submitted_at = excluded.submitted_at,\n        scored_by      = excluded.scored_by,\n        client_index   = excluded.client_index,\n        score_mismatch = excluded.score_mismatch;\n\n  v_paso := 'respuestas';\n  delete from isel_answers where assessment_id = v_assessment;\n  insert into isel_answers (assessment_id, item_id, dimension_id, item_type, raw_answer, score)\n  select v_assessment, kv.key, x.it->>'dim', x.it->>'type', kv.value,\n         nullif(v_result->'perQ'->>kv.key, '')::numeric\n  from jsonb_each(coalesce(p->'answers', '{}'::jsonb)) kv\n  left join lateral (\n    select item as it\n    from isel_instruments ins,\n         jsonb_array_elements(ins.definition->'items') item\n    where ins.id = p->>'instrumentId' and item->>'id' = kv.key\n    limit 1\n  ) x on true;\n\n  v_paso := 'dimensiones';\n  delete from isel_dimension_scores where assessment_id = v_assessment;\n  insert into isel_dimension_scores (assessment_id, dimension_id, score, weight, minimum, is_critical)\n  select v_assessment, d->>'id', (v_result->'dims'->>(d->>'id'))::int,\n         (d->>'w')::numeric, (d->>'min')::int, (d->>'crit')::boolean\n  from jsonb_array_elements(coalesce(p->'dimsDef', '[]'::jsonb)) d;\n\n  v_paso := 'banderas';\n  delete from isel_critical_flags where assessment_id = v_assessment;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, 'respuesta_etica', f->>'id', f->>'txt'\n  from jsonb_array_elements(coalesce(v_result->'flags', '[]'::jsonb)) f;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, a->>'lvl', null, (a->>'t') || ' \u2014 ' || (a->>'d')\n  from jsonb_array_elements(coalesce(v_result->'alerts', '[]'::jsonb)) a;\n\n  v_paso := 'recomendacion';\n  insert into isel_recommendations (assessment_id, decision, level, profile_code, risk, potential,\n                                    basic_met, basic_total, ideal_met, ideal_total,\n                                    narrative, interview_questions)\n  values (v_assessment, v_result->>'dec', p->>'level', v_result->>'prof', v_result->>'risk',\n          v_result->>'trainKey',\n          (v_result->>'basicOk')::int, jsonb_array_length(coalesce(v_result->'BASIC','[]'::jsonb)),\n          (v_result->>'idealOk')::int, jsonb_array_length(coalesce(v_result->'IDEAL','[]'::jsonb)),\n          case when v_scored = 'servidor' then null else p->>'narrative' end,\n          array(select jsonb_array_elements_text(coalesce(v_result->'probes','[]'::jsonb))))\n  on conflict (assessment_id) do update\n    set decision = excluded.decision, level = excluded.level, profile_code = excluded.profile_code,\n        risk = excluded.risk, potential = excluded.potential,\n        basic_met = excluded.basic_met, basic_total = excluded.basic_total,\n        ideal_met = excluded.ideal_met, ideal_total = excluded.ideal_total,\n        narrative = excluded.narrative, interview_questions = excluded.interview_questions;\n\n  v_paso := 'plan';\n  delete from isel_development_plans where assessment_id = v_assessment;\n  insert into isel_development_plans (assessment_id, phase, activity, addresses_gap)\n  select v_assessment, ph.key, it->>'t', coalesce((it->>'g')::boolean, false)\n  from jsonb_each(coalesce(v_result->'plan', '{}'::jsonb)) ph,\n       jsonb_array_elements(ph.value) it;\n\n  return v_assessment;\nexception when others then\n  -- Reporta en qu\u00e9 paso muri\u00f3 y el error original, en vez de un mensaje opaco\n  raise exception 'ISEL persist fall\u00f3 en el paso \"%\": % (SQLSTATE %)', v_paso, sqlerrm, sqlstate;\nend\n$fn$;\n\n-- Guardar un registro desde el panel (requiere sesi\u00f3n)\ncreate or replace function isel_save_record(p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  v_id := isel__persist(p);\n  return jsonb_build_object('ok', true, 'id', v_id);\nend\n$fn$;\n\n-- Crear una invitaci\u00f3n para que el candidato conteste por su cuenta\ncreate or replace function isel_create_invite(p_instrument text, p_name text, p_email text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_token text := encode(gen_random_bytes(12), 'hex');\n  v_cand  text := 'K' || encode(gen_random_bytes(8), 'hex');\n  v_ass   text := 'A' || encode(gen_random_bytes(8), 'hex');\n  v_ver   text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  select version into v_ver from isel_instruments where id = p_instrument;\n  if v_ver is null then\n    raise exception 'El instrumento indicado no existe';\n  end if;\n\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_cand, coalesce(nullif(p_name,''), 'Candidato por invitaci\u00f3n'), p_email,\n          jsonb_build_object('nombre', p_name, 'email', p_email));\n\n  insert into isel_assessments (id, candidate_id, instrument_id, version, invite_token, status)\n  values (v_ass, v_cand, p_instrument, v_ver, v_token, 'pendiente');\n\n  return jsonb_build_object('token', v_token, 'assessmentId', v_ass, 'candidateId', v_cand, 'version', v_ver);\nend\n$fn$;\n\n-- Lo \u00fanico que puede leer un candidato con su enlace:\n-- la definici\u00f3n del instrumento y su propio nombre.\n-- Nunca puntajes, criterios ni datos de otros candidatos.\ncreate or replace function isel_get_invite(p_token text)\nreturns jsonb\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nstable\nas $fn$\n  select jsonb_build_object(\n    'assessmentId', a.id,\n    'status',       a.status,\n    'version',      a.version,\n    'instrumentId', a.instrument_id,\n    'candidate',    jsonb_build_object('nombre', c.full_name, 'email', c.email),\n    'instrument',   i.definition)\n  from isel_assessments a\n  join isel_instruments i on i.id = a.instrument_id\n  left join isel_candidates c on c.id = a.candidate_id\n  where a.invite_token = p_token\n    and a.status in ('pendiente','en_progreso');\n$fn$;\n\ncreate or replace function isel_start_invite(p_token text)\nreturns void\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nas $fn$\n  update isel_assessments\n     set status = 'en_progreso', started_at = coalesce(started_at, now())\n   where invite_token = p_token and status = 'pendiente';\n$fn$;\n\n-- Env\u00edo del candidato. El token se anula: un enlace, un uso.\ncreate or replace function isel_submit_invite(p_token text, p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  select id into v_id\n    from isel_assessments\n   where invite_token = p_token and status in ('pendiente','en_progreso');\n  if v_id is null then\n    raise exception 'La invitaci\u00f3n no es v\u00e1lida o ya fue utilizada';\n  end if;\n  perform isel__persist(jsonb_set(p, '{id}', to_jsonb(v_id)));\n  return jsonb_build_object('ok', true);\nend\n$fn$;\n\n-- ============================================================\n-- VERIFICACI\u00d3N Y REC\u00c1LCULO\n-- ============================================================\n\n-- Compara lo que calcul\u00f3 el navegador contra lo que calcula el servidor.\n-- Una diferencia no prueba manipulaci\u00f3n: tambi\u00e9n aparece si el instrumento\n-- cambi\u00f3 despu\u00e9s de aplicar la evaluaci\u00f3n. Lo que manda es la columna\n-- indice_servidor, que es la que se guarda como resultado.\ncreate or replace view isel_score_audit with (security_invoker = true) as\nselect c.full_name                 as candidato,\n       a.id                        as evaluacion,\n       a.version,\n       a.scored_by                 as calculado_por,\n       a.client_index              as indice_cliente,\n       a.index_score               as indice_servidor,\n       coalesce(a.score_mismatch, false) as difiere,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nwhere a.status = 'completada'\norder by coalesce(a.score_mismatch, false) desc, a.submitted_at desc;\n\n-- Vuelve a puntuar una evaluaci\u00f3n desde sus respuestas guardadas.\ncreate or replace function isel_rescore(p_assessment text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  a      isel_assessments%rowtype;\n  v_def  jsonb;\n  v_prof jsonb;\n  v_res  jsonb;\n  v_pay  jsonb;\nbegin\n  -- Permite llamarla con sesi\u00f3n de usuario (desde la app) o como due\u00f1o de la\n  -- base (desde el editor SQL), pero no desde la API sin autenticar.\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  select * into a from isel_assessments where id = p_assessment;\n  if a.id is null then raise exception 'La evaluaci\u00f3n % no existe', p_assessment; end if;\n\n  select definition into v_def from isel_instruments where id = a.instrument_id;\n  if v_def is null then raise exception 'No se encontr\u00f3 el instrumento % de esa evaluaci\u00f3n', a.instrument_id; end if;\n\n  select profile into v_prof from isel_candidates where id = a.candidate_id;\n  v_res := isel_score(v_def, coalesce(a.answers,'{}'::jsonb), coalesce(v_prof,'{}'::jsonb));\n\n  v_pay := jsonb_build_object(\n    'id', a.id, 'candidateId', a.candidate_id, 'instrumentId', a.instrument_id,\n    'version', a.version, 'createdAt', coalesce(a.submitted_at, now()),\n    'profile', coalesce(v_prof,'{}'::jsonb), 'answers', coalesce(a.answers,'{}'::jsonb),\n    'consent', a.consent, 'dimsDef', a.dims_def, 'result', v_res);\n\n  perform isel__persist(v_pay);\n  return jsonb_build_object('id', a.id, 'index', (v_res->>'index')::int, 'decision', v_res->>'dec');\nend\n$fn$;\n\n-- Recalcula todas las evaluaciones completadas.\ncreate or replace function isel_rescore_all()\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  r     record;\n  n     int := 0;\n  fails int := 0;\n  err   text;\nbegin\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  for r in select id from isel_assessments where status = 'completada' order by submitted_at loop\n    begin\n      perform isel_rescore(r.id);\n      n := n + 1;\n    exception when others then\n      fails := fails + 1;\n      if err is null then err := sqlerrm; end if;\n    end;\n  end loop;\n  return jsonb_build_object('recalculadas', n, 'con_error', fails, 'primer_error', err);\nend\n$fn$;\n\ngrant execute on function isel_rescore(text)  to authenticated;\ngrant execute on function isel_rescore_all()  to authenticated;\ngrant select on isel_score_audit to authenticated;\nrevoke execute on function isel_score(jsonb, jsonb, jsonb) from anon;\nrevoke execute on function isel__score_item(jsonb, jsonb) from anon;\nrevoke execute on function isel__req_value(jsonb, jsonb, jsonb, jsonb) from anon;\n\n-- ============================================================\n-- SEGURIDAD\n-- Sin pol\u00edticas, RLS activo bloquea todo: anon no toca las tablas\n-- y solo puede ejecutar las tres funciones del flujo de invitaci\u00f3n.\n-- ============================================================\nalter table isel_instruments       enable row level security;\nalter table isel_candidates        enable row level security;\nalter table isel_assessments       enable row level security;\nalter table isel_answers           enable row level security;\nalter table isel_dimension_scores  enable row level security;\nalter table isel_critical_flags    enable row level security;\nalter table isel_recommendations   enable row level security;\nalter table isel_development_plans enable row level security;\n\ndo $policies$\ndeclare t text;\nbegin\n  foreach t in array array['isel_instruments','isel_candidates','isel_assessments','isel_answers',\n                           'isel_dimension_scores','isel_critical_flags','isel_recommendations',\n                           'isel_development_plans']\n  loop\n    execute format('drop policy if exists isel_rw_authenticated on %I', t);\n    execute format(\n      'create policy isel_rw_authenticated on %I for all to authenticated using (true) with check (true)', t);\n  end loop;\nend\n$policies$;\n\nrevoke execute on function isel__persist(jsonb) from public;\nrevoke execute on function isel__persist(jsonb) from anon;\n\ngrant execute on function isel_get_invite(text)            to anon, authenticated;\ngrant execute on function isel_start_invite(text)          to anon, authenticated;\ngrant execute on function isel_submit_invite(text, jsonb)  to anon, authenticated;\ngrant execute on function isel_save_record(jsonb)          to authenticated;\ngrant execute on function isel_create_invite(text,text,text) to authenticated;\n\ngrant select on isel_records, isel_candidate_overview, isel_item_analysis to authenticated;\n\n-- ============================================================\n-- NOTA SOBRE EL C\u00c1LCULO\n-- El puntaje lo calcula isel_score dentro de la base, a partir de\n-- las respuestas crudas y de la definici\u00f3n del instrumento. El\n-- jsonb 'result' que manda el navegador se descarta; solo se\n-- conserva su \u00edndice en client_index para poder detectar si el\n-- dispositivo report\u00f3 algo distinto (score_mismatch).\n-- Lo que ning\u00fan sistema puede evitar es que un candidato responda\n-- de forma deshonesta. La defensa contra eso est\u00e1 en el dise\u00f1o de\n-- los reactivos, no en el c\u00f3digo.\n-- ============================================================\n";
+const SQL_SCHEMA = "-- ============================================================\n-- ISEL \u00b7 Evaluaci\u00f3n de competencias comerciales\n-- Esquema para Supabase / PostgreSQL\n-- Ejecutar completo en el SQL Editor del proyecto.\n-- ============================================================\n\n-- En Supabase pgcrypto ya viene instalado en el esquema \"extensions\", no en\n-- \"public\". Por eso todas las funciones llevan extensions en su search_path:\n-- sin eso, gen_random_bytes() no se encuentra y la funci\u00f3n falla.\ncreate extension if not exists pgcrypto;\n\n-- ------------------------------------------------------------\n-- 1. INSTRUMENTOS (versiones de la evaluaci\u00f3n)\n-- La definici\u00f3n completa vive en jsonb: dimensiones, reactivos,\n-- requisitos, plan y pares de consistencia. Se versiona entera\n-- para que un candidato evaluado con 1.0 conserve su contexto\n-- aunque 1.1 cambie los pesos.\n-- ------------------------------------------------------------\ncreate table if not exists isel_instruments (\n  id          text primary key,\n  name        text not null,\n  area        text,\n  version     text not null,\n  status      text not null default 'borrador'\n              check (status in ('borrador','publicada','archivada')),\n  notes       text,\n  definition  jsonb not null,\n  created_at  timestamptz not null default now(),\n  updated_at  timestamptz not null default now()\n);\ncreate index if not exists isel_instruments_status_idx on isel_instruments(status);\n\n-- ------------------------------------------------------------\n-- 2. CANDIDATOS\n-- profile guarda escolaridad, experiencia, disponibilidad, etc.\n-- La edad se captura pero nunca entra al c\u00e1lculo.\n-- ------------------------------------------------------------\ncreate table if not exists isel_candidates (\n  id          text primary key,\n  full_name   text not null,\n  email       text,\n  profile     jsonb not null default '{}'::jsonb,\n  created_at  timestamptz not null default now()\n);\ncreate index if not exists isel_candidates_name_idx on isel_candidates(lower(full_name));\n\n-- ------------------------------------------------------------\n-- 3. EVALUACIONES APLICADAS\n-- Una fila por aplicaci\u00f3n. invite_token permite que el candidato\n-- conteste desde su celular sin ver el panel; se anula al enviar.\n-- ------------------------------------------------------------\ncreate table if not exists isel_assessments (\n  id             text primary key,\n  candidate_id   text references isel_candidates(id) on delete cascade,\n  instrument_id  text references isel_instruments(id),\n  version        text,\n  invite_token   text unique,\n  status         text not null default 'pendiente'\n                 check (status in ('pendiente','en_progreso','completada','cancelada')),\n  consent        jsonb,\n  answers        jsonb,\n  dims_def       jsonb,\n  result         jsonb,\n  index_score    int,\n  decision       text,\n  profile_code   text,\n  risk           text,\n  consistency    int,\n  invited_at     timestamptz not null default now(),\n  started_at     timestamptz,\n  submitted_at   timestamptz\n);\n-- Se agrega aparte porque create table if not exists no modifica una tabla\n-- que ya existe. Es seguro volver a ejecutarlo.\nalter table isel_assessments add column if not exists consent jsonb;\n\n-- Procedencia del puntaje: el servidor recalcula y aqu\u00ed queda constancia\n-- de lo que report\u00f3 el navegador, para poder detectar manipulaci\u00f3n.\nalter table isel_assessments add column if not exists scored_by text;\nalter table isel_assessments add column if not exists client_index int;\nalter table isel_assessments add column if not exists score_mismatch boolean;\n\n-- Vigencia de la invitaci\u00f3n y condiciones de aplicaci\u00f3n\nalter table isel_assessments add column if not exists expires_at  timestamptz;\nalter table isel_assessments add column if not exists deadline_at timestamptz;\nalter table isel_assessments add column if not exists late        boolean default false;\nalter table isel_assessments add column if not exists telemetry   jsonb;\n\n-- Tiempo y comportamiento por reactivo, para el an\u00e1lisis de reactivos\nalter table isel_answers add column if not exists seconds  int;\nalter table isel_answers add column if not exists visits   int;\nalter table isel_answers add column if not exists changes  int;\n\ncreate index if not exists isel_assessments_status_idx on isel_assessments(status);\ncreate index if not exists isel_assessments_cand_idx   on isel_assessments(candidate_id);\ncreate index if not exists isel_assessments_date_idx   on isel_assessments(submitted_at desc);\n\n-- ------------------------------------------------------------\n-- 4. RESPUESTAS INDIVIDUALES\n-- Normalizadas para poder hacer an\u00e1lisis de reactivos: qu\u00e9 tanto\n-- discrimina cada pregunta entre candidatos buenos y malos.\n-- Guardar la respuesta cruda permite recalcular el puntaje si\n-- despu\u00e9s se recalibra el instrumento.\n-- ------------------------------------------------------------\ncreate table if not exists isel_answers (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  item_id       text not null,\n  dimension_id  text,\n  item_type     text,\n  raw_answer    jsonb,\n  score         numeric,\n  primary key (assessment_id, item_id)\n);\ncreate index if not exists isel_answers_item_idx on isel_answers(item_id);\n\n-- ------------------------------------------------------------\n-- 5. PUNTAJES POR DIMENSI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_dimension_scores (\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  dimension_id  text not null,\n  score         int,\n  weight        numeric,\n  minimum       int,\n  is_critical   boolean,\n  primary key (assessment_id, dimension_id)\n);\n\n-- ------------------------------------------------------------\n-- 6. BANDERAS CR\u00cdTICAS\n-- kind: 'respuesta_etica' (opci\u00f3n marcada como falta grave),\n--       'crit' (dimensi\u00f3n bajo umbral de corte),\n--       'warn' (competencia cr\u00edtica bajo el m\u00ednimo del puesto).\n-- ------------------------------------------------------------\ncreate table if not exists isel_critical_flags (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  kind          text not null,\n  item_id       text,\n  detail        text,\n  created_at    timestamptz not null default now()\n);\ncreate index if not exists isel_flags_assessment_idx on isel_critical_flags(assessment_id);\n\n-- ------------------------------------------------------------\n-- 7. RECOMENDACI\u00d3N\n-- ------------------------------------------------------------\ncreate table if not exists isel_recommendations (\n  assessment_id       text primary key references isel_assessments(id) on delete cascade,\n  decision            text,\n  level               text,\n  profile_code        text,\n  risk                text,\n  potential           text,\n  basic_met           int,\n  basic_total         int,\n  ideal_met           int,\n  ideal_total         int,\n  narrative           text,\n  interview_questions text[]\n);\n\n-- ------------------------------------------------------------\n-- 8. PLAN DE DESARROLLO\n-- ------------------------------------------------------------\ncreate table if not exists isel_development_plans (\n  id            bigserial primary key,\n  assessment_id text not null references isel_assessments(id) on delete cascade,\n  phase         text not null check (phase in ('d30','d60','d90')),\n  activity      text not null,\n  addresses_gap boolean not null default false\n);\ncreate index if not exists isel_plans_assessment_idx on isel_development_plans(assessment_id);\n\n-- ============================================================\n-- VISTAS\n-- ============================================================\n\n-- Reconstruye el registro que consume la aplicaci\u00f3n\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_records;\ncreate view isel_records with (security_invoker = true) as\nselect\n  a.id,\n  a.candidate_id                        as \"candidateId\",\n  coalesce(a.submitted_at, a.invited_at) as \"createdAt\",\n  coalesce(i.name, 'Puesto no especificado') as puesto,\n  a.version,\n  a.instrument_id                       as \"instrumentId\",\n  a.dims_def                            as \"dimsDef\",\n  c.profile,\n  a.consent,\n  a.answers,\n  a.result,\n  a.telemetry,\n  coalesce(a.late, false)            as late,\n  a.scored_by                        as \"scoredBy\",\n  a.client_index                     as \"clientIndex\",\n  coalesce(a.score_mismatch, false)  as \"scoreMismatch\",\n  r.narrative\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_instruments i on i.id = a.instrument_id\nleft join isel_recommendations r on r.assessment_id = a.id\nwhere a.status = 'completada';\n\n-- Tablero ejecutivo\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_candidate_overview;\ncreate view isel_candidate_overview with (security_invoker = true) as\nselect c.full_name, a.id as assessment_id, a.version, a.index_score, a.decision,\n       a.profile_code, a.risk, rec.basic_met, rec.basic_total, rec.ideal_met, rec.ideal_total,\n       (select count(*) from isel_critical_flags f where f.assessment_id = a.id and f.kind = 'respuesta_etica') as ethical_flags,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nleft join isel_recommendations rec on rec.assessment_id = a.id\nwhere a.status = 'completada'\norder by a.index_score desc nulls last;\n\n-- An\u00e1lisis de reactivos: qu\u00e9 tanto discrimina cada pregunta.\n-- Un reactivo con desviaci\u00f3n cercana a cero no separa candidatos\n-- y conviene revisarlo o retirarlo.\n-- Se elimina antes de recrear: create or replace view no admite\n-- insertar una columna en medio de las existentes.\ndrop view if exists isel_item_analysis;\ncreate view isel_item_analysis with (security_invoker = true) as\nselect ans.item_id, ans.dimension_id, ans.item_type,\n       count(*)                       as respuestas,\n       round(avg(ans.score), 1)       as puntaje_medio,\n       round(stddev_pop(ans.score), 1) as dispersion,\n       round(corr(ans.score, a.index_score::numeric)::numeric, 2) as correlacion_indice\nfrom isel_answers ans\njoin isel_assessments a on a.id = ans.assessment_id\nwhere a.status = 'completada' and ans.score is not null\ngroup by ans.item_id, ans.dimension_id, ans.item_type;\n\n-- ============================================================\n-- FUNCIONES\n-- ============================================================\n\n-- ============================================================\n-- MOTOR DE PUNTUACI\u00d3N EN EL SERVIDOR\n-- Calcula el resultado desde las respuestas crudas y la definici\u00f3n\n-- del instrumento. El jsonb 'result' que manda el navegador se\n-- ignora por completo; solo se conserva su \u00edndice para poder\n-- detectar manipulaci\u00f3n.\n-- ============================================================\n\n\n-- ---- puntaje de un reactivo ----\ncreate or replace function isel__score_item(it jsonb, ans jsonb)\nreturns numeric\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t       text := it->>'type';\n  n       int;\n  mx      int;\n  best    numeric := 0;\n  got     numeric := 0;\n  over    int;\n  disp    numeric := 0;\n  maxdisp numeric;\n  o       jsonb;\n  i       int;\nbegin\n  if ans is null or jsonb_typeof(ans) = 'null' then\n    return null;\n  end if;\n\n  if t = 'likert' then\n    return ((ans #>> '{}')::int - 1) * 25;\n  end if;\n\n  if t in ('scenario','technical') then\n    i := (ans #>> '{}')::int;\n    o := it->'opts'->i;\n    if o is null then return null; end if;\n    return (o->>'s')::numeric;\n  end if;\n\n  if t = 'multi' then\n    if jsonb_typeof(ans) <> 'array' then return null; end if;\n    mx := coalesce((it->>'max')::int, jsonb_array_length(it->'opts'));\n\n    select coalesce(sum(z.p), 0) into best\n    from (\n      select (e->>'p')::numeric as p\n      from jsonb_array_elements(it->'opts') e\n      where (e->>'p')::numeric > 0\n      order by (e->>'p')::numeric desc\n      limit mx\n    ) z;\n    if best = 0 then return null; end if;\n\n    select coalesce(sum(coalesce((it->'opts'->(v.val::int)->>'p')::numeric, 0)), 0) into got\n    from jsonb_array_elements_text(ans) as v(val);\n\n    over := greatest(0, jsonb_array_length(ans) - mx);\n    return greatest(0, least(100, round(got / best * 100) - over * 8));\n  end if;\n\n  if t = 'ranking' then\n    n := jsonb_array_length(it->'opts');\n    if n < 2 then return null; end if;\n\n    select coalesce(sum(abs(coalesce((it->'opts'->(v.val::int)->>'r')::numeric, v.ord) - v.ord)), 0)\n      into disp\n    from jsonb_array_elements_text(ans) with ordinality as v(val, ord);\n\n    maxdisp := floor(n * n / 2.0);\n    if maxdisp = 0 then return null; end if;\n    return greatest(0, least(100, round((1 - disp / maxdisp) * 100)));\n  end if;\n\n  return null;\nend\n$fn$;\n\n-- ---- valor de un requisito ----\ncreate or replace function isel__req_value(src jsonb, dims jsonb, perq jsonb, prof jsonb)\nreturns int\nlanguage plpgsql\nimmutable\nset search_path = public, extensions\nas $fn$\ndeclare\n  t   text := src->>'type';\n  v   numeric;\n  cnt int;\nbegin\n  if t = 'operativo' then\n    return case\n      when coalesce(prof->>'licencia','') = 'S\u00ed'\n       and coalesce(prof->>'viajar','No') <> 'No'\n       and coalesce(prof->>'campo','No')  <> 'No'\n      then 100 else 0 end;\n  end if;\n\n  if t = 'dim' then\n    return coalesce((dims->>(src->>'dim'))::int, 0);\n  end if;\n\n  select count(*), coalesce(avg((perq->>x.val)::numeric), 0)\n    into cnt, v\n  from jsonb_array_elements_text(coalesce(src->'ids','[]'::jsonb)) as x(val)\n  where perq ? x.val and jsonb_typeof(perq->x.val) = 'number';\n\n  if cnt > 0 then return round(v)::int; end if;\n  return coalesce((dims->>(src->>'fallback'))::int, 0);\nend\n$fn$;\n\n-- ---- motor completo ----\ncreate or replace function isel_score(p_instrument jsonb, p_answers jsonb, p_profile jsonb)\nreturns jsonb\nlanguage plpgsql\nstable\nset search_path = public, extensions\nas $fn$\ndeclare\n  it         jsonb;\n  d          jsonb;\n  perq       jsonb := '{}'::jsonb;\n  dims       jsonb := '{}'::jsonb;\n  flags      jsonb := '[]'::jsonb;\n  alerts     jsonb := '[]'::jsonb;\n  basic      jsonb := '[]'::jsonb;\n  ideal      jsonb := '[]'::jsonb;\n  strengths  jsonb := '[]'::jsonb;\n  gaps       jsonb := '[]'::jsonb;\n  probes     jsonb := '[]'::jsonb;\n  plan       jsonb := '{}'::jsonb;\n  consdet    jsonb := '[]'::jsonb;\n  sc         numeric;\n  num        numeric;\n  den        numeric;\n  wsum       numeric := 0;\n  idx        numeric := 0;\n  dv         int;\n  o          jsonb;\n  ansv       jsonb;\n  row_       jsonb;\n  st         text;\n  basic_ok   int := 0;\n  ideal_ok   int := 0;\n  basic_tot  int := 0;\n  ideal_tot  int := 0;\n  prof_code  text;\n  train_raw  numeric;\n  train_key  text;\n  crit_fail  int := 0;\n  hard       boolean := false;\n  risk       text;\n  dec_       text;\n  cons_idx   int := 100;\n  cons_acc   numeric := 0;\n  cons_n     int := 0;\n  hard_dims  text[] := '{}';\n  pair       jsonb;\n  selfv      numeric;\n  behv       numeric;\n  behn       int;\n  g          jsonb;\n  prof_entry jsonb;\n  prof_last  jsonb;\n  ph         text;\n  line       jsonb;\n  arr        jsonb;\n  tmp        numeric;\nbegin\n  ---------------------------------------------------------------\n  -- 1. puntaje por reactivo\n  ---------------------------------------------------------------\n  for it in\n    select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n    where coalesce((e->>'active')::boolean, true)\n  loop\n    ansv := p_answers -> (it->>'id');\n    sc := isel__score_item(it, ansv);\n    perq := perq || jsonb_build_object(it->>'id', case when sc is null then 'null'::jsonb else to_jsonb(sc::int) end);\n\n    if it->>'type' in ('scenario','technical')\n       and ansv is not null and jsonb_typeof(ansv) = 'number' then\n      o := it->'opts'->((ansv #>> '{}')::int);\n      if o is not null and coalesce((o->>'flag')::boolean, false) then\n        flags := flags || jsonb_build_array(jsonb_build_object(\n          'id', it->>'id', 'dim', it->>'dim', 'txt', o->>'t'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 2. puntaje por dimensi\u00f3n e \u00edndice global\n  ---------------------------------------------------------------\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    num := 0; den := 0;\n    for it in\n      select e from jsonb_array_elements(coalesce(p_instrument->'items','[]'::jsonb)) e\n      where coalesce((e->>'active')::boolean, true) and e->>'dim' = d->>'id'\n    loop\n      if jsonb_typeof(perq->(it->>'id')) = 'number' then\n        num := num + (perq->>(it->>'id'))::numeric * coalesce((it->>'w')::numeric, 1);\n        den := den + coalesce((it->>'w')::numeric, 1);\n      end if;\n    end loop;\n    dv := case when den > 0 then round(num/den)::int else 0 end;\n    dims := dims || jsonb_build_object(d->>'id', dv);\n    wsum := wsum + coalesce((d->>'w')::numeric, 0);\n    idx  := idx + dv * coalesce((d->>'w')::numeric, 0);\n  end loop;\n  if wsum = 0 then wsum := 1; end if;\n  idx := round(idx / wsum);\n\n  ---------------------------------------------------------------\n  -- 3. banderas y alertas\n  ---------------------------------------------------------------\n  if jsonb_array_length(flags) > 0 then\n    hard := true;\n    alerts := alerts || jsonb_build_array(jsonb_build_object(\n      'lvl','crit','t','Respuesta de riesgo \u00e9tico',\n      'd','El candidato eligi\u00f3 al menos una acci\u00f3n que compromete la integridad profesional ('\n          || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n          || '). Esta se\u00f1al se eval\u00faa por separado del promedio.'));\n  end if;\n\n  for row_ in\n    select * from jsonb_array_elements(\n      coalesce(p_instrument->'hardRules',\n        '[{\"dim\":\"etica\",\"below\":60,\"t\":\"\u00c9tica\"},\n          {\"dim\":\"comunicacion\",\"below\":50,\"t\":\"Comunicaci\u00f3n\"},\n          {\"dim\":\"consultiva\",\"below\":45,\"t\":\"Venta consultiva\"}]'::jsonb)) e\n  loop\n    if dims ? (row_->>'dim') and (dims->>(row_->>'dim'))::int < (row_->>'below')::int then\n      hard := true;\n      hard_dims := hard_dims || (row_->>'dim');\n      alerts := alerts || jsonb_build_array(jsonb_build_object(\n        'lvl','crit',\n        't', (row_->>'t') || ' por debajo del umbral de corte (' || (row_->>'below') || ')',\n        'd', 'Obtuvo ' || (dims->>(row_->>'dim')) ||\n             '. Es una competencia indispensable y no se compensa con el resto del perfil.'));\n    end if;\n  end loop;\n\n  for d in select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e loop\n    if coalesce((d->>'crit')::boolean,false) and (dims->>(d->>'id'))::int < (d->>'min')::int then\n      crit_fail := crit_fail + 1;\n      if not (d->>'id' = any(hard_dims)) then\n        alerts := alerts || jsonb_build_array(jsonb_build_object(\n          'lvl','warn',\n          't', (d->>'short') || ' por debajo del m\u00ednimo del puesto (' || (d->>'min') || ')',\n          'd', 'Obtuvo ' || (dims->>(d->>'id')) ||\n               '. Competencia cr\u00edtica: requiere validaci\u00f3n espec\u00edfica en entrevista.'));\n      end if;\n    end if;\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 4. requisitos b\u00e1sicos e ideales\n  ---------------------------------------------------------------\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'basic','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when row_->'src'->>'type' = 'operativo' then 'no'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then basic_ok := basic_ok + 1; end if;\n    basic_tot := basic_tot + 1;\n    basic := basic || jsonb_build_array(row_ || jsonb_build_object(\n      'v', dv, 'st', st, 'bin', row_->'src'->>'type' = 'operativo'));\n  end loop;\n\n  for row_ in select e from jsonb_array_elements(coalesce(p_instrument->'ideal','[]'::jsonb)) e loop\n    dv := isel__req_value(row_->'src', dims, perq, p_profile);\n    st := case\n            when dv >= (row_->>'min')::int then 'ok'\n            when dv >= (row_->>'min')::int - 15 then 'pa'\n            else 'no' end;\n    if st = 'ok' then ideal_ok := ideal_ok + 1; end if;\n    ideal_tot := ideal_tot + 1;\n    ideal := ideal || jsonb_build_array(row_ || jsonb_build_object('v', dv, 'st', st));\n  end loop;\n\n  ---------------------------------------------------------------\n  -- 5. perfil, entrenabilidad, riesgo y decisi\u00f3n\n  ---------------------------------------------------------------\n  -- El perfil se clasifica con las reglas del instrumento, no con reglas fijas\n  -- del puesto de vendedor: gana la primera cuyas condiciones se cumplen todas.\n  prof_entry := null;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'profiles','[]'::jsonb),\n      '[{\"code\":\"D\",\"k\":\"Desarrollador estrat\u00e9gico de cuentas\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":78},{\"dim\":\"prospeccion\",\"min\":72},\n                 {\"dim\":\"pipeline\",\"min\":72},{\"dim\":\"comunicacion\",\"min\":75},{\"dim\":\"index\",\"min\":78}]},\n        {\"code\":\"C\",\"k\":\"Consultor comercial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"consultiva\",\"min\":68},{\"dim\":\"tecnica\",\"min\":58},\n                 {\"dim\":\"negociacion\",\"min\":58},{\"dim\":\"index\",\"min\":66}]},\n        {\"code\":\"B\",\"k\":\"Vendedor industrial\",\"d\":\"\",\n         \"when\":[{\"dim\":\"index\",\"min\":56},{\"dim\":\"prospeccion\",\"min\":52},{\"dim\":\"consultiva\",\"min\":55}]},\n        {\"code\":\"A\",\"k\":\"Comercial transaccional\",\"d\":\"\",\"when\":[]}]'::jsonb)) e\n  loop\n    if not exists (\n      select 1 from jsonb_array_elements(coalesce(row_->'when','[]'::jsonb)) c\n      where case when c->>'dim' = 'index' then idx\n                 else coalesce((dims->>(c->>'dim'))::numeric, idx) end < (c->>'min')::numeric)\n    then\n      prof_entry := row_;\n      exit;\n    end if;\n    prof_last := row_;\n  end loop;\n  if prof_entry is null then prof_entry := prof_last; end if;\n  prof_code := coalesce(prof_entry->>'code', 'A');\n\n  -- La entrenabilidad tambi\u00e9n se pondera con lo que declare el instrumento.\n  train_raw := 0; tmp := 0;\n  for row_ in\n    select e from jsonb_array_elements(\n      coalesce(nullif(p_instrument->'trainability','[]'::jsonb),\n      '[{\"dim\":\"aprendizaje\",\"w\":0.30},{\"item\":\"A02\",\"fallback\":\"aprendizaje\",\"w\":0.15},\n        {\"dim\":\"organizacion\",\"w\":0.15},{\"dim\":\"etica\",\"w\":0.15},\n        {\"dim\":\"tecnica\",\"w\":0.10},{\"dim\":\"resultados\",\"w\":0.15}]'::jsonb)) e\n  loop\n    train_raw := train_raw + coalesce((row_->>'w')::numeric, 0) * (\n      case\n        when row_ ? 'item' and jsonb_typeof(perq->(row_->>'item')) = 'number'\n          then (perq->>(row_->>'item'))::numeric\n        else coalesce((dims->>coalesce(row_->>'dim', row_->>'fallback'))::numeric, idx)\n      end);\n    tmp := tmp + coalesce((row_->>'w')::numeric, 0);\n  end loop;\n  train_raw := round(case when tmp > 0 then train_raw / tmp else idx end);\n  train_key := case when train_raw >= 82 then 'Muy alto'\n                    when train_raw >= 68 then 'Alto'\n                    when train_raw >= 52 then 'Medio'\n                    else 'Bajo' end;\n\n  risk := case when hard or crit_fail >= 3 then 'Alto'\n               when crit_fail >= 1 or idx < 60 then 'Moderado'\n               else 'Bajo' end;\n\n  ---------------------------------------------------------------\n  -- 6. consistencia\n  ---------------------------------------------------------------\n  for pair in select e from jsonb_array_elements(coalesce(p_instrument->'consPairs','[]'::jsonb)) e loop\n    if jsonb_typeof(perq->(pair->>'self')) = 'number' then\n      selfv := (perq->>(pair->>'self'))::numeric;\n      select count(*), avg((perq->>b.val)::numeric) into behn, behv\n      from jsonb_array_elements_text(coalesce(pair->'beh','[]'::jsonb)) as b(val)\n      where jsonb_typeof(perq->b.val) = 'number';\n      if behn > 0 then\n        cons_acc := cons_acc + abs(selfv - behv);\n        cons_n := cons_n + 1;\n        consdet := consdet || jsonb_build_array(jsonb_build_object(\n          'n', pair->>'n', 'self', round(selfv)::int,\n          'beh', round(behv)::int, 'gap', round(abs(selfv - behv))::int));\n      end if;\n    end if;\n  end loop;\n  if cons_n > 0 then\n    cons_idx := greatest(0, least(100, round(100 - (cons_acc / cons_n) * 1.1)::int));\n  end if;\n\n  ---------------------------------------------------------------\n  -- 7. decisi\u00f3n\n  ---------------------------------------------------------------\n  dec_ := case\n    when hard then 'NO'\n    when idx < 40 or crit_fail >= 3 then 'NO'\n    when crit_fail >= 1 or idx < 60\n      or (basic_tot > 0 and basic_ok::numeric / basic_tot < 0.8) then 'RES'\n    when idx >= 90\n      or (idx >= 82 and prof_code = 'D' and train_key in ('Alto','Muy alto')\n          and ideal_ok >= ceil(ideal_tot * 0.6)) then 'POT'\n    when idx >= 75 then 'ALTO'\n    else 'SI' end;\n\n  ---------------------------------------------------------------\n  -- 8. fortalezas, brechas, preguntas y plan\n  ---------------------------------------------------------------\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'strength',''))), '[]'::jsonb)\n    into strengths\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int >= 60\n    order by (dims->>(e->>'id'))::int desc\n    limit 3\n  ) z;\n\n  select coalesce(jsonb_agg(jsonb_build_object(\n           't', e->>'short', 'v', (dims->>(e->>'id'))::int, 'd', coalesce(e->>'gap',''))), '[]'::jsonb)\n    into gaps\n  from (\n    select e from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where (dims->>(e->>'id'))::int < 78\n    order by (dims->>(e->>'id'))::int asc\n    limit 3\n  ) z;\n\n  if jsonb_array_length(flags) > 0 then\n    probes := probes || jsonb_build_array(\n      'Revisar directamente la respuesta de riesgo \u00e9tico detectada ('\n      || (select string_agg(f->>'id', ', ') from jsonb_array_elements(flags) f)\n      || '): pedir que explique su razonamiento y qu\u00e9 har\u00eda hoy de forma distinta.');\n  end if;\n\n  for g in select e from jsonb_array_elements(gaps) e loop\n    select e->>'probe' into st\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where e->>'short' = g->>'t' limit 1;\n    if st is not null and st <> '' and not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n\n  if cons_idx < 70 then\n    probes := probes || jsonb_build_array(\n      'El \u00edndice de consistencia es bajo: hay diferencia notable entre lo que el candidato declara de s\u00ed mismo y las decisiones que eligi\u00f3. Contrastar con ejemplos concretos y verificables.');\n  end if;\n  if coalesce((prof_entry->>'warnLow')::boolean, false) and idx >= 60 then\n    probes := probes || jsonb_build_array(coalesce(nullif(prof_entry->>'warnText',''),\n      'El perfil resulta competente pero limitado para el alcance del puesto. Explorar con ejemplos concretos hasta d\u00f3nde ha llegado su responsabilidad real.'));\n  end if;\n\n  for st in\n    select e->>'probe'\n    from jsonb_array_elements(coalesce(p_instrument->'dims','[]'::jsonb)) e\n    where coalesce(e->>'probe','') <> ''\n    order by (dims->>(e->>'id'))::int asc\n  loop\n    exit when jsonb_array_length(probes) >= 3;\n    if not probes @> to_jsonb(array[st]) then\n      probes := probes || jsonb_build_array(st);\n    end if;\n  end loop;\n  probes := (select coalesce(jsonb_agg(v), '[]'::jsonb)\n             from (select value as v from jsonb_array_elements(probes) limit 5) z);\n\n  foreach ph in array array['d30','d60','d90'] loop\n    arr := '[]'::jsonb;\n    for line in select e from jsonb_array_elements(coalesce(p_instrument->'plan'->ph,'[]'::jsonb)) e loop\n      arr := arr || jsonb_build_array(jsonb_build_object(\n        't', line->>'t',\n        'g', coalesce(line->>'dim','') <> ''\n             and coalesce((dims->>(line->>'dim'))::int, 100) < 70));\n    end loop;\n    plan := plan || jsonb_build_object(ph, arr);\n  end loop;\n\n  ---------------------------------------------------------------\n  return jsonb_build_object(\n    'dims', dims, 'index', idx::int, 'perQ', perq,\n    'alerts', alerts, 'flags', flags,\n    'BASIC', basic, 'IDEAL', ideal,\n    'basicOk', basic_ok, 'idealOk', ideal_ok,\n    'prof', prof_code,\n    'profK', coalesce(prof_entry->>'k', prof_code),\n    'profD', coalesce(prof_entry->>'d', ''),\n    'trainRaw', train_raw::int, 'trainKey', train_key,\n    'risk', risk, 'dec', dec_,\n    'strengths', strengths, 'gaps', gaps, 'probes', probes, 'plan', plan,\n    'consistency', jsonb_build_object('idx', cons_idx, 'det', consdet)\n  );\nend\n$fn$;\n\n-- Descompone el registro que env\u00eda la aplicaci\u00f3n en las tablas\n-- normalizadas. Es interna: no se expone a anon ni a authenticated.\ncreate or replace function isel__persist(p jsonb)\nreturns text\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_assessment text := p->>'id';\n  v_candidate  text;\n  v_result     jsonb;\n  v_def        jsonb;\n  v_scored     text;\n  v_client     int  := nullif(p->'result'->>'index','')::int;\n  v_paso       text := 'inicio';\nbegin\n  -- El resultado se recalcula aqu\u00ed desde las respuestas crudas y la definici\u00f3n\n  -- del instrumento. Lo que manda el navegador solo se guarda para comparar.\n  v_paso := 'calculo';\n  select definition into v_def from isel_instruments where id = p->>'instrumentId';\n  if v_def is not null then\n    v_result := isel_score(v_def, coalesce(p->'answers','{}'::jsonb), coalesce(p->'profile','{}'::jsonb));\n    v_scored := 'servidor';\n  else\n    v_result := p->'result';\n    v_scored := 'cliente';\n  end if;\n  select candidate_id into v_candidate from isel_assessments where id = v_assessment;\n  if v_candidate is null then\n    v_candidate := coalesce(p->>'candidateId', 'K' || encode(gen_random_bytes(8), 'hex'));\n  end if;\n\n  v_paso := 'candidato';\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_candidate,\n          coalesce(nullif(p->'profile'->>'nombre',''), 'Sin nombre'),\n          p->'profile'->>'email',\n          coalesce(p->'profile', '{}'::jsonb))\n  on conflict (id) do update\n    set full_name = excluded.full_name,\n        email     = coalesce(excluded.email, isel_candidates.email),\n        profile   = excluded.profile;\n\n  v_paso := 'evaluacion';\n  insert into isel_assessments (id, candidate_id, instrument_id, version, status,\n                                consent, answers, dims_def, result, index_score, decision,\n                                profile_code, risk, consistency, submitted_at,\n                                scored_by, client_index, score_mismatch, telemetry, late)\n  values (v_assessment, v_candidate, p->>'instrumentId', p->>'version', 'completada',\n          p->'consent', p->'answers', p->'dimsDef', v_result,\n          (v_result->>'index')::int, v_result->>'dec', v_result->>'prof', v_result->>'risk',\n          (v_result->'consistency'->>'idx')::int,\n          coalesce((p->>'createdAt')::timestamptz, now()),\n          v_scored, v_client,\n          v_scored = 'servidor' and v_client is distinct from (v_result->>'index')::int,\n          p->'telemetry', coalesce((p->>'late')::boolean, false))\n  on conflict (id) do update\n    set consent      = excluded.consent,\n        answers      = excluded.answers,\n        dims_def     = excluded.dims_def,\n        result       = excluded.result,\n        index_score  = excluded.index_score,\n        decision     = excluded.decision,\n        profile_code = excluded.profile_code,\n        risk         = excluded.risk,\n        consistency  = excluded.consistency,\n        status       = 'completada',\n        invite_token = null,\n        submitted_at = excluded.submitted_at,\n        scored_by      = excluded.scored_by,\n        client_index   = excluded.client_index,\n        score_mismatch = excluded.score_mismatch,\n        telemetry      = coalesce(excluded.telemetry, isel_assessments.telemetry),\n        late           = coalesce(excluded.late, isel_assessments.late);\n\n  v_paso := 'respuestas';\n  delete from isel_answers where assessment_id = v_assessment;\n  insert into isel_answers (assessment_id, item_id, dimension_id, item_type, raw_answer, score,\n                            seconds, visits, changes)\n  select v_assessment, kv.key, x.it->>'dim', x.it->>'type', kv.value,\n         nullif(v_result->'perQ'->>kv.key, '')::numeric,\n         (p->'telemetry'->'items'->kv.key->>'s')::int,\n         (p->'telemetry'->'items'->kv.key->>'v')::int,\n         (p->'telemetry'->'items'->kv.key->>'c')::int\n  from jsonb_each(coalesce(p->'answers', '{}'::jsonb)) kv\n  left join lateral (\n    select item as it\n    from isel_instruments ins,\n         jsonb_array_elements(ins.definition->'items') item\n    where ins.id = p->>'instrumentId' and item->>'id' = kv.key\n    limit 1\n  ) x on true;\n\n  v_paso := 'dimensiones';\n  delete from isel_dimension_scores where assessment_id = v_assessment;\n  insert into isel_dimension_scores (assessment_id, dimension_id, score, weight, minimum, is_critical)\n  select v_assessment, d->>'id', (v_result->'dims'->>(d->>'id'))::int,\n         (d->>'w')::numeric, (d->>'min')::int, (d->>'crit')::boolean\n  from jsonb_array_elements(coalesce(p->'dimsDef', '[]'::jsonb)) d;\n\n  v_paso := 'banderas';\n  delete from isel_critical_flags where assessment_id = v_assessment;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, 'respuesta_etica', f->>'id', f->>'txt'\n  from jsonb_array_elements(coalesce(v_result->'flags', '[]'::jsonb)) f;\n  insert into isel_critical_flags (assessment_id, kind, item_id, detail)\n  select v_assessment, a->>'lvl', null, (a->>'t') || ' \u2014 ' || (a->>'d')\n  from jsonb_array_elements(coalesce(v_result->'alerts', '[]'::jsonb)) a;\n\n  v_paso := 'recomendacion';\n  insert into isel_recommendations (assessment_id, decision, level, profile_code, risk, potential,\n                                    basic_met, basic_total, ideal_met, ideal_total,\n                                    narrative, interview_questions)\n  values (v_assessment, v_result->>'dec', p->>'level', v_result->>'prof', v_result->>'risk',\n          v_result->>'trainKey',\n          (v_result->>'basicOk')::int, jsonb_array_length(coalesce(v_result->'BASIC','[]'::jsonb)),\n          (v_result->>'idealOk')::int, jsonb_array_length(coalesce(v_result->'IDEAL','[]'::jsonb)),\n          case when v_scored = 'servidor' then null else p->>'narrative' end,\n          array(select jsonb_array_elements_text(coalesce(v_result->'probes','[]'::jsonb))))\n  on conflict (assessment_id) do update\n    set decision = excluded.decision, level = excluded.level, profile_code = excluded.profile_code,\n        risk = excluded.risk, potential = excluded.potential,\n        basic_met = excluded.basic_met, basic_total = excluded.basic_total,\n        ideal_met = excluded.ideal_met, ideal_total = excluded.ideal_total,\n        narrative = excluded.narrative, interview_questions = excluded.interview_questions;\n\n  v_paso := 'plan';\n  delete from isel_development_plans where assessment_id = v_assessment;\n  insert into isel_development_plans (assessment_id, phase, activity, addresses_gap)\n  select v_assessment, ph.key, it->>'t', coalesce((it->>'g')::boolean, false)\n  from jsonb_each(coalesce(v_result->'plan', '{}'::jsonb)) ph,\n       jsonb_array_elements(ph.value) it;\n\n  return v_assessment;\nexception when others then\n  -- Reporta en qu\u00e9 paso muri\u00f3 y el error original, en vez de un mensaje opaco\n  raise exception 'ISEL persist fall\u00f3 en el paso \"%\": % (SQLSTATE %)', v_paso, sqlerrm, sqlstate;\nend\n$fn$;\n\n-- Guardar un registro desde el panel (requiere sesi\u00f3n)\ncreate or replace function isel_save_record(p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_id text;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  v_id := isel__persist(p);\n  return jsonb_build_object('ok', true, 'id', v_id);\nend\n$fn$;\n\n-- Crear una invitaci\u00f3n para que el candidato conteste por su cuenta\ncreate or replace function isel_create_invite(p_instrument text, p_name text, p_email text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_token text := encode(gen_random_bytes(12), 'hex');\n  v_cand  text := 'K' || encode(gen_random_bytes(8), 'hex');\n  v_ass   text := 'A' || encode(gen_random_bytes(8), 'hex');\n  v_ver   text;\n  v_abrir numeric;\nbegin\n  if auth.uid() is null then\n    raise exception 'Se requiere sesi\u00f3n iniciada';\n  end if;\n  select version,\n         coalesce((definition->'ventana'->>'abrirHoras')::numeric, 24)\n    into v_ver, v_abrir\n  from isel_instruments where id = p_instrument;\n  if v_ver is null then\n    raise exception 'El instrumento indicado no existe';\n  end if;\n\n  insert into isel_candidates (id, full_name, email, profile)\n  values (v_cand, coalesce(nullif(p_name,''), 'Candidato por invitaci\u00f3n'), p_email,\n          jsonb_build_object('nombre', p_name, 'email', p_email));\n\n  insert into isel_assessments (id, candidate_id, instrument_id, version, invite_token, status, expires_at)\n  values (v_ass, v_cand, p_instrument, v_ver, v_token, 'pendiente', now() + (v_abrir || ' hours')::interval);\n\n  return jsonb_build_object('token', v_token, 'assessmentId', v_ass, 'candidateId', v_cand,\n                            'version', v_ver, 'expiresAt', now() + (v_abrir || ' hours')::interval);\nend\n$fn$;\n\n-- Lo \u00fanico que puede leer un candidato con su enlace:\n-- la definici\u00f3n del instrumento y su propio nombre.\n-- Nunca puntajes, criterios ni datos de otros candidatos.\ncreate or replace function isel_get_invite(p_token text)\nreturns jsonb\nlanguage sql\nsecurity definer\nset search_path = public, extensions\nstable\nas $fn$\n  select case\n    when a.status = 'pendiente' and a.expires_at is not null and a.expires_at < now()\n      then jsonb_build_object('expirada', true, 'expiresAt', a.expires_at)\n    else jsonb_build_object(\n      'assessmentId', a.id,\n      'status',       a.status,\n      'version',      a.version,\n      'instrumentId', a.instrument_id,\n      'expiresAt',    a.expires_at,\n      'deadlineAt',   a.deadline_at,\n      'finishHours',  coalesce((i.definition->'ventana'->>'terminarHoras')::numeric, 1.5),\n      'candidate',    jsonb_build_object('nombre', c.full_name, 'email', c.email),\n      'instrument',   i.definition)\n    end\n  from isel_assessments a\n  join isel_instruments i on i.id = a.instrument_id\n  left join isel_candidates c on c.id = a.candidate_id\n  where a.invite_token = p_token\n    and a.status in ('pendiente','en_progreso');\n$fn$;\n\ncreate or replace function isel_start_invite(p_token text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_fin numeric;\n  v_dl  timestamptz;\nbegin\n  select coalesce((i.definition->'ventana'->>'terminarHoras')::numeric, 1.5)\n    into v_fin\n  from isel_assessments a join isel_instruments i on i.id = a.instrument_id\n  where a.invite_token = p_token;\n\n  update isel_assessments\n     set status      = 'en_progreso',\n         started_at  = coalesce(started_at, now()),\n         deadline_at = coalesce(deadline_at, now() + (coalesce(v_fin,1.5) || ' hours')::interval)\n   where invite_token = p_token\n     and status = 'pendiente'\n     and (expires_at is null or expires_at >= now())\n  returning deadline_at into v_dl;\n\n  if v_dl is null then\n    select deadline_at into v_dl from isel_assessments where invite_token = p_token;\n  end if;\n  return jsonb_build_object('deadlineAt', v_dl);\nend\n$fn$;\n\n-- Ampl\u00eda la vigencia conservando el mismo enlace.\ncreate or replace function isel_extend_invite(p_token text, p_horas numeric)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare v_row isel_assessments%rowtype;\nbegin\n  if auth.uid() is null then raise exception 'Se requiere sesi\u00f3n iniciada'; end if;\n  update isel_assessments\n     set expires_at  = now() + (coalesce(p_horas,24) || ' hours')::interval,\n         deadline_at = case when status = 'en_progreso'\n           then now() + (coalesce((select (i.definition->'ventana'->>'terminarHoras')::numeric\n                                   from isel_instruments i where i.id = instrument_id), 1.5) || ' hours')::interval\n           else deadline_at end\n   where invite_token = p_token and status in ('pendiente','en_progreso')\n  returning * into v_row;\n  if v_row.id is null then raise exception 'La invitaci\u00f3n no existe o ya fue utilizada'; end if;\n  return jsonb_build_object('ok', true, 'expiresAt', v_row.expires_at, 'deadlineAt', v_row.deadline_at);\nend\n$fn$;\n\n-- Sustituye el enlace por uno nuevo: el anterior deja de servir.\ncreate or replace function isel_regenerate_invite(p_token text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_new   text := encode(gen_random_bytes(12), 'hex');\n  v_abrir numeric;\n  v_row   isel_assessments%rowtype;\nbegin\n  if auth.uid() is null then raise exception 'Se requiere sesi\u00f3n iniciada'; end if;\n  select coalesce((i.definition->'ventana'->>'abrirHoras')::numeric, 24) into v_abrir\n  from isel_assessments a join isel_instruments i on i.id = a.instrument_id\n  where a.invite_token = p_token;\n\n  update isel_assessments\n     set invite_token = v_new,\n         status       = 'pendiente',\n         started_at   = null,\n         deadline_at  = null,\n         expires_at   = now() + (coalesce(v_abrir,24) || ' hours')::interval\n   where invite_token = p_token and status in ('pendiente','en_progreso')\n  returning * into v_row;\n  if v_row.id is null then raise exception 'La invitaci\u00f3n no existe o ya fue utilizada'; end if;\n  return jsonb_build_object('ok', true, 'token', v_new, 'expiresAt', v_row.expires_at);\nend\n$fn$;\n\n-- Env\u00edo del candidato. El token se anula: un enlace, un uso.\ncreate or replace function isel_submit_invite(p_token text, p jsonb)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  v_id   text;\n  v_late boolean;\nbegin\n  select id, (deadline_at is not null and now() > deadline_at)\n    into v_id, v_late\n    from isel_assessments\n   where invite_token = p_token and status in ('pendiente','en_progreso');\n  if v_id is null then\n    raise exception 'La invitaci\u00f3n no es v\u00e1lida o ya fue utilizada';\n  end if;\n  /* Una entrega fuera de plazo se acepta y se marca: perder 47 respuestas\n     por un corte de conexi\u00f3n ser\u00eda peor que registrar el dato. */\n  perform isel__persist(jsonb_set(jsonb_set(p, '{id}', to_jsonb(v_id)),\n                                  '{late}', to_jsonb(coalesce(v_late,false))));\n  return jsonb_build_object('ok', true, 'late', coalesce(v_late,false));\nend\n$fn$;\n\n-- ============================================================\n-- VERIFICACI\u00d3N Y REC\u00c1LCULO\n-- ============================================================\n\n-- Compara lo que calcul\u00f3 el navegador contra lo que calcula el servidor.\n-- Una diferencia no prueba manipulaci\u00f3n: tambi\u00e9n aparece si el instrumento\n-- cambi\u00f3 despu\u00e9s de aplicar la evaluaci\u00f3n. Lo que manda es la columna\n-- indice_servidor, que es la que se guarda como resultado.\ncreate or replace view isel_score_audit with (security_invoker = true) as\nselect c.full_name                 as candidato,\n       a.id                        as evaluacion,\n       a.version,\n       a.scored_by                 as calculado_por,\n       a.client_index              as indice_cliente,\n       a.index_score               as indice_servidor,\n       coalesce(a.score_mismatch, false) as difiere,\n       a.submitted_at\nfrom isel_assessments a\njoin isel_candidates c on c.id = a.candidate_id\nwhere a.status = 'completada'\norder by coalesce(a.score_mismatch, false) desc, a.submitted_at desc;\n\n-- Vuelve a puntuar una evaluaci\u00f3n desde sus respuestas guardadas.\ncreate or replace function isel_rescore(p_assessment text)\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  a      isel_assessments%rowtype;\n  v_def  jsonb;\n  v_prof jsonb;\n  v_res  jsonb;\n  v_pay  jsonb;\nbegin\n  -- Permite llamarla con sesi\u00f3n de usuario (desde la app) o como due\u00f1o de la\n  -- base (desde el editor SQL), pero no desde la API sin autenticar.\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  select * into a from isel_assessments where id = p_assessment;\n  if a.id is null then raise exception 'La evaluaci\u00f3n % no existe', p_assessment; end if;\n\n  select definition into v_def from isel_instruments where id = a.instrument_id;\n  if v_def is null then raise exception 'No se encontr\u00f3 el instrumento % de esa evaluaci\u00f3n', a.instrument_id; end if;\n\n  select profile into v_prof from isel_candidates where id = a.candidate_id;\n  v_res := isel_score(v_def, coalesce(a.answers,'{}'::jsonb), coalesce(v_prof,'{}'::jsonb));\n\n  v_pay := jsonb_build_object(\n    'id', a.id, 'candidateId', a.candidate_id, 'instrumentId', a.instrument_id,\n    'version', a.version, 'createdAt', coalesce(a.submitted_at, now()),\n    'profile', coalesce(v_prof,'{}'::jsonb), 'answers', coalesce(a.answers,'{}'::jsonb),\n    'consent', a.consent, 'dimsDef', a.dims_def, 'result', v_res);\n\n  perform isel__persist(v_pay);\n  return jsonb_build_object('id', a.id, 'index', (v_res->>'index')::int, 'decision', v_res->>'dec');\nend\n$fn$;\n\n-- Recalcula todas las evaluaciones completadas.\ncreate or replace function isel_rescore_all()\nreturns jsonb\nlanguage plpgsql\nsecurity definer\nset search_path = public, extensions\nas $fn$\ndeclare\n  r     record;\n  n     int := 0;\n  fails int := 0;\n  err   text;\nbegin\n  if auth.uid() is null and not pg_has_role(current_user, 'postgres', 'member') then\n    raise exception 'Se requiere sesi\u00f3n iniciada o permisos de administrador de la base';\n  end if;\n  for r in select id from isel_assessments where status = 'completada' order by submitted_at loop\n    begin\n      perform isel_rescore(r.id);\n      n := n + 1;\n    exception when others then\n      fails := fails + 1;\n      if err is null then err := sqlerrm; end if;\n    end;\n  end loop;\n  return jsonb_build_object('recalculadas', n, 'con_error', fails, 'primer_error', err);\nend\n$fn$;\n\ngrant execute on function isel_rescore(text)  to authenticated;\ngrant execute on function isel_rescore_all()  to authenticated;\ngrant select on isel_score_audit to authenticated;\nrevoke execute on function isel_score(jsonb, jsonb, jsonb) from anon;\nrevoke execute on function isel__score_item(jsonb, jsonb) from anon;\nrevoke execute on function isel__req_value(jsonb, jsonb, jsonb, jsonb) from anon;\n\n-- ============================================================\n-- SEGURIDAD\n-- Sin pol\u00edticas, RLS activo bloquea todo: anon no toca las tablas\n-- y solo puede ejecutar las tres funciones del flujo de invitaci\u00f3n.\n-- ============================================================\nalter table isel_instruments       enable row level security;\nalter table isel_candidates        enable row level security;\nalter table isel_assessments       enable row level security;\nalter table isel_answers           enable row level security;\nalter table isel_dimension_scores  enable row level security;\nalter table isel_critical_flags    enable row level security;\nalter table isel_recommendations   enable row level security;\nalter table isel_development_plans enable row level security;\n\ndo $policies$\ndeclare t text;\nbegin\n  foreach t in array array['isel_instruments','isel_candidates','isel_assessments','isel_answers',\n                           'isel_dimension_scores','isel_critical_flags','isel_recommendations',\n                           'isel_development_plans']\n  loop\n    execute format('drop policy if exists isel_rw_authenticated on %I', t);\n    execute format(\n      'create policy isel_rw_authenticated on %I for all to authenticated using (true) with check (true)', t);\n  end loop;\nend\n$policies$;\n\nrevoke execute on function isel__persist(jsonb) from public;\nrevoke execute on function isel__persist(jsonb) from anon;\n\ngrant execute on function isel_get_invite(text)            to anon, authenticated;\ngrant execute on function isel_start_invite(text)          to anon, authenticated;\ngrant execute on function isel_submit_invite(text, jsonb)  to anon, authenticated;\ngrant execute on function isel_save_record(jsonb)          to authenticated;\ngrant execute on function isel_create_invite(text,text,text) to authenticated;\ngrant execute on function isel_extend_invite(text, numeric)   to authenticated;\ngrant execute on function isel_regenerate_invite(text)        to authenticated;\n\ngrant select on isel_records, isel_candidate_overview, isel_item_analysis to authenticated;\n\n-- ============================================================\n-- NOTA SOBRE EL C\u00c1LCULO\n-- El puntaje lo calcula isel_score dentro de la base, a partir de\n-- las respuestas crudas y de la definici\u00f3n del instrumento. El\n-- jsonb 'result' que manda el navegador se descarta; solo se\n-- conserva su \u00edndice en client_index para poder detectar si el\n-- dispositivo report\u00f3 algo distinto (score_mismatch).\n-- Lo que ning\u00fan sistema puede evitar es que un candidato responda\n-- de forma deshonesta. La defensa contra eso est\u00e1 en el dise\u00f1o de\n-- los reactivos, no en el c\u00f3digo.\n-- ============================================================\n";
+
+const HORA = 3600000;
+function ventanaDe(ins){
+  const v = (ins && ins.ventana) || WINDOW_SEED;
+  return {abrir: +v.abrirHoras || 24, terminar: +v.terminarHoras || 1.5};
+}
+function restante(iso){
+  if(!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  const abs = Math.abs(ms), h = Math.floor(abs/HORA), m = Math.round((abs%HORA)/60000);
+  const txt = h >= 24 ? Math.floor(h/24)+' d '+(h%24)+' h' : (h ? h+' h '+m+' min' : m+' min');
+  return {ms, venció: ms <= 0, txt};
+}
+function etiquetaVigencia(inv){
+  const r = restante(inv.expiresAt);
+  if(!r) return pill('sin límite','var(--ink-3)');
+  if(inv.status !== 'pendiente' && inv.deadlineAt){
+    const d = restante(inv.deadlineAt);
+    return d.venció ? pill('plazo vencido hace '+d.txt,'var(--r-red)')
+                    : pill('entrega en '+d.txt,'var(--amber)');
+  }
+  return r.venció ? pill('vencida hace '+r.txt,'var(--r-red)')
+                  : pill('abre por '+r.txt, r.ms < 4*HORA ? 'var(--amber)' : 'var(--ink-3)');
+}
 
 function inviteLink(token){
   const base = location.origin + location.pathname + location.search;
@@ -6339,6 +6584,12 @@ function invitePanel(){
 /* ---------- modo candidato: solo la evaluación ---------- */
 function viewInvite(){
   const inv = S.invite;
+  if(inv && inv.expirada){
+    return topbar()+`<div class="cand-shell" style="padding:80px 22px">
+      <div class="empty"><b>El enlace venció</b>
+      Esta invitación tenía una vigencia limitada y ya se cumplió.
+      Solicita un enlace nuevo a la persona que te contactó; se genera en un momento.</div></div>`;
+  }
   if(!inv){
     const why = S.inviteReason==='sinconfig'
       ? {t:'Esta página no está conectada a la base de datos',
@@ -6364,6 +6615,7 @@ function viewInvite(){
       <div class="chk"><div class="m">·</div><div class="d">No hay respuestas obviamente correctas.<em>Varias opciones son razonables; interesa cuál eliges primero.</em></div></div>
       <div class="chk"><div class="m">·</div><div class="d">Contesta con lo que harías en realidad.<em>Responder lo que suena bien distorsiona el resultado y se detecta.</em></div></div>
       <div class="chk"><div class="m">·</div><div class="d">Puedes regresar a la pregunta anterior.<em>Al enviar, la evaluación se cierra y el enlace deja de funcionar.</em></div></div>
+      <div class="chk"><div class="m">·</div><div class="d">Tienes ${(inv.finishHours||1.5)===1.5?'una hora y media':(inv.finishHours+' horas')} desde que comiences.<em>Se registran los tiempos de respuesta como control de validez; si te pasas del plazo la evaluación se recibe igual, marcada como entrega tardía.</em></div></div>
     </div></div>
     ${S.retomar?`<div class="alert warn" style="margin-top:22px"><h3>Tienes una evaluación a medias</h3>
       Llevabas ${Object.keys(S.retomar.answers||{}).length} respuestas. Puedes continuar donde te quedaste.
@@ -6660,7 +6912,9 @@ function viewInvites(){
             </select></div>
         </div>
         ${insSel?`<p class="tiny" style="margin-top:10px">Se enviará <b>${esc(insSel.name)}</b> versión <b>${esc(insSel.version)}</b>,
-          con ${insSel.items.filter(i=>i.active!==false).length} reactivos.${insSel.isActive?'':' <span style="color:var(--amber)">No es la versión activa de ese puesto.</span>'}</p>`:''}
+          con ${insSel.items.filter(i=>i.active!==false).length} reactivos.
+          El enlace abre durante <b>${ventanaDe(insSel).abrir} h</b> y, una vez iniciado, hay
+          <b>${ventanaDe(insSel).terminar} h</b> para terminar.${insSel.isActive?'':' <span style="color:var(--amber)">No es la versión activa de ese puesto.</span>'}</p>`:''}
         <div class="navrow"><button class="btn btn-sm" data-newinvite>Generar enlace</button></div>`
         : `<div class="empty"><b>No hay evaluaciones publicadas</b>Publica una versión antes de invitar candidatos.</div>`}
         ${S.lastInvite?`<div class="alert warn" style="margin-top:16px"><h3>Enlace para ${esc(S.lastInvite.nombre||'el candidato')}</h3>
@@ -6677,14 +6931,18 @@ function viewInvites(){
           ${fams.map(f=>`<option value="${f}" ${S.fInvFam===f?'selected':''}>${esc(grupos[f][0].name)}</option>`).join('')}</select></div>
       </div>`:''}
       ${invs.length? `<div class="tbl-scroll"><table class="tbl">
-        <thead><tr><th>Candidato</th><th>Puesto</th><th>Versión</th><th>Estado</th><th>Enviada</th><th>Enlace</th><th></th></tr></thead>
+        <thead><tr><th>Candidato</th><th>Puesto</th><th>Versión</th><th>Estado</th><th>Vigencia</th><th>Enviada</th><th>Enlace</th><th></th></tr></thead>
         <tbody>${invs.map(i=>`<tr>
           <td class="nmc">${esc(i.nombre)}<div class="tiny">${esc(i.email||'')}</div></td>
           <td class="tiny">${esc(nombreDe(i.instrumentId))}</td>
           <td class="tiny">${esc(i.version)}</td>
           <td>${pill(i.status==='pendiente'?'Sin abrir':'En progreso', i.status==='pendiente'?'var(--ink-3)':'var(--amber)')}</td>
+          <td>${etiquetaVigencia(i)}</td>
           <td class="tiny">${fdate(i.createdAt)}</td>
-          <td><button class="btn btn-ghost btn-sm" data-copylink="${esc(inviteLink(i.token))}">Copiar enlace</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" data-copylink="${esc(inviteLink(i.token))}">Copiar</button>
+            <button class="btn btn-ghost btn-sm" data-extinv="${esc(i.token)}">Ampliar</button>
+            <button class="btn btn-ghost btn-sm" data-reginv="${esc(i.token)}">Enlace nuevo</button></td>
           <td><button class="rowdel" data-cancelinv="${esc(i.token)}" title="Cancelar invitación">×</button></td></tr>`).join('')}
         </tbody></table></div>`
       : `<div class="empty"><b>Sin invitaciones abiertas</b>Las que ya fueron contestadas aparecen en Candidatos.</div>`}
@@ -6697,6 +6955,54 @@ function viewInvites(){
 /* ============================================================
    ROUTER Y EVENTOS
    ============================================================ */
+/* ============================================================
+   CIERRE POR INACTIVIDAD
+   Diez minutos sin actividad avisan; un minuto más sin respuesta cierra.
+   No corre en modo candidato: a un evaluado no se le interrumpe.
+   ============================================================ */
+const IDLE_MS = 10*60*1000, GRACE_MS = 60*1000;
+let idleT = null, graceT = null, tickT = null, restan = 0;
+const MODAL = () => document.querySelector('#modal');
+
+function paraVigilancia(){
+  clearTimeout(idleT); clearTimeout(graceT); clearInterval(tickT);
+  idleT = graceT = tickT = null;
+  const m = MODAL(); if(m) m.innerHTML = '';
+}
+function vigilaInactividad(){
+  clearTimeout(idleT); clearTimeout(graceT); clearInterval(tickT);
+  graceT = null;
+  const m = MODAL(); if(m) m.innerHTML = '';
+  if(S.candidateMode || !DB.hasSession) return;
+  idleT = setTimeout(avisaInactividad, IDLE_MS);
+}
+function avisaInactividad(){
+  if(S.candidateMode || !DB.hasSession) return;
+  restan = Math.round(GRACE_MS/1000);
+  pintaAviso();
+  tickT = setInterval(()=>{ restan--; const c = document.querySelector('#idle-count'); if(c) c.textContent = restan; }, 1000);
+  graceT = setTimeout(async ()=>{
+    paraVigilancia();
+    await DB.signOut();
+    S.list=[]; S.invites=[]; S.instruments=[]; S.rec=null; S.selectedIns=null;
+    S.msg = 'La sesión se cerró tras diez minutos sin actividad. Vuelve a entrar para continuar.';
+    S.view = 'login'; render();
+  }, GRACE_MS);
+}
+function pintaAviso(){
+  const m = MODAL(); if(!m) return;
+  m.innerHTML = `<div class="ovl"><div class="ovl-card">
+    <h2 style="font-size:24px">¿Sigues ahí?</h2>
+    <p class="sub" style="margin:8px 0 6px">Por seguridad, la sesión se cierra tras diez minutos sin actividad.</p>
+    <p style="font-size:15px">Se cerrará en <b class="num" id="idle-count" style="font-size:26px">${restan}</b> segundos.</p>
+    <p class="tiny" style="margin-top:10px">Si hay una evaluación a medias, sus respuestas quedan guardadas en este equipo
+    y podrás retomarla al volver a entrar.</p>
+    <div class="navrow" style="margin-top:18px">
+      <button class="btn btn-sm" data-seguir>Seguir conectado</button>
+      <button class="btn btn-ghost btn-sm" data-salirya>Cerrar sesión ahora</button>
+    </div></div></div>`;
+}
+
 const GATED = ['admin','compare','versions','editor','itemedit','answers','analysis','invites','pick','form','quiz'];
 function accessOk(){
   if(S.candidateMode) return false;
@@ -6713,6 +7019,7 @@ function render(){
   if(!S.candidateMode && (GATED.includes(S.view) || (S.view==='settings' && DB.configured)) && !accessOk()) S.view = 'login';
   APP.innerHTML = (V[S.view]||viewHome)();
   if(S._last !== S.view){ window.scrollTo(0,0); S._last = S.view; }
+  if(typeof vigilaInactividad === 'function' && !graceT) vigilaInactividad();
   if(S._focus){
     const f = $(S._focus);
     if(f){ f.focus(); if(f.setSelectionRange) f.setSelectionRange(f.value.length, f.value.length); }
@@ -6781,7 +7088,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -6859,6 +7166,26 @@ APP.addEventListener('click', async e=>{
     }catch(e){ S.msg='No se pudo crear la invitación: '+e.message; }
     return render();
   }
+  if(d.extinv!==undefined){
+    try{
+      const ins = (S.instruments||[]).find(i=>i.id===(S.invites.find(x=>x.token===d.extinv)||{}).instrumentId);
+      S.invites = await DB.extendInvite(d.extinv, ventanaDe(ins).abrir);
+      S.invites = await DB.listInvites();
+      S.msg = 'Vigencia ampliada. El enlace sigue siendo el mismo.';
+    }catch(e){ S.msg = 'No se pudo ampliar: ' + e.message; }
+    return render();
+  }
+  if(d.reginv!==undefined){
+    try{
+      const nuevo = await DB.regenerateInvite(d.reginv);
+      S.invites = await DB.listInvites();
+      if(nuevo && nuevo.token){
+        S.lastInvite = S.invites.find(i=>i.token===nuevo.token) || nuevo;
+        S.msg = 'Enlace nuevo generado. El anterior dejó de funcionar.';
+      }
+    }catch(e){ S.msg = 'No se pudo regenerar: ' + e.message; }
+    return render();
+  }
   if(d.cancelinv!==undefined){
     try{ S.invites = await DB.cancelInvite(d.cancelinv); if(S.lastInvite && S.lastInvite.token===d.cancelinv) S.lastInvite=null; }
     catch(e){ S.msg=e.message; }
@@ -6885,8 +7212,10 @@ APP.addEventListener('click', async e=>{
     }
     S.profile = a.profile||{}; S.answers = a.answers||{}; S.page = Math.min(a.page||0, BANK.length-1);
     S.shuffle = a.shuffle||buildShuffle(INS); S.consent = !!a.consent;
+    S.telem = a.telem || telemNuevo();
+    S.telem.retomas = (S.telem.retomas||0) + 1;
     S.avanceActual = a; S.retomar = null;
-    return go('quiz');
+    await go('quiz'); telemEntra(BANK[S.page].id); return;
   }
   if(d.desdecero!==undefined){
     await limpiarAvance(S.retomar);
@@ -6942,17 +7271,24 @@ APP.addEventListener('click', async e=>{
     if(INS.privacy && INS.privacy.enabled && !S.consent){
       $('#form-msg').textContent='Para continuar debes aceptar el aviso de privacidad.'; return;
     }
-    S.answers={}; S.page=0; S.shuffle = buildShuffle(INS); return go('quiz');
+    S.telem = S.telem || telemNuevo();
+    S.answers={}; S.page=0; S.shuffle = buildShuffle(INS);
+    S.telem = telemNuevo();
+    await go('quiz'); telemEntra(BANK[0].id); return;
   }
-  if(d.pick!==undefined){ S.answers[q.id]=+d.pick; guardarAvance(); return render(); }
-  if(d.lik!==undefined){ S.answers[q.id]=+d.lik; guardarAvance(); return render(); }
-  if(d.multi!==undefined){ const i=+d.multi, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; guardarAvance(); return render(); }
+  if(d.pick!==undefined){ if(S.answers[q.id]!==undefined && S.answers[q.id]!==+d.pick) telemCambio(q.id); S.answers[q.id]=+d.pick; guardarAvance(); return render(); }
+  if(d.lik!==undefined){ if(S.answers[q.id]!==undefined && S.answers[q.id]!==+d.lik) telemCambio(q.id); S.answers[q.id]=+d.lik; guardarAvance(); return render(); }
+  if(d.multi!==undefined){ const i=+d.multi, c=S.answers[q.id]||[]; if(c.length) telemCambio(q.id); S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; guardarAvance(); return render(); }
   if(d.rank!==undefined){ const i=+d.rank, c=S.answers[q.id]||[]; S.answers[q.id]=c.includes(i)?c.filter(x=>x!==i):[...c,i]; guardarAvance(); return render(); }
   if(d.rankreset!==undefined){ S.answers[q.id]=[]; guardarAvance(); return render(); }
-  if(d.prev!==undefined){ S.page=Math.max(0,S.page-1); guardarAvance(); return render(); }
+  if(d.prev!==undefined){ S.page=Math.max(0,S.page-1); telemEntra(BANK[S.page].id); guardarAvance(); return render(); }
   if(d.next!==undefined){
-    if(S.page < BANK.length-1){ S.page++; guardarAvance(); return render(); }
+    if(S.page < BANK.length-1){ S.page++; telemEntra(BANK[S.page].id); guardarAvance(); return render(); }
+    const resumen = telemResumen();
     const rec = buildRecord(S.profile, S.answers, INS);
+    rec.telemetry = resumen;
+    if(S.candidateMode && S.invite && S.invite.deadlineAt)
+      rec.late = new Date() > new Date(S.invite.deadlineAt);
     if(S.candidateMode){
       try{ await DB.submitInvite(S.inviteToken, rec); }
       catch(e){
@@ -7249,6 +7585,7 @@ APP.addEventListener('input', e=>{
   if(d.plan!==undefined && t.tagName!=='SELECT'){ const [k,i,f]=d.plan.split('.'); ins.plan[k][+i][f]=t.value; touch(); return; }
   if(d.meta!==undefined){ ins[d.meta]=t.value; touch(); return; }
   if(d.priv!==undefined){ ins.privacy = ins.privacy||{}; ins.privacy[d.priv]=t.value; touch(); return; }
+  if(d.vent!==undefined){ ins.ventana = ins.ventana||clone(WINDOW_SEED); ins.ventana[d.vent] = +t.value || (d.vent==='abrirHoras'?24:1.5); touch(); return; }
   if(d.cons!==undefined){ const [i,f]=d.cons.split('.');
     if(f==='beh') ins.consPairs[+i].beh = t.value.split(',').map(s=>s.trim()).filter(Boolean);
     else ins.consPairs[+i][f]=t.value;
@@ -7272,16 +7609,62 @@ function copyText(txt, btn){
 
 window.addEventListener('beforeunload', e=>{ if(S.dirty){ e.preventDefault(); e.returnValue=''; } });
 
+['pointerdown','keydown','wheel','touchstart'].forEach(ev=>
+  window.addEventListener(ev, ()=>{ if(!graceT) vigilaInactividad(); }, {passive:true}));
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(S.telem){ telemOculto = Date.now(); telemSale(); }
+  } else {
+    if(S.telem && telemOculto){
+      S.telem.fuera.n++;
+      S.telem.fuera.s += Math.round((Date.now()-telemOculto)/1000);
+      telemOculto = 0;
+      if(S.view==='quiz' && BANK[S.page]) telemEntra(BANK[S.page].id);
+    }
+    if(!graceT) vigilaInactividad();
+  }
+});
+
+MODAL().addEventListener('click', async e=>{
+  const t = e.target.closest('[data-seguir],[data-salirya]');
+  if(!t) return;
+  if(t.dataset.seguir!==undefined){ vigilaInactividad(); return; }
+  paraVigilancia();
+  await DB.signOut();
+  S.list=[]; S.invites=[]; S.instruments=[]; S.rec=null; S.selectedIns=null;
+  S.msg='Sesión cerrada.'; S.view='home'; render();
+});
+
 async function enterCandidateMode(token){
   S.candidateMode = true; S.inviteToken = token;
   S.invite = null; S.inviteReason = '';
   await DB.loadConfig();
   try{
     const inv = await DB.getInvite(token);
+    if(inv && inv.expirada){
+      S.invite = inv;
+      S.inviteReason = 'expirada';
+      S.view = 'invite';
+      return render();
+    }
     if(inv){
       S.invite = inv;
       useInstrument(inv.instrument);
-      if(DB.remote){ try{ await rpc('isel_start_invite', {p_token: token}); }catch(e){} }
+      if(DB.remote){
+        try{
+          const r = await rpc('isel_start_invite', {p_token: token});
+          if(r && r.deadlineAt) S.invite.deadlineAt = r.deadlineAt;
+        }catch(e){}
+      } else {
+        const all = await DB.listInvites();
+        const x = all.find(i=>i.token===token);
+        if(x && x.status==='pendiente'){
+          x.status='en_progreso';
+          x.deadlineAt = new Date(Date.now() + (x.finishHours||1.5)*HORA).toISOString();
+          await LS.set('isel:invites', all);
+          S.invite.deadlineAt = x.deadlineAt;
+        }
+      }
     }
     /* En modo local la invitación solo existe en el navegador que la creó.
        Si no aparece y no hay conexión remota, lo más probable es que el sitio
