@@ -2245,8 +2245,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260923-2020';
-const BUILD_NOTAS = 'Experiencia de mando en la evaluación de gerente y contraste con lo observado · compatible con autorrelleno · vigencia de invitaciones';
+const BUILD = 'B20260923-2238';
+const BUILD_NOTAS = 'Fusionar y eliminar puestos y versiones con confirmación · experiencia de mando en la evaluación de gerente · vigencia de invitaciones';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -4965,6 +4965,19 @@ const DB = {
     }
     return DB.listInstruments();
   },
+  /* Mueve versiones a otro puesto. Solo cambia a qué grupo pertenecen:
+     no toca reactivos, pesos ni resultados de candidatos ya evaluados. */
+  async setFamily(ids, family){
+    const all = await DB.listInstruments();
+    for(const i of all){
+      if(ids.includes(i.id) && famOf(i) !== family){
+        i.family = family;
+        i.isActive = false;
+        await DB.saveInstrument(i);
+      }
+    }
+    return DB.listInstruments();
+  },
   async deleteInstrument(id){
     if(!DB.remote){
       const all = (await DB.listInstruments()).filter(x=>x.id!==id);
@@ -5449,7 +5462,7 @@ const S = {
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
   confirmDel:null, shuffle:{}, telem:null, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
-  pickVer:{}, fInvFam:'', connFail:null, retomar:null, retomarVisto:false, avanceActual:null,
+  pickVer:{}, fInvFam:'', connFail:null, delIns:null, delFam:null, fusionDe:null, fusionA:'', retomar:null, retomarVisto:false, avanceActual:null,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -6156,7 +6169,36 @@ function viewVersions(){
       const act = g.find(i=>i.isActive && i.status==='publicada');
       return `<div style="margin-bottom:22px">
       <div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">${esc(g[0].name)}</h2>
-        <span class="sub">${g.length} versión${g.length>1?'es':''}${g.filter(i=>i.status==='archivada').length?' ('+g.filter(i=>i.status==='archivada').length+' archivada'+(g.filter(i=>i.status==='archivada').length>1?'s':'')+')':''} · ${act?'activa '+esc(act.version):'sin versión activa'}</span></div>
+        <span class="sub">${g.length} versión${g.length>1?'es':''}${g.filter(i=>i.status==='archivada').length?' ('+g.filter(i=>i.status==='archivada').length+' archivada'+(g.filter(i=>i.status==='archivada').length>1?'s':'')+')':''} · ${act?'activa '+esc(act.version):'sin versión activa'}</span>
+        ${Object.keys(grupos).length>1?`<button class="btn btn-ghost btn-sm" data-fusionar="${f}">Fusionar</button>`:''}
+        <button class="btn btn-ghost btn-sm" data-delfam="${f}" style="color:var(--r-red);border-color:var(--steel-200)">Eliminar puesto</button></div>
+      ${S.fusionDe===f?`<div class="alert warn" style="margin-bottom:12px"><h3>Mover estas ${g.length} versiones a otro puesto</h3>
+        <p class="tiny" style="margin-bottom:10px">Se unifican bajo el puesto que elijas. No cambia ningún reactivo ni el resultado
+        de los candidatos ya evaluados: solo deja de haber dos grupos con el mismo nombre. Después habrá que marcar cuál versión queda activa.</p>
+        <div class="filters">
+          <div class="field"><label for="fus-${f}">Puesto destino</label>
+            <select id="fus-${f}" data-fusdest="${f}"><option value="">Selecciona…</option>
+            ${Object.keys(grupos).filter(x=>x!==f).map(x=>`<option value="${x}" ${S.fusionA===x?'selected':''}>${esc(grupos[x][0].name)} · ${grupos[x].length} versión${grupos[x].length>1?'es':''}</option>`).join('')}
+            </select></div>
+          <button class="btn btn-sm" data-fusok="${f}" ${S.fusionA?'':'disabled'}>Mover</button>
+          <button class="btn btn-ghost btn-sm" data-fuscancel>Cancelar</button>
+        </div></div>`:''}
+      ${S.delFam===f?(function(){
+        const usadas = g.filter(i=>S.list.filter(c=>c.instrumentId===i.id).length);
+        return usadas.length
+          ? `<div class="alert" style="margin-bottom:12px"><h3>No se puede eliminar este puesto</h3>
+             Hay candidatos evaluados con ${usadas.length} de sus versiones (${usadas.map(i=>esc(i.version)).join(', ')}).
+             Borrar el instrumento dejaría esos informes sin su definición. Elimina primero esas evaluaciones desde Candidatos,
+             o archiva las versiones en lugar de borrarlas.
+             <div class="navrow" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-delfamcancel>Entendido</button></div></div>`
+          : `<div class="alert" style="margin-bottom:12px"><h3>Confirmar eliminación del puesto</h3>
+             Se borrarán sus ${g.length} versiones con todos sus reactivos y su configuración. No hay candidatos evaluados con ellas.
+             La acción no se puede deshacer.
+             <ul style="margin:8px 0 0 18px;font-size:14px">${g.map(i=>`<li>${esc(i.version)} · ${i.items.length} reactivos · ${esc(i.status)}</li>`).join('')}</ul>
+             <div class="navrow" style="margin-top:12px">
+               <button class="btn btn-sm" style="background:var(--r-red);border-color:var(--r-red)" data-delfamok="${f}">Sí, eliminar el puesto</button>
+               <button class="btn btn-ghost btn-sm" data-delfamcancel>Cancelar</button></div></div>`;
+      })():''}
     <div class="panel"><div class="panel-b tbl-scroll"><table class="tbl">
       <thead><tr><th>Versión</th><th>Estado</th><th>Dimensiones</th><th>Reactivos</th><th>Evaluados</th><th>Actualizada</th><th></th></tr></thead>
       <tbody>${g.map(ins=>{
@@ -6172,8 +6214,13 @@ function viewVersions(){
           ${ins.status==='publicada' && !live?`<button class="btn btn-ghost btn-sm" data-useins="${ins.id}">Usar</button>`:''}
           ${ins.status==='publicada' && !live?`<button class="btn btn-ghost btn-sm" data-archins="${ins.id}">Archivar</button>`:''}
           ${ins.status==='archivada'?`<button class="btn btn-ghost btn-sm" data-unarchins="${ins.id}">Restaurar</button>`:''}
-          ${ins.status==='borrador' && !used?`<button class="btn btn-ghost btn-sm" data-delins="${ins.id}">Eliminar</button>`:''}
-        </td></tr>`;
+          ${!used?`<button class="rowdel" data-delins="${ins.id}" title="Eliminar esta versión">×</button>`:''}
+        </td></tr>${S.delIns===ins.id?`<tr><td colspan="7"><div class="alert" style="margin:6px 0">
+          <h3>Eliminar la versión ${esc(ins.version)}</h3>
+          Se borra con sus ${ins.items.length} reactivos y su configuración. Ningún candidato fue evaluado con ella.
+          <div class="navrow" style="margin-top:10px">
+            <button class="btn btn-sm" style="background:var(--r-red);border-color:var(--r-red)" data-delinsok="${ins.id}">Sí, eliminar</button>
+            <button class="btn btn-ghost btn-sm" data-delinscancel>Cancelar</button></div></div></td></tr>`:''}`;
       }).join('')}</tbody></table></div></div></div>`;
     }).join('')}
     <div class="navrow">
@@ -7238,7 +7285,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -7513,7 +7560,42 @@ APP.addEventListener('click', async e=>{
     }catch(e){ S.msg = 'No se pudo activar: ' + e.message; }
     return go('versions');
   }
-  if(d.delins!==undefined){ await DB.deleteInstrument(d.delins); S.msg='Borrador eliminado.'; return go('versions'); }
+  if(d.delins!==undefined){ S.delIns = d.delins; S.msg=''; return render(); }
+  if(d.delinscancel!==undefined){ S.delIns = null; return render(); }
+  if(d.delinsok!==undefined){
+    try{
+      S.instruments = await DB.deleteInstrument(d.delinsok);
+      S.msg = 'Versión eliminada.';
+    }catch(e){ S.msg = 'No se pudo eliminar: ' + e.message; }
+    S.delIns = null; return go('versions');
+  }
+  if(d.fusionar!==undefined){ S.fusionDe = d.fusionar; S.fusionA=''; S.delFam=null; S.msg=''; return render(); }
+  if(d.fuscancel!==undefined){ S.fusionDe = null; S.fusionA=''; return render(); }
+  if(d.fusok!==undefined){
+    const grupos = {}; S.instruments.forEach(i=>{ (grupos[famOf(i)]=grupos[famOf(i)]||[]).push(i); });
+    const origen = grupos[d.fusok] || [];
+    try{
+      S.instruments = await DB.setFamily(origen.map(i=>i.id), S.fusionA);
+      const destino = S.instruments.filter(i=>famOf(i)===S.fusionA);
+      const act = destino.find(i=>i.isActive && i.status==='publicada')
+        || destino.filter(i=>i.status==='publicada').sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''))[0];
+      if(act) S.instruments = await DB.setActive(act.id);
+      S.msg = origen.length + ' versión' + (origen.length>1?'es movidas':' movida') + '. Revisa cuál queda activa.';
+    }catch(e){ S.msg = 'No se pudo fusionar: ' + e.message; }
+    S.fusionDe=null; S.fusionA=''; return go('versions');
+  }
+  if(d.delfam!==undefined){ S.delFam = d.delfam; S.fusionDe=null; S.msg=''; return render(); }
+  if(d.delfamcancel!==undefined){ S.delFam = null; return render(); }
+  if(d.delfamok!==undefined){
+    const grupos = {}; S.instruments.forEach(i=>{ (grupos[famOf(i)]=grupos[famOf(i)]||[]).push(i); });
+    const g = grupos[d.delfamok] || [];
+    let n = 0;
+    try{
+      for(const i of g){ await DB.deleteInstrument(i.id); n++; }
+      S.msg = 'Puesto eliminado con ' + (n===1 ? 'su versión.' : 'sus ' + n + ' versiones.');
+    }catch(e){ S.msg = 'Se eliminaron ' + n + ' de ' + g.length + ' versiones. ' + e.message; }
+    S.delFam = null; return go('versions');
+  }
   if(d.archins!==undefined || d.unarchins!==undefined){
     const id = d.archins || d.unarchins;
     const all = await DB.listInstruments();
@@ -7686,6 +7768,7 @@ APP.addEventListener('change', async e=>{
     return render();
   }
   if(d.invfilter!==undefined){ S.fInvFam = t.value; return render(); }
+  if(d.fusdest!==undefined){ S.fusionA = t.value; return render(); }
   if(d.selins!==undefined){
     const x = (S.instruments||[]).find(i=>i.id===t.value);
     if(x){ useInstrument(x); S.selectedIns = x.id; S.answers={}; S.page=0; }
