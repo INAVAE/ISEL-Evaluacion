@@ -516,6 +516,12 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
   justify-content:center;padding:22px;z-index:100}
 .ovl-card{background:var(--paper);border:var(--line);border-top:4px solid var(--amber);
   padding:26px 28px;max-width:420px;width:100%}
+
+.pev{display:grid;grid-template-columns:66px 1fr 46px;gap:8px;align-items:center;margin:3px 0}
+.pev-k{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.pev-t{height:9px;background:var(--steel-100);display:block}
+.pev-t i{display:block;height:100%}
+.pev-v{font-family:var(--cond);font-size:14px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 </style>
 <div id="app"></div>
 <div id="modal"></div>
@@ -2245,8 +2251,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260923-2238';
-const BUILD_NOTAS = 'Fusionar y eliminar puestos y versiones con confirmación · experiencia de mando en la evaluación de gerente · vigencia de invitaciones';
+const BUILD = 'B20260923-2326';
+const BUILD_NOTAS = 'Peso contra evidencia en la validación · fusionar y eliminar puestos · experiencia de mando en gerente';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -6490,13 +6496,46 @@ function tabCheck(ins){
          ['Requisitos básicos',(ins.basic||[]).length],['Competencias ideales',(ins.ideal||[]).length]]
         .map(([k,n])=>`<div class="cell" style="border:1px solid var(--steel-200)"><div class="k">${k}</div><div class="v">${n}</div></div>`).join('')}
     </div>
-    <div style="margin-top:18px"><div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">Reparto de reactivos por dimensión</h2></div>
-      ${bars(Object.fromEntries(ins.dims.map(d=>{
-        const n = ins.items.filter(i=>i.dim===d.id && i.active!==false).length;
-        const mx = Math.max(1,...ins.dims.map(x=>ins.items.filter(i=>i.dim===x.id && i.active!==false).length));
-        return [d.id, R(n/mx*100)];
-      })), ins.dims)}
-      <p class="tiny">Escala relativa a la dimensión con más reactivos, para detectar dimensiones con peso alto y poca evidencia.</p>
+    <div style="margin-top:22px"><div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">Peso contra evidencia</h2></div>
+      <p class="mini" style="margin-bottom:14px">Compara cuánto pesa cada dimensión en el índice global contra cuántos reactivos
+      la sustentan. Una dimensión que decide una quinta parte del resultado con dos preguntas apoya mucho en poca evidencia:
+      una sola respuesta desafortunada mueve demasiado. Al revés, muchos reactivos para un peso pequeño hacen trabajar al
+      candidato sin que eso cambie el resultado.</p>
+      ${(function(){
+        const total = ins.items.filter(i=>i.active!==false).length || 1;
+        const filas = ins.dims.map(d=>{
+          const n = ins.items.filter(i=>i.dim===d.id && i.active!==false).length;
+          const pReact = n/total*100;
+          const pPeso  = (d.w||0)*100;
+          const razon  = pReact > 0 ? pPeso/pReact : (pPeso > 0 ? 99 : 1);
+          let v, c;
+          if(!n){ v='sin reactivos'; c='var(--r-red)'; }
+          else if(razon >= 1.6){ v='poca evidencia para su peso'; c='var(--r-red)'; }
+          else if(razon >= 1.25){ v='algo justo'; c='var(--amber)'; }
+          else if(razon <= 0.55){ v = d.crit ? 'más evidencia de la que su peso exige' : 'muchos reactivos para su peso'; c = d.crit ? 'var(--ink-3)' : 'var(--amber)'; }
+          else { v='equilibrado'; c='var(--r-green)'; }
+          return {d, n, pReact, pPeso, v, c};
+        });
+        const mx = Math.max(...filas.map(f=>Math.max(f.pReact, f.pPeso)), 1);
+        return `<div class="tbl-scroll"><table class="tbl">
+          <thead><tr><th>Dimensión</th><th style="width:240px">Peso en el índice / reactivos</th>
+            <th>Reactivos</th><th>Peso</th><th>Lectura</th></tr></thead>
+          <tbody>${filas.map(f=>`<tr>
+            <td class="nmc">${esc(f.d.short)}${f.d.crit?'<div class="tiny">crítica</div>':''}</td>
+            <td><div class="pev"><span class="pev-k">peso</span>
+                  <span class="pev-t"><i style="width:${f.pPeso/mx*100}%;background:var(--blue)"></i></span>
+                  <span class="pev-v">${pctW(f.d.w)}%</span></div>
+                <div class="pev"><span class="pev-k">reactivos</span>
+                  <span class="pev-t"><i style="width:${f.pReact/mx*100}%;background:var(--steel-500)"></i></span>
+                  <span class="pev-v">${f.pReact.toFixed(1)}%</span></div></td>
+            <td class="idx" style="font-size:18px">${f.n}</td>
+            <td class="tiny">de ${total}</td>
+            <td>${pill(f.v, f.c)}</td></tr>`).join('')}
+          </tbody></table></div>`;
+      })()}
+      <p class="tiny" style="margin-top:10px">Una dimensión crítica de peso bajo puede tener más reactivos de los que su
+      porcentaje sugiere y eso está bien: la ética pesa poco en la suma pero decide por regla de corte, así que conviene
+      medirla con varias preguntas.</p>
     </div></div>`;
 }
 
