@@ -2251,8 +2251,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260923-2326';
-const BUILD_NOTAS = 'Peso contra evidencia en la validación · fusionar y eliminar puestos · experiencia de mando en gerente';
+const BUILD = 'B20260924-0009';
+const BUILD_NOTAS = 'Listado de versiones ordenable por encabezado · peso contra evidencia · fusionar y eliminar puestos';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -5468,7 +5468,7 @@ const S = {
   itemDraft:null, itemNew:false, fDim:'', fQuery:'', msg:'',
   saveFailed:false, sendFailed:false, pendingCount:0, msgTech:'', diag:null, inviteReason:'',
   confirmDel:null, shuffle:{}, telem:null, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
-  pickVer:{}, fInvFam:'', connFail:null, delIns:null, delFam:null, fusionDe:null, fusionA:'', retomar:null, retomarVisto:false, avanceActual:null,
+  pickVer:{}, fInvFam:'', connFail:null, vSort:{k:'defecto',d:-1}, delIns:null, delFam:null, fusionDe:null, fusionA:'', retomar:null, retomarVisto:false, avanceActual:null,
   candidateMode:false, invite:null, inviteToken:null,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
@@ -6160,6 +6160,54 @@ function validate(ins){
 }
 
 /* ---- lista de versiones ---- */
+/* Compara claves de versión respetando los números: ISEL-GER-1.10 va después
+   de ISEL-GER-1.9, no antes como haría una comparación de texto. */
+function cmpVersion(a, b){
+  const pa = String(a||'').match(/\d+|\D+/g) || [];
+  const pb = String(b||'').match(/\d+|\D+/g) || [];
+  for(let i=0; i<Math.max(pa.length, pb.length); i++){
+    const x = pa[i], y = pb[i];
+    if(x === undefined) return -1;
+    if(y === undefined) return 1;
+    const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y);
+    if(nx && ny){ const d = (+x) - (+y); if(d) return d; }
+    else { const d = x.localeCompare(y, 'es'); if(d) return d; }
+  }
+  return 0;
+}
+const ESTADO_ORD = {publicada:0, borrador:1, archivada:2};
+
+function vth(k, etiqueta){
+  const act = (S.vSort && S.vSort.k) === k;
+  const flecha = act ? ((S.vSort.d > 0) ? ' ▲' : ' ▼') : '';
+  return `<th data-vsort="${k}" title="Ordenar por ${etiqueta.toLowerCase()}">${etiqueta}${flecha}</th>`;
+}
+
+function ordenarVersiones(g){
+  const k = (S.vSort && S.vSort.k) || 'defecto';
+  const dir = (S.vSort && S.vSort.d) || -1;
+  const activa = i => (i.isActive && i.status === 'publicada') ? 1 : 0;
+  const usados = i => S.list.filter(c => c.instrumentId === i.id).length;
+  const val = {
+    version:     i => null,
+    estado:      i => ESTADO_ORD[i.status] ?? 9,
+    reactivos:   i => i.items.filter(x => x.active !== false).length,
+    evaluados:   usados,
+    actualizada: i => i.updatedAt || ''
+  };
+  return g.slice().sort((a, b) => {
+    if(k === 'defecto'){
+      const d = activa(b) - activa(a);
+      if(d) return d;
+      return (b.updatedAt || '').localeCompare(a.updatedAt || '') || cmpVersion(b.version, a.version);
+    }
+    if(k === 'version') return cmpVersion(a.version, b.version) * dir;
+    const x = val[k](a), y = val[k](b);
+    if(x === y) return cmpVersion(b.version, a.version);
+    return (x > y ? 1 : -1) * dir;
+  });
+}
+
 function viewVersions(){
   const rows = S.instruments;
   const grupos = {};
@@ -6167,11 +6215,17 @@ function viewVersions(){
   return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Evaluaciones y versiones</h2>
       <span class="sub">${Object.keys(grupos).length} puestos · ${rows.length} versiones</span></div>
+    <div class="navrow" style="margin:0 0 14px">
+      <span class="tiny">Orden: <b>${({defecto:'activa primero, luego más reciente', version:'clave de versión',
+        estado:'estado', reactivos:'número de reactivos', evaluados:'candidatos evaluados',
+        actualizada:'fecha de actualización'})[(S.vSort&&S.vSort.k)||'defecto']}</b>${(S.vSort&&S.vSort.k!=='defecto')?((S.vSort.d>0)?' ascendente':' descendente'):''}</span>
+      ${(S.vSort&&S.vSort.k!=='defecto')?`<button class="btn btn-ghost btn-sm" data-vsort="defecto">Restablecer orden</button>`:''}
+    </div>
     <p class="note" style="margin:0 0 16px">Cada puesto puede tener una versión activa al mismo tiempo, así que se puede evaluar a un gerente y a un vendedor en paralelo.
     Una versión publicada queda bloqueada para conservar la trazabilidad de los candidatos ya evaluados con ella; para cambiarla, crea una versión nueva.</p>
     ${S.msg?`<div class="alert warn" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
     ${Object.keys(grupos).map(f=>{
-      const g = grupos[f].slice().sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+      const g = ordenarVersiones(grupos[f]);
       const act = g.find(i=>i.isActive && i.status==='publicada');
       return `<div style="margin-bottom:22px">
       <div class="sect-h" style="margin-bottom:8px"><h2 style="font-size:20px">${esc(g[0].name)}</h2>
@@ -6206,7 +6260,7 @@ function viewVersions(){
                <button class="btn btn-ghost btn-sm" data-delfamcancel>Cancelar</button></div></div>`;
       })():''}
     <div class="panel"><div class="panel-b tbl-scroll"><table class="tbl">
-      <thead><tr><th>Versión</th><th>Estado</th><th>Dimensiones</th><th>Reactivos</th><th>Evaluados</th><th>Actualizada</th><th></th></tr></thead>
+      <thead><tr>${vth('version','Versión')}${vth('estado','Estado')}<th>Dimensiones</th>${vth('reactivos','Reactivos')}${vth('evaluados','Evaluados')}${vth('actualizada','Actualizada')}<th></th></tr></thead>
       <tbody>${g.map(ins=>{
         const used = S.list.filter(c=>c.instrumentId===ins.id).length;
         const live = !!ins.isActive && ins.status==='publicada';
@@ -7324,7 +7378,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -7607,6 +7661,13 @@ APP.addEventListener('click', async e=>{
       S.msg = 'Versión eliminada.';
     }catch(e){ S.msg = 'No se pudo eliminar: ' + e.message; }
     S.delIns = null; return go('versions');
+  }
+  if(d.vsort!==undefined){
+    const k = d.vsort;
+    if(k === 'defecto') S.vSort = {k:'defecto', d:-1};
+    else if(S.vSort && S.vSort.k === k) S.vSort = {k, d: S.vSort.d * -1};
+    else S.vSort = {k, d: (k === 'version' || k === 'actualizada') ? -1 : -1};
+    return render();
   }
   if(d.fusionar!==undefined){ S.fusionDe = d.fusionar; S.fusionA=''; S.delFam=null; S.msg=''; return render(); }
   if(d.fuscancel!==undefined){ S.fusionDe = null; S.fusionA=''; return render(); }
