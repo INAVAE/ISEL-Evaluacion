@@ -2251,8 +2251,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20260924-0009';
-const BUILD_NOTAS = 'Listado de versiones ordenable por encabezado · peso contra evidencia · fusionar y eliminar puestos';
+const BUILD = 'B20260928-0010';
+const BUILD_NOTAS = 'Corrección del cálculo en servidor (ambigüedad de columna) · aviso al candidato sin jerga técnica · esquema verificado contra PostgreSQL real';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -5748,8 +5748,9 @@ function viewQuiz(){
     ${body}
     <div class="navrow"><button class="btn btn-ghost" data-prev ${S.page===0?'disabled':''}>Atrás</button><span class="sp"></span>
       <button class="btn" data-next ${answered?'':'disabled'}>${S.page===BANK.length-1?'Terminar evaluación':'Continuar'}</button></div>
-    ${S.sendFailed?`<div class="alert" style="margin-top:18px"><h3>No se pudo enviar</h3>${esc(S.msg)}
-      <div class="navrow" style="margin-top:10px"><button class="btn btn-sm" data-retrysave>Reintentar envío</button></div></div>`:''}
+    ${S.sendFailed?`<div class="alert" style="margin-top:18px"><h3>No se pudo enviar todavía</h3>${esc(S.msg)}
+      <div class="navrow" style="margin-top:10px"><button class="btn btn-sm" data-retrysave>Reintentar envío</button></div>
+      ${S.msgTech?`<p class="tiny" style="margin-top:10px;color:var(--ink-3)">Referencia técnica: <code>${esc(S.msgTech)}</code></p>`:''}</div>`:''}
   </div>`;
 }
 
@@ -7520,7 +7521,9 @@ APP.addEventListener('click', async e=>{
   if(d.retrysave!==undefined){
     const r = await DB.flushPending();
     if(r.left){
-      S.msg = 'Siguen ' + r.left + ' evaluación' + (r.left>1?'es':'') + ' sin enviar.';
+      S.msg = S.candidateMode
+        ? 'El envío sigue sin completarse. Tus respuestas continúan guardadas en este dispositivo; intenta de nuevo en un momento o avísale a quien te envió el enlace.'
+        : 'Siguen ' + r.left + ' evaluación' + (r.left>1?'es':'') + ' sin enviar.';
       S.msgTech = r.error || '';
     }
     else {
@@ -7589,8 +7592,11 @@ APP.addEventListener('click', async e=>{
       catch(e){
         rec._inviteToken = S.inviteToken;
         await DB.queue(rec);
-        S.msg = 'No se pudo enviar en este momento: ' + e.message +
-                ' Tus respuestas quedaron guardadas en este dispositivo. Vuelve a intentarlo sin cerrar la página.';
+        /* El candidato no tiene por qué leer un error de base de datos.
+           El detalle técnico queda aparte, para quien pueda usarlo. */
+        S.msg = 'Tus respuestas quedaron guardadas en este dispositivo y no se han perdido. ' +
+                'Vuelve a intentarlo sin cerrar esta página; si vuelve a fallar, avísale a quien te envió el enlace.';
+        S.msgTech = e.message;
         S.sendFailed = true;
         return render();
       }
