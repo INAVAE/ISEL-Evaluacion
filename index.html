@@ -110,6 +110,7 @@ input,select,textarea{font:inherit;color:inherit}
 @keyframes iselGira{to{transform:rotate(360deg)}}
 body.ocupado .cargando-franja,body.ocupado .cargando-rotulo{display:flex}
 body.ocupado{cursor:progress}
+.btn.esperando,.ico-btn.esperando,button.esperando{pointer-events:none;opacity:.65}
 /* Quien pidió menos movimiento ve la franja quieta, no parpadeando. */
 @media (prefers-reduced-motion:reduce){
   .cargando-franja i{animation:none;left:0;width:100%;opacity:.5}
@@ -137,15 +138,19 @@ body.ocupado{cursor:progress}
 .foco-titulo{font-weight:700;font-size:clamp(14px,1.2vw,20px);letter-spacing:.02em}
 .foco-der{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .foco-cuerpo{flex:1;padding:clamp(14px,1.6vw,34px) clamp(16px,2vw,40px) clamp(24px,3vh,56px);
-  font-size:clamp(15px,1.05vw,22px)}
+  font-size:clamp(16px,1.3vw,26px)}
 .foco-cuerpo>*{max-width:2200px;margin:0 auto}
-.foco-cuerpo .tbl{font-size:clamp(14px,1vw,21px)}
-.foco-cuerpo .tbl th{font-size:clamp(11px,.78vw,16px)}
-.foco-cuerpo h1{font-size:clamp(24px,2.2vw,46px)}
+.foco-cuerpo .tbl{font-size:clamp(15px,1.18vw,24px)}
+.foco-cuerpo .tbl th{font-size:clamp(12px,.92vw,19px)}
+.foco-cuerpo h1{font-size:clamp(26px,2.5vw,52px)}
 .foco-cuerpo h2{font-size:clamp(20px,1.7vw,36px)}
 .foco-cuerpo h3{font-size:clamp(16px,1.3vw,27px)}
-.foco-cuerpo .sub,.foco-cuerpo .tiny{font-size:clamp(12px,.92vw,19px)}
+.foco-cuerpo .sub,.foco-cuerpo .tiny{font-size:clamp(13px,1.05vw,21px)}
 .foco-cuerpo .bigscore{font-size:clamp(46px,5vw,110px)}
+/* La barra ya dice en qué sección estamos; el encabezado de la vista
+   repetiría lo mismo y se come el espacio que vinimos a ganar. */
+.foco-cuerpo>.page-h:first-child,.foco-cuerpo>.sect-h:first-child,
+.foco-cuerpo>*>.page-h:first-child,.foco-cuerpo>*>.sect-h:first-child{display:none}
 .btn-ampliar{margin-left:auto}
 @media print{.foco{position:static;overflow:visible}.foco-barra{display:none}}
 
@@ -2380,7 +2385,7 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20261016-0014';
+const BUILD = 'B20261016-0015';
 const BUILD_NOTAS = 'Ancho completo de pantalla · modo claro/oscuro (tecla T) · vista ampliada por sección (tecla A) · señal de carga · generador y cambio de contraseña';
 
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -5662,6 +5667,7 @@ function ocupadoInicia(){
       if(ESPERA.tareas > 0){
         ESPERA.desde = Date.now();
         document.body.classList.add('ocupado');
+        marcaBotonOcupado(true);
       }
     }, 300);
   }
@@ -5675,8 +5681,24 @@ function ocupadoTermina(){
   const resto = Math.max(0, 400 - visto);
   ESPERA.ocultar = setTimeout(()=>{
     ESPERA.ocultar = null;
-    if(ESPERA.tareas === 0) document.body.classList.remove('ocupado');
+    if(ESPERA.tareas === 0){ document.body.classList.remove('ocupado'); marcaBotonOcupado(false); }
   }, resto);
+}
+
+/* El botón que se acaba de pulsar también lo dice. Se anota en fase de
+   captura, antes de que corra su manejador, y mientras espera no admite
+   un segundo clic: así nadie manda dos veces la misma invitación por
+   creer que el primero no entró. */
+let botonPulsado = null;
+document.addEventListener('click', e=>{
+  const b = e.target.closest && e.target.closest('button,.btn');
+  if(b && !b.disabled) botonPulsado = b;
+}, true);
+function marcaBotonOcupado(si){
+  const b = botonPulsado;
+  if(!b || !b.isConnected){ if(!si) botonPulsado = null; return; }
+  if(si){ b.classList.add('esperando'); b.setAttribute('aria-busy','true'); }
+  else { b.classList.remove('esperando'); b.removeAttribute('aria-busy'); botonPulsado = null; }
 }
 /* Envuelve cualquier trabajo que pueda tardar. La señal se apaga
    también si la operación falla: un error no debe dejar la página
@@ -7695,12 +7717,16 @@ const MODAL = () => document.querySelector('#modal');
 function paraVigilancia(){
   clearTimeout(idleT); clearTimeout(graceT); clearInterval(tickT);
   idleT = graceT = tickT = null;
-  const m = MODAL(); if(m) m.innerHTML = '';
+  quitaAvisoInactividad();
 }
+/* Cualquier actividad reinicia la cuenta. Esto corre en cada clic, así
+   que retira SOLO su propio aviso: antes vaciaba el contenedor de
+   cuadros completo y el primer clic dentro de «Cambiar mi contraseña»
+   se llevaba el cuadro por delante. */
 function vigilaInactividad(){
   clearTimeout(idleT); clearTimeout(graceT); clearInterval(tickT);
   graceT = null;
-  const m = MODAL(); if(m) m.innerHTML = '';
+  quitaAvisoInactividad();
   if(S.candidateMode || !DB.hasSession) return;
   idleT = setTimeout(avisaInactividad, IDLE_MS);
 }
@@ -7717,8 +7743,47 @@ function avisaInactividad(){
     S.view = 'login'; render();
   }, GRACE_MS);
 }
-function pintaAviso(){
+/* Cambiar la contraseña propia. Va en un cuadro de la aplicación y no en
+   un prompt del navegador para poder ofrecer el generador: una contraseña
+   inventada al vuelo suele estar en las listas de contraseñas filtradas. */
+function abrirMiPassword(){
   const m = MODAL(); if(!m) return;
+  m.innerHTML = `<div class="ovl"><div class="ovl-card">
+    <h2 style="font-size:24px">Cambiar mi contraseña</h2>
+    <p class="sub" style="margin:8px 0 14px">Aplica solo a tu cuenta
+      (${esc((S.yo && S.yo.nombre) || '')}). Tendrá efecto de inmediato.</p>
+    <div class="fld"><label class="lbl" for="mp-nueva">Contraseña nueva</label>
+      <div style="display:flex;gap:6px">
+        <input class="fi" id="mp-nueva" type="password" style="flex:1"
+               autocomplete="new-password" spellcheck="false">
+        <button class="btn btn-ghost btn-sm" data-mpver type="button" title="Mostrar u ocultar">Ver</button>
+        <button class="btn btn-ghost btn-sm" data-mpgen type="button"
+                title="Genera una contraseña aleatoria de 16 caracteres">Generar</button>
+      </div>
+      <div class="tiny" id="mp-aviso" style="margin-top:6px">Mínimo 8 caracteres.
+        Lo recomendable es pulsar Generar y guardarla en tu gestor de contraseñas.</div>
+    </div>
+    <div class="navrow" style="margin-top:18px">
+      <button class="btn btn-sm" data-mpok>Cambiar contraseña</button>
+      <button class="btn btn-ghost btn-sm" data-mpcancel>Cancelar</button>
+    </div>
+  </div></div>`;
+  const c = document.querySelector('#mp-nueva'); if(c) c.focus();
+}
+
+function quitaAvisoInactividad(){
+  const a = document.querySelector('#aviso-inactividad');
+  if(a) a.remove();
+}
+function pintaAviso(){
+  if(!document.body) return;
+  let m = document.querySelector('#aviso-inactividad');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'aviso-inactividad';
+    m.className = 'no-print';
+    document.body.appendChild(m);
+  }
   m.innerHTML = `<div class="ovl"><div class="ovl-card">
     <h2 style="font-size:24px">¿Sigues ahí?</h2>
     <p class="sub" style="margin:8px 0 6px">Por seguridad, la sesión se cierra tras diez minutos sin actividad.</p>
@@ -7891,8 +7956,8 @@ async function duplicateInstrument(id){
   return openInstrument(copy.id);
 }
 
-APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass],[data-tema],[data-foco],[data-focosalir],[data-focofull],[data-genpass],[data-mipass]');
+document.addEventListener('click', async e=>{
+  const t = e.target.closest && e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass],[data-tema],[data-foco],[data-focosalir],[data-focofull],[data-genpass],[data-mipass],[data-mpgen],[data-mpver],[data-mpok],[data-mpcancel]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -7997,13 +8062,29 @@ APP.addEventListener('click', async e=>{
     S.msg = 'Contraseña generada. Cópiala antes de crear al usuario: no vuelve a mostrarse.';
     return render();
   }
-  if(d.mipass!==undefined){
-    const nueva = prompt('Tu nueva contraseña (mínimo 8 caracteres):');
-    if(nueva === null) return;
-    if((nueva||'').length < 8){ S.msg = 'La contraseña debe tener al menos 8 caracteres.'; return render(); }
+  if(d.mipass!==undefined){ return abrirMiPassword(); }
+  if(d.mpgen!==undefined){
+    const c = document.querySelector('#mp-nueva');
+    if(c){ c.type = 'text'; c.value = generarPassword(16); c.focus(); c.select(); }
+    const a = document.querySelector('#mp-aviso');
+    if(a) a.textContent = 'Cópiala y guárdala antes de aceptar: no se vuelve a mostrar.';
+    return;
+  }
+  if(d.mpver!==undefined){
+    const c = document.querySelector('#mp-nueva');
+    if(c) c.type = c.type === 'password' ? 'text' : 'password';
+    return;
+  }
+  if(d.mpcancel!==undefined){ const m = MODAL(); if(m) m.innerHTML=''; return; }
+  if(d.mpok!==undefined){
+    const c = document.querySelector('#mp-nueva');
+    const nueva = c ? c.value : '';
+    const a = document.querySelector('#mp-aviso');
+    if(nueva.length < 8){ if(a) a.textContent = 'Debe tener al menos 8 caracteres.'; return; }
+    const m = MODAL(); if(m) m.innerHTML='';
     try{
       await DB.cambiarMiPassword(nueva);
-      S.msg = 'Tu contraseña quedó cambiada.';
+      S.msg = 'Tu contraseña quedó cambiada. Úsala la próxima vez que entres.';
     }catch(e){ S.msg = 'No se pudo cambiar: ' + e.message; }
     return render();
   }
@@ -8572,8 +8653,8 @@ document.addEventListener('visibilitychange', ()=>{
   }
 });
 
-MODAL().addEventListener('click', async e=>{
-  const t = e.target.closest('[data-seguir],[data-salirya]');
+document.addEventListener('click', async e=>{
+  const t = e.target.closest && e.target.closest('[data-seguir],[data-salirya]');
   if(!t) return;
   if(t.dataset.seguir!==undefined){ vigilaInactividad(); return; }
   paraVigilancia();
