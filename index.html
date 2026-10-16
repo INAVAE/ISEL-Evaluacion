@@ -19,6 +19,53 @@
   --sans:'Barlow',-apple-system,'Segoe UI',Roboto,sans-serif;
   --cond:'Barlow Condensed','Barlow',-apple-system,'Segoe UI',sans-serif;
 }
+
+/* ---------- tema oscuro ----------
+   Mismo mecanismo que el tablero de Junta: si el sistema está en
+   oscuro se usa oscuro, salvo que la persona haya pedido claro a
+   mano; y data-theme="dark" lo fuerza. Como todos los colores de la
+   aplicación salen de estas variables, basta con redefinirlas.
+   Los cinco colores de nivel se aclaran: los originales se diseñaron
+   para fondo blanco y sobre fondo oscuro pierden contraste. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --steel-50:#161B21; --steel-75:#1C232B; --steel-100:#242D37;
+    --steel-200:#303B47; --steel-300:#46535F; --steel-500:#8A97A3;
+    --ink:#E8EDF2; --ink-2:#BCC7D2; --ink-3:#8E9AA6;
+    --blue:#5BA3DE; --blue-d:#8CC2EC; --blue-l:#1B2A38;
+    --amber:#E0A33C; --amber-l:#2A2112;
+    --r-red:#E0695C; --r-orange:#E09A52; --r-yellow:#D9B63F;
+    --r-green:#4FB88A; --r-blue:#5BA3DE;
+    --paper:#1A2128;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --steel-50:#161B21; --steel-75:#1C232B; --steel-100:#242D37;
+  --steel-200:#303B47; --steel-300:#46535F; --steel-500:#8A97A3;
+  --ink:#E8EDF2; --ink-2:#BCC7D2; --ink-3:#8E9AA6;
+  --blue:#5BA3DE; --blue-d:#8CC2EC; --blue-l:#1B2A38;
+  --amber:#E0A33C; --amber-l:#2A2112;
+  --r-red:#E0695C; --r-orange:#E09A52; --r-yellow:#D9B63F;
+  --r-green:#4FB88A; --r-blue:#5BA3DE;
+  --paper:#1A2128;
+  color-scheme:dark;
+}
+/* Al imprimir siempre se usa el tema claro: el oscuro gasta tinta y
+   se lee peor en papel. */
+@media print{
+  :root, :root[data-theme="dark"]{
+    --steel-50:#F3F5F7; --steel-75:#EAEEF1; --steel-100:#E0E5E9;
+    --steel-200:#CFD6DC; --steel-300:#B3BDC6; --steel-500:#77848F;
+    --ink:#151E27; --ink-2:#3D4B58; --ink-3:#6B7986;
+    --blue:#12558C; --blue-d:#0B3C66; --blue-l:#E7EFF6;
+    --amber:#C97C0A; --amber-l:#FBF1DF;
+    --r-red:#B23A2E; --r-orange:#C96A1E; --r-yellow:#B58800;
+    --r-green:#1C7550; --r-blue:#1B5FA8;
+    --paper:#FFFFFF; color-scheme:light;
+  }
+}
+
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
 body{
@@ -32,26 +79,101 @@ input,select,textarea{font:inherit;color:inherit}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ---------- shell ---------- */
-.shell{max-width:1140px;margin:0 auto;padding:0 22px}
+/* El contenedor seguía fijo en 1140px aunque la pantalla midiera 2560:
+   la lista de candidatos necesita ~1165px y la última columna quedaba
+   cortada con cientos de píxeles libres a los lados. Ahora crece con la
+   ventana, pero con un tope para que la línea de texto no se vuelva
+   incómoda de leer en un monitor muy ancho. */
+.shell{max-width:min(1140px, 100%);margin:0 auto;padding:0 22px}
+.shell-ancha{max-width:min(1760px, 100%);margin:0 auto;padding:0 22px}
 .shell-narrow{max-width:760px;margin:0 auto;padding:0 22px}
+/* Botones de utilidad del encabezado: tema, ampliar, pantalla completa. */
+/* ---------- señal de «estoy trabajando» ----------
+   Una franja delgada arriba del todo más un rótulo discreto abajo a la
+   derecha. La franja se ve aunque la persona haya hecho clic en
+   cualquier parte de la pantalla; el rótulo dice con palabras lo que
+   la franja insinúa.
+   No aparece de inmediato: si la respuesta llega en 300 ms, un
+   parpadeo de carga molesta más de lo que informa. */
+.cargando-franja{position:fixed;top:0;left:0;right:0;height:3px;z-index:300;
+  background:var(--steel-200);overflow:hidden;display:none}
+.cargando-franja i{position:absolute;top:0;bottom:0;width:38%;background:var(--blue);
+  animation:iselCorre 1.05s ease-in-out infinite}
+@keyframes iselCorre{0%{left:-40%}100%{left:100%}}
+.cargando-rotulo{position:fixed;right:16px;bottom:16px;z-index:300;display:none;
+  align-items:center;gap:8px;background:var(--paper);color:var(--ink-2);
+  border:var(--line);border-radius:999px;padding:7px 14px;font-size:13px;
+  box-shadow:0 2px 10px rgba(0,0,0,.14)}
+.cargando-rotulo .pelota{width:11px;height:11px;border-radius:50%;
+  border:2px solid var(--steel-200);border-top-color:var(--blue);
+  animation:iselGira .7s linear infinite}
+@keyframes iselGira{to{transform:rotate(360deg)}}
+body.ocupado .cargando-franja,body.ocupado .cargando-rotulo{display:flex}
+body.ocupado{cursor:progress}
+/* Quien pidió menos movimiento ve la franja quieta, no parpadeando. */
+@media (prefers-reduced-motion:reduce){
+  .cargando-franja i{animation:none;left:0;width:100%;opacity:.5}
+  .cargando-rotulo .pelota{animation:none}
+}
+@media print{.cargando-franja,.cargando-rotulo{display:none!important}}
+
+.ico-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;
+  border:var(--line);border-radius:6px;background:var(--paper);color:var(--ink-2);
+  font-size:15px;line-height:1;cursor:pointer;flex:0 0 auto}
+.ico-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+/* Vista ampliada de una sección. Ocupa toda la ventana y agranda el
+   contenido con el ancho disponible, para leerlo de lejos o proyectarlo. */
+.foco{position:fixed;inset:0;z-index:80;background:var(--steel-50);overflow:auto;
+  display:flex;flex-direction:column}
+/* Dentro de la vista ampliada manda la barra de foco: el encabezado de
+   la aplicación sobra y además roba alto útil. */
+.foco .topbar{display:none}
+.foco-barra{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:8px 12px;
+  align-items:center;padding:10px clamp(16px,2vw,40px);background:var(--blue-d);color:#fff;
+  border-bottom:1px solid rgba(255,255,255,.15)}
+.foco-barra .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff}
+.foco-barra .btn:hover{background:rgba(255,255,255,.22)}
+.foco-titulo{font-weight:700;font-size:clamp(14px,1.2vw,20px);letter-spacing:.02em}
+.foco-der{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.foco-cuerpo{flex:1;padding:clamp(14px,1.6vw,34px) clamp(16px,2vw,40px) clamp(24px,3vh,56px);
+  font-size:clamp(15px,1.05vw,22px)}
+.foco-cuerpo>*{max-width:2200px;margin:0 auto}
+.foco-cuerpo .tbl{font-size:clamp(14px,1vw,21px)}
+.foco-cuerpo .tbl th{font-size:clamp(11px,.78vw,16px)}
+.foco-cuerpo h1{font-size:clamp(24px,2.2vw,46px)}
+.foco-cuerpo h2{font-size:clamp(20px,1.7vw,36px)}
+.foco-cuerpo h3{font-size:clamp(16px,1.3vw,27px)}
+.foco-cuerpo .sub,.foco-cuerpo .tiny{font-size:clamp(12px,.92vw,19px)}
+.foco-cuerpo .bigscore{font-size:clamp(46px,5vw,110px)}
+.btn-ampliar{margin-left:auto}
+@media print{.foco{position:static;overflow:visible}.foco-barra{display:none}}
+
 .rolchip{display:inline-flex;flex-direction:column;line-height:1.15;padding:3px 10px;margin:0 2px;
-  border-left:1px solid var(--steel-200);font-size:12px;color:var(--ink-3);white-space:nowrap}
+  border-left:1px solid var(--steel-200);font-size:12px;color:var(--ink-3);white-space:nowrap;
+  flex:0 0 auto;max-width:180px;overflow:hidden}
+.rolchip span{overflow:hidden;text-overflow:ellipsis}
 .rolchip b{font-size:11px;color:var(--blue);font-weight:700;letter-spacing:.02em}
 @media(max-width:900px){.rolchip{display:none}}
 .topbar{
   background:var(--paper);border-bottom:var(--line);position:sticky;top:0;z-index:40;
 }
-.topbar-in{display:flex;align-items:center;gap:16px;height:58px}
-.brand{display:flex;align-items:baseline;gap:9px;text-decoration:none;color:inherit}
+.topbar-in{display:flex;align-items:center;gap:10px;height:58px}
+.brand{display:flex;align-items:baseline;gap:9px;text-decoration:none;color:inherit;
+  flex:0 0 auto;white-space:nowrap}
 .brand-mark{
   font-family:var(--cond);font-weight:700;font-size:22px;letter-spacing:.06em;
   color:var(--blue);border:2px solid var(--blue);padding:0 7px;line-height:1.25;
 }
-.brand-txt{font-size:13.5px;color:var(--ink-3);font-weight:500}
-.topbar-sp{flex:1}
+.brand-txt{font-size:13.5px;color:var(--ink-3);font-weight:500;white-space:nowrap}
+/* Con la sesión abierta el encabezado lleva muchos botones: por debajo de
+   1440 px el subtítulo de la marca estorba y se oculta; el recuadro ISEL
+   siempre queda. */
+@media(max-width:1439px){ .topbar-in.lleno .brand-txt{display:none} }
+.topbar-sp{flex:1;min-width:6px}
 .tlink{
   font-size:14px;font-weight:600;color:var(--ink-2);padding:7px 12px;border:var(--line);
-  background:var(--paper);
+  background:var(--paper);white-space:nowrap;flex:0 0 auto;
 }
 .tlink:hover{background:var(--steel-75);color:var(--blue)}
 .tlink.on{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -379,7 +501,8 @@ textarea.fi{resize:vertical;line-height:1.45}
 .toolbar select,.toolbar input{padding:8px 10px;border:1px solid var(--steel-200);font-size:14px;background:var(--paper)}
 
 /* ---------- conexión, acceso e invitaciones ---------- */
-.topbar-in{overflow-x:auto}
+/* En pantallas chicas el encabezado se desliza en lugar de encogerse. */
+@media(max-width:1100px){ .topbar-in{overflow-x:auto;scrollbar-width:none} .topbar-in::-webkit-scrollbar{display:none} }
 .modecard{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 @media(max-width:760px){.modecard{grid-template-columns:1fr}}
 .modeopt{border:1px solid var(--steel-200);background:var(--paper);padding:16px;text-align:left;display:block;width:100%}
@@ -425,7 +548,7 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
 
 @media (max-width:700px){
   body{overflow-x:hidden}
-  .shell, .shell-narrow, .cand-shell{padding-left:16px;padding-right:16px}
+  .shell, .shell-ancha, .shell-narrow, .cand-shell{padding-left:16px;padding-right:16px}
   .prog-seg{display:none}
   .prog-bar{display:block}
   .btn{padding:12px 18px;font-size:15px}
@@ -529,6 +652,8 @@ pre.sql{background:var(--ink);color:#D8E2EA;padding:16px;overflow:auto;max-heigh
 </style>
 <div id="app"></div>
 <div id="modal"></div>
+<div class="cargando-franja" aria-hidden="true"><i></i></div>
+<div class="cargando-rotulo" role="status" aria-live="polite"><span class="pelota"></span>Cargando…</div>
 <script>
 "use strict";
 
@@ -2255,8 +2380,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20261016-0013';
-const BUILD_NOTAS = 'Usuarios y roles · cierre de permisos: isel_usuario_alta e isel__persist solo para el servidor';
+const BUILD = 'B20261016-0014';
+const BUILD_NOTAS = 'Ancho completo de pantalla · modo claro/oscuro (tecla T) · vista ampliada por sección (tecla A) · señal de carga · generador y cambio de contraseña';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -4753,7 +4878,7 @@ async function funcion(nombre, cuerpo){
   }
 }
 
-async function sbFetch(path, opts, _retried){
+async function sbFetchCrudo(path, opts, _retried){
   if(!CFG.url || !CFG.anonKey) throw new Error('Falta la URL del proyecto o la clave anónima.');
   /* Los tokens de Supabase caducan en una hora. Se renuevan antes de usarlos,
      salvo en las rutas de autenticación para no entrar en recursión. */
@@ -4781,13 +4906,17 @@ async function sbFetch(path, opts, _retried){
     const code = data && (data.error_code || data.code);
     const full = code ? m + ' [' + code + ']' : m;
     if(!_retried && isExpired(full) && SESSION && SESSION.refresh_token){
-      try{ await DB.refresh(); return sbFetch(path, opts, true); }
+      try{ await DB.refresh(); return sbFetchCrudo(path, opts, true); }
       catch(e){ throw new Error('Tu sesión expiró. Vuelve a iniciar sesión.'); }
     }
     throw new Error(full);
   }
   return data;
 }
+
+/* Mientras una petición está en curso, la página lo dice. */
+const sbFetch = (path, opts, _retried) => conEspera(() => sbFetchCrudo(path, opts, _retried));
+
 const rpc = (fn, args) => sbFetch('/rest/v1/rpc/' + fn, {method:'POST', body: JSON.stringify(args||{})});
 
 const isExpired = m => /jwt expired|pgrst303|token is expired|invalid refresh token/i.test(String(m||''));
@@ -4910,6 +5039,12 @@ const DB = {
     if(!DB.remote) return {sesion:true, nombre:'Modo de prueba', rol:'admin', activo:true, local:true};
     if(!DB.hasSession) return {sesion:false};
     return rpc('isel_quien_soy', {});
+  },
+  /* Cada quien puede cambiar la suya. Hasta ahora solo un administrador
+     podía reiniciarla, y el manual pedía algo que no se podía hacer. */
+  async cambiarMiPassword(password){
+    if(!DB.remote) throw new Error('En modo de prueba no hay cuentas que cambiar.');
+    return sbFetch('/auth/v1/user', {method:'PUT', body: JSON.stringify({password})});
   },
   async listarUsuarios(){ return rpc('isel_usuarios_listar', {}); },
   async cambiarRol(userId, rol){ return rpc('isel_usuario_rol', {p_user:userId, p_rol:rol}); },
@@ -5509,6 +5644,49 @@ function leerCampos(attr, destino){
   });
   return destino;
 }
+/* ---------- señal de «estoy trabajando» ----------
+   Se cuentan las tareas en curso, no se usa un simple encendido y
+   apagado: si dos operaciones se traslapan, la primera en terminar no
+   debe apagar la señal de la que sigue viva.
+
+   El retraso de 300 ms evita el parpadeo de las operaciones rápidas;
+   la permanencia mínima de 400 ms evita el efecto contrario, que la
+   señal aparezca y desaparezca tan rápido que no se alcance a leer. */
+const ESPERA = {tareas:0, mostrar:null, desde:0, ocultar:null};
+function ocupadoInicia(){
+  ESPERA.tareas++;
+  if(ESPERA.ocultar){ clearTimeout(ESPERA.ocultar); ESPERA.ocultar = null; }
+  if(ESPERA.tareas === 1 && !ESPERA.mostrar){
+    ESPERA.mostrar = setTimeout(()=>{
+      ESPERA.mostrar = null;
+      if(ESPERA.tareas > 0){
+        ESPERA.desde = Date.now();
+        document.body.classList.add('ocupado');
+      }
+    }, 300);
+  }
+}
+function ocupadoTermina(){
+  ESPERA.tareas = Math.max(0, ESPERA.tareas - 1);
+  if(ESPERA.tareas > 0) return;
+  if(ESPERA.mostrar){ clearTimeout(ESPERA.mostrar); ESPERA.mostrar = null; }
+  if(!document.body.classList.contains('ocupado')) return;
+  const visto = Date.now() - ESPERA.desde;
+  const resto = Math.max(0, 400 - visto);
+  ESPERA.ocultar = setTimeout(()=>{
+    ESPERA.ocultar = null;
+    if(ESPERA.tareas === 0) document.body.classList.remove('ocupado');
+  }, resto);
+}
+/* Envuelve cualquier trabajo que pueda tardar. La señal se apaga
+   también si la operación falla: un error no debe dejar la página
+   diciendo que sigue cargando. */
+async function conEspera(trabajo){
+  ocupadoInicia();
+  try{ return await trabajo(); }
+  finally{ ocupadoTermina(); }
+}
+
 const APP = $('#app');
 const esc = s => String(s??'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fdate = iso => new Date(iso).toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'});
@@ -5523,10 +5701,112 @@ const S = {
   confirmDel:null, shuffle:{}, telem:null, answersOpen:{}, analysisSort:'r', consent:false, showTpl:false, selectedIns:null,
   pickVer:{}, fInvFam:'', connFail:null, vSort:{k:'defecto',d:-1}, delIns:null, delFam:null, fusionDe:null, fusionA:'', retomar:null, retomarVisto:false, avanceActual:null,
   candidateMode:false, invite:null, inviteToken:null,
-  yo:null, usuarios:null, uForm:{rol:'gerente'},
+  yo:null, usuarios:null, uForm:{rol:'gerente'}, foco:false,
   invites:[], showInvites:false, invForm:{}, lastInvite:null,
   conn:null, loginEmail:'', login:{}, unlocked:false
 };
+
+/* ---------- tema claro / oscuro ----------
+   Se guarda en el dispositivo, no en la cuenta: es una preferencia de
+   la pantalla donde se trabaja, no de la persona. Sin preferencia
+   guardada manda lo que diga el sistema operativo. */
+const TEMA_CLAVE = 'isel:tema';
+function temaActual(){
+  const r = document.documentElement;
+  if(r.dataset.theme) return r.dataset.theme;
+  return (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+}
+function aplicarTema(t){
+  if(t) document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+}
+/* El icono dice qué pasará al pulsarlo: luna para pasar a oscuro, sol
+   para volver a claro. Va en SVG porque los glifos tipo ◐ se dibujan
+   distinto —o no se dibujan— según la fuente del sistema. */
+function iconoTema(){
+  const a = temaActual() === 'dark';
+  const svg = a
+    ? `<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2
+         M5.4 5.4 7 7M17 17l1.6 1.6M18.6 5.4 17 7M7 17l-1.6 1.6"/>`
+    : `<path d="M20.5 14.3A8.6 8.6 0 1 1 9.7 3.5a6.9 6.9 0 0 0 10.8 10.8Z"/>`;
+  return `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svg}</svg>`;
+}
+function tituloTema(){
+  return temaActual() === 'dark' ? 'Cambiar a modo claro (tecla T)' : 'Cambiar a modo oscuro (tecla T)';
+}
+function alternarTema(){
+  const nuevo = temaActual() === 'dark' ? 'light' : 'dark';
+  aplicarTema(nuevo);
+  try{ STORE.set(TEMA_CLAVE, nuevo); }catch(e){}
+  render();
+}
+
+/* ---------- vista ampliada de una sección ----------
+   Mismo gesto que en el tablero de Junta: ⤢ para agrandar una
+   sección a pantalla entera, ⛶ para pantalla completa del navegador,
+   ↗ para abrirla en otra pestaña, Esc para salir. */
+const SECCIONES = {
+  admin:     'Candidatos evaluados',
+  compare:   'Comparador de candidatos',
+  invites:   'Invitaciones',
+  versions:  'Evaluaciones y versiones',
+  analysis:  'Análisis de reactivos',
+  answers:   'Respuestas del candidato',
+  results:   'Resultado del candidato',
+  report:    'Informe de evaluación',
+  editor:    'Editor de la evaluación',
+  usuarios:  'Usuarios del sistema',
+  home:      'Inicio'
+};
+function puedeAmpliar(v){ return !!SECCIONES[v] && !S.candidateMode; }
+
+/* Las secciones con tablas usan el ancho completo; el encabezado debe
+   usar el mismo contenedor para que la marca quede alineada con el
+   contenido y los botones no se apiñen. */
+const VISTAS_ANCHAS = ['admin','compare','invites','versions','analysis','answers',
+                       'results','report','editor','itemedit','usuarios'];
+function shellVista(){ return VISTAS_ANCHAS.includes(S.view) ? 'shell-ancha' : 'shell'; }
+
+function barraFoco(){
+  const t = SECCIONES[S.view] || 'Sección';
+  const enPantallaCompleta = !!document.fullscreenElement;
+  return `<div class="foco-barra no-print">
+    <span class="foco-titulo">${esc(t)}</span>
+    <span class="foco-der">
+      <button class="btn btn-sm" data-focofull type="button">
+        ${enPantallaCompleta ? 'Salir de pantalla completa' : '⛶ Pantalla completa'}</button>
+      <a class="btn btn-sm" href="${esc(enlaceSeccion(S.view))}" target="_blank" rel="noopener"
+         title="Abrir esta sección en otra pestaña">↗ Otra pestaña</a>
+      <button class="ico-btn" data-tema type="button" title="${tituloTema()}" aria-label="${tituloTema()}"
+        style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);color:#fff">${iconoTema()}</button>
+      <button class="btn btn-sm" data-focosalir type="button" title="Cerrar (Esc)">✕ Cerrar</button>
+    </span>
+  </div>`;
+}
+/* La otra pestaña abre la aplicación directamente en esa sección. */
+function enlaceSeccion(v){
+  return location.origin + location.pathname + '#/v/' + encodeURIComponent(v);
+}
+
+/* Contraseña provisional generada por la máquina, no inventada por
+   quien da de alta. Es el punto donde de verdad entran las
+   contraseñas débiles: un administrador con prisa escribe algo como
+   «Isel2026!», que está en las listas de contraseñas filtradas.
+   Se usa crypto.getRandomValues, no Math.random, que es predecible. */
+const ALFABETO = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%*?-+';
+function generarPassword(largo){
+  const n = largo || 16;
+  const out = [];
+  if(window.crypto && window.crypto.getRandomValues){
+    const buf = new Uint32Array(n);
+    window.crypto.getRandomValues(buf);
+    for(let i=0;i<n;i++) out.push(ALFABETO[buf[i] % ALFABETO.length]);
+  } else {
+    for(let i=0;i<n;i++) out.push(ALFABETO[Math.floor(Math.random()*ALFABETO.length)]);
+  }
+  return out.join('');
+}
 
 const ROL_NOMBRE = {admin:'Administrador', capital_humano:'Capital Humano', gerente:'Gerente'};
 const ROL_DESC = {
@@ -5549,15 +5829,17 @@ function topbar(){
   const marca = `<a class="brand" href="#" data-go="home"><span class="brand-mark">ISEL</span>
     <span class="brand-txt">Evaluación de competencias comerciales</span></a>`;
 
-  if(!dentro) return `<div class="topbar no-print"><div class="shell topbar-in">
+  if(!dentro) return `<div class="topbar no-print"><div class="${shellVista()} topbar-in">
     ${marca}<span class="topbar-sp"></span>
+    <button class="ico-btn" data-tema type="button" title="${tituloTema()}"
+      aria-label="${tituloTema()}">${iconoTema()}</button>
     <button class="tlink ${S.view==='login'?'on':''}" data-go="login">Iniciar sesión</button>
   </div></div>`;
 
   const estado = !DB.remote ? {c:'var(--amber)', t:'Prueba'}
     : DB.hasSession ? {c:'var(--r-green)', t:'En línea'}
     : {c:'var(--amber)', t:'Sin sesión'};
-  return `<div class="topbar no-print"><div class="shell topbar-in">
+  return `<div class="topbar no-print"><div class="${shellVista()} topbar-in lleno">
     ${marca}<span class="topbar-sp"></span>
     <button class="tlink ico ${S.view==='home'?'on':''}" data-go="home" title="Inicio" aria-label="Inicio">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9"
@@ -5565,9 +5847,15 @@ function topbar(){
     <button class="tlink ${S.view==='admin'||S.view==='compare'?'on':''}" data-go="admin">Candidatos</button>
     <button class="tlink ${inEd?'on':''}" data-go="versions">Evaluaciones</button>
     ${puede('usuarios')?`<button class="tlink ${S.view==='usuarios'?'on':''}" data-go="usuarios">Usuarios</button>`:''}
-    ${S.yo && S.yo.rol ? `<span class="rolchip" title="Tu usuario y tu rol">${esc(S.yo.nombre||'')}<b>${esc(ROL_NOMBRE[S.yo.rol]||S.yo.rol)}</b></span>` : ''}
+    ${S.yo && S.yo.rol ? `<span class="rolchip" title="Tu usuario y tu rol"><span>${esc(S.yo.nombre||'')}</span><b>${esc(ROL_NOMBRE[S.yo.rol]||S.yo.rol)}</b></span>
+      <button class="tlink" data-mipass type="button" title="Cambiar mi contraseña">Contraseña</button>` : ''}
     <button class="tlink ${S.view==='settings'?'on':''}" data-go="settings">
       <span class="statdot" style="background:${estado.c}"></span>${estado.t}</button>
+    ${puedeAmpliar(S.view)?`<button class="ico-btn" data-foco type="button"
+      title="Ver esta sección en grande (también con la tecla A)"
+      aria-label="Ver esta sección en grande">⤢</button>`:''}
+    <button class="ico-btn" data-tema type="button" title="${tituloTema()}"
+      aria-label="${tituloTema()}">${iconoTema()}</button>
     ${DB.hasSession?`<button class="tlink ico" data-signout title="Cerrar sesión" aria-label="Cerrar sesión">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9"
         stroke-linecap="round" stroke-linejoin="round"><path d="M15 17v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2"/><path d="M19 12H9"/><path d="m16 9 3 3-3 3"/></svg></button>`:''}
@@ -5600,7 +5888,7 @@ function viewUsuarios(){
       </td>
     </tr>`).join('');
 
-  return `${topbar()}<div class="shell">
+  return `${topbar()}<div class="shell-ancha">
     <div class="page-h"><h1>Usuarios</h1><div class="sub">${lista.length} registrado${lista.length===1?'':'s'}</div></div>
     ${S.msg?`<div class="alert"><h3>${esc(S.msg)}</h3></div>`:''}
 
@@ -5615,7 +5903,14 @@ function viewUsuarios(){
           <div class="fld"><label class="lbl" for="u-mail">Correo</label>
             <input class="fi" id="u-mail" type="email" data-u="email" value="${esc(f.email||'')}"></div>
           <div class="fld"><label class="lbl" for="u-pass">Contraseña provisional</label>
-            <input class="fi" id="u-pass" type="text" data-u="password" value="${esc(f.password||'')}"></div>
+            <div style="display:flex;gap:6px">
+              <input class="fi" id="u-pass" type="text" data-u="password" value="${esc(f.password||'')}"
+                     style="flex:1" autocomplete="off" spellcheck="false">
+              <button class="btn btn-ghost btn-sm" data-genpass type="button"
+                      title="Genera una contraseña aleatoria de 16 caracteres">Generar</button>
+            </div>
+            <div class="tiny" style="margin-top:4px">No la inventes: usa Generar. Las contraseñas
+              inventadas al vuelo suelen estar en las listas de contraseñas filtradas.</div></div>
         </div>
         <div class="grid g2">
           <div class="fld"><label class="lbl" for="u-rol">Rol</label>
@@ -6070,7 +6365,7 @@ function resultsBody(rec, forPrint){
 }
 
 function viewResults(){
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:26px;padding-bottom:50px">
     ${S.saveFailed?`<div class="alert no-print" style="margin-bottom:18px"><h3>Pendiente de guardar</h3>
       Este resultado está calculado pero todavía no llegó al servidor. Quedó en espera en este navegador.
       <div class="navrow" style="margin-top:10px"><button class="btn btn-sm" data-retrysave>Reintentar guardado</button></div></div>`:''}
@@ -6098,7 +6393,7 @@ function viewDone(){
 }
 function viewReport(){
   const rec = S.rec;
-  return topbar()+`<div class="shell" style="padding-top:24px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:24px;padding-bottom:50px">
     <div class="navrow no-print" style="margin:0 0 20px">
       <button class="btn" data-print>Imprimir o guardar como PDF</button>
       <button class="btn btn-ghost" data-go="results">Volver al tablero</button></div>
@@ -6131,7 +6426,7 @@ function viewAdmin(){
     basic:r.result.basicOk, ideal:r.result.idealOk, risk:['Bajo','Moderado','Alto'].indexOf(r.result.risk)}[S.sortK]);
   rows.sort((a,b)=>{ const x=key(a), y=key(b); return (x>y?1:x<y?-1:0)*S.sortD; });
   const th=(k,l)=>`<th data-sort="${k}">${l}${S.sortK===k?(S.sortD>0?' ▲':' ▼'):''}</th>`;
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Candidatos evaluados</h2><span class="sub">${rows.length} de ${S.list.length}</span></div>
     ${S.msg?`<div class="alert warn" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
     ${S.confirmDel?`<div class="alert" style="margin-bottom:16px"><h3>Confirmar eliminación</h3>
@@ -6188,7 +6483,7 @@ function viewAdmin(){
 /* ---------- COMPARADOR ---------- */
 function viewCompare(){
   const cs = S.list.filter(r=>S.sel.includes(r.id)).slice(0,4);
-  if(cs.length<2) return topbar()+`<div class="shell" style="padding-top:40px">
+  if(cs.length<2) return topbar()+`<div class="shell-ancha" style="padding-top:40px">
     <div class="empty"><b>Selecciona entre 2 y 4 candidatos</b>Marca las casillas en la lista de candidatos para comparar sus perfiles.</div>
     <div class="navrow"><button class="btn" data-go="admin">Ir a candidatos</button></div></div>`;
   const COLORS=['var(--blue)','var(--r-green)','var(--amber)','var(--r-red)'];
@@ -6352,7 +6647,7 @@ function viewVersions(){
   const rows = S.instruments;
   const grupos = {};
   rows.forEach(i=>{ (grupos[famOf(i)] = grupos[famOf(i)] || []).push(i); });
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Evaluaciones y versiones</h2>
       <span class="sub">${Object.keys(grupos).length} puestos · ${rows.length} versiones</span></div>
     <div class="navrow" style="margin:0 0 14px">
@@ -6737,7 +7032,7 @@ function viewEditor(){
   const ins = S.draft;
   if(!ins) return viewVersions();
   const T = {items:tabItems, dims:tabDims, reqs:tabReqs, plan:tabPlan, meta:tabMeta, check:tabCheck};
-  return topbar()+`<div class="shell" style="padding-top:22px;padding-bottom:40px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:22px;padding-bottom:40px">
     ${edHead(ins)}${(T[S.tab]||tabItems)(ins)}${saveBar(ins)}</div>`;
 }
 
@@ -6774,7 +7069,7 @@ function viewItemEdit(){
     ranking:'Define el orden ideal completo. El puntaje baja según el desplazamiento respecto de ese orden.',
     likert:'Autoevaluación: úsala junto con un par de consistencia en la pestaña de datos de la versión.'
   }[q.type];
-  return topbar()+`<div class="shell" style="padding-top:22px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:22px;padding-bottom:50px">
     <div class="sect-h"><h2>${S.itemNew?'Nuevo reactivo':'Editar reactivo '+esc(q.id)}</h2>
       <span class="sub">${esc(ins.name)} · ${esc(ins.version)}</span></div>
     ${S.msg?`<div class="alert" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
@@ -7120,7 +7415,7 @@ function answerDetail(q, ans, score){
 function viewAnswers(){
   const rec = S.rec;
   const ins = S.instruments.find(i=>i.id===rec.instrumentId);
-  if(!ins) return topbar()+`<div class="shell" style="padding-top:40px">
+  if(!ins) return topbar()+`<div class="shell-ancha" style="padding-top:40px">
     <div class="empty"><b>No se encontró la versión ${esc(rec.version)}</b>
     El detalle de respuestas necesita la definición del instrumento con el que se aplicó la evaluación.</div>
     <div class="navrow"><button class="btn" data-go="results">Volver</button></div></div>`;
@@ -7207,7 +7502,7 @@ function viewAnalysis(){
     return x - y;
   });
   const malos = rows.filter(x=>x.color==='var(--r-red)').length;
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Análisis de reactivos</h2><span class="sub">${rows.length} reactivos · ${n} evaluaciones</span></div>
     ${n < 15 ? `<div class="alert warn" style="margin-bottom:16px"><h3>Muestra insuficiente</h3>
       Con ${n} ${n===1?'evaluación':'evaluaciones'} los números son ruido. Estas cifras empiezan a significar algo a partir de unos
@@ -7319,7 +7614,7 @@ function viewInvites(){
   });
   const nombreDe = id => { const x=S.instruments.find(y=>y.id===id); return x? x.name : '—'; };
 
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  return topbar()+`<div class="shell-ancha" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Invitaciones</h2>
       <span class="sub">${(S.invites||[]).length} abiertas${S.fInvFam?` · ${invs.length} en el filtro`:''}</span></div>
     ${S.msg?`<div class="alert warn" style="margin-bottom:16px"><h3>${esc(S.msg)}</h3></div>`:''}
@@ -7506,7 +7801,10 @@ function render(){
            usuarios:viewUsuarios,
            answers:viewAnswers,analysis:viewAnalysis,pick:viewPick,invites:viewInvites};
   if(!S.candidateMode && (GATED.includes(S.view) || (S.view==='settings' && DB.configured)) && !accessOk()) S.view = 'login';
-  APP.innerHTML = (V[S.view]||viewHome)();
+  const contenido = (V[S.view]||viewHome)();
+  APP.innerHTML = (S.foco && puedeAmpliar(S.view))
+    ? `<div class="foco">${barraFoco()}<div class="foco-cuerpo">${contenido}</div></div>`
+    : contenido;
   aplicarPermisos();
   if(S._last !== S.view){ window.scrollTo(0,0); S._last = S.view; }
   if(typeof vigilaInactividad === 'function' && !graceT) vigilaInactividad();
@@ -7516,7 +7814,7 @@ function render(){
     S._focus = null;
   }
 }
-async function go(v){
+async function irA(v){
   /* En modo candidato solo existen las pantallas de la evaluación */
   if(S.candidateMode && !['invite','form','quiz','thanks'].includes(v)) v = 'invite';
   if(v==='pick' && !(S.instruments||[]).length){ try{ S.instruments = await DB.listInstruments(); }catch(e){} }
@@ -7563,6 +7861,10 @@ async function go(v){
   }
   S.view=v; render();
 }
+
+/* Navegar también puede tardar: casi siempre trae datos del servidor. */
+const go = v => conEspera(() => irA(v));
+
 function setPath(obj, path, val){
   const p = path.split('.'); let o = obj;
   for(let i=0;i<p.length-1;i++) o = o[p[i]];
@@ -7590,7 +7892,7 @@ async function duplicateInstrument(id){
 }
 
 APP.addEventListener('click', async e=>{
-  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass]');
+  const t = e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass],[data-tema],[data-foco],[data-focosalir],[data-focofull],[data-genpass],[data-mipass]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -7641,6 +7943,25 @@ APP.addEventListener('click', async e=>{
     S.msg='Sesión cerrada.';
     return go('home');
   }
+  if(d.tema!==undefined) return alternarTema();
+  if(d.foco!==undefined){ S.foco = true; return render(); }
+  if(d.focosalir!==undefined){
+    S.foco = false;
+    if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    return render();
+  }
+  if(d.focofull!==undefined){
+    const raiz = document.documentElement;
+    const p = document.fullscreenElement
+      ? document.exitFullscreen()
+      : (raiz.requestFullscreen ? raiz.requestFullscreen() : null);
+    if(p && p.catch) p.catch(()=>{
+      S.msg = 'Este navegador no permite pantalla completa aquí. Usa F11, o abre la sección en otra pestaña.';
+      render();
+    });
+    else if(!p){ S.msg = 'Este navegador no permite pantalla completa aquí. Usa F11.'; render(); }
+    return;
+  }
   if(d.copysql!==undefined) return copyText(SQL_SCHEMA, t);
   if(d.copylink!==undefined) return copyText(d.copylink, t);
   if(d.dologin!==undefined){
@@ -7670,6 +7991,22 @@ APP.addEventListener('click', async e=>{
 
   /* --- invitaciones --- */
   /* --- usuarios del sistema --- */
+  if(d.genpass!==undefined){
+    leerCampos('data-u', S.uForm);
+    S.uForm.password = generarPassword(16);
+    S.msg = 'Contraseña generada. Cópiala antes de crear al usuario: no vuelve a mostrarse.';
+    return render();
+  }
+  if(d.mipass!==undefined){
+    const nueva = prompt('Tu nueva contraseña (mínimo 8 caracteres):');
+    if(nueva === null) return;
+    if((nueva||'').length < 8){ S.msg = 'La contraseña debe tener al menos 8 caracteres.'; return render(); }
+    try{
+      await DB.cambiarMiPassword(nueva);
+      S.msg = 'Tu contraseña quedó cambiada.';
+    }catch(e){ S.msg = 'No se pudo cambiar: ' + e.message; }
+    return render();
+  }
   if(d.unuevo!==undefined){
     leerCampos('data-u', S.uForm);
     const f = S.uForm;
@@ -8286,7 +8623,29 @@ async function enterCandidateMode(token){
   render();
 }
 
+/* Atajos: Esc cierra la vista ampliada, A la abre, T cambia el tema.
+   No se activan mientras se escribe en un campo. */
+document.addEventListener('keydown', ev=>{
+  const escribiendo = ev.target && ev.target.matches &&
+    ev.target.matches('input, textarea, select, [contenteditable="true"]');
+  if(ev.key === 'Escape' && S.foco){
+    S.foco = false;
+    if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+    return render();
+  }
+  if(escribiendo || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if((ev.key === 'a' || ev.key === 'A') && puedeAmpliar(S.view) && !S.foco){ S.foco = true; return render(); }
+  if(ev.key === 't' || ev.key === 'T') return alternarTema();
+});
+/* Si se sale de pantalla completa con F11 o con Esc del navegador, el
+   rótulo del botón tiene que ponerse al día. */
+document.addEventListener('fullscreenchange', ()=>{ if(S.foco) render(); });
+
 (async function init(){
+  /* El tema se aplica antes de pintar nada, para que no haya un
+     destello claro al abrir en oscuro. */
+  try{ const t = await STORE.get(TEMA_CLAVE, null); if(t) aplicarTema(t); }catch(e){}
+
   const m = (location.hash||'').match(/^#\/e\/([A-Za-z0-9_-]+)$/);
   if(m) return enterCandidateMode(m[1]);
   await DB.loadConfig();
@@ -8294,6 +8653,11 @@ async function enterCandidateMode(token){
   const b = await bootstrap();
   S.instruments = b.ins; S.list = b.cands;
   if(!DB.remote && CFG.gate) S.unlocked = false;
+
+  /* #/v/<seccion> abre directamente esa sección ampliada: es lo que
+     produce el botón «Abrir en otra pestaña». */
+  const v = (location.hash||'').match(/^#\/v\/([a-z]+)$/);
+  if(v && SECCIONES[v[1]]){ S.foco = true; return go(v[1]); }
   render();
 })();
 </script>
