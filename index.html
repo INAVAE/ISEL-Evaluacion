@@ -448,10 +448,27 @@ h3{font-family:var(--sans);font-weight:600;font-size:17px;line-height:1.3}
 .qb-h{display:flex;gap:12px;align-items:baseline;padding:12px 14px;width:100%;text-align:left}
 .qb-h .qid{font-family:var(--cond);font-weight:600;color:var(--blue);width:44px;flex:none}
 .qb-h .qq{flex:1;font-size:14.5px}
+/* El tipo y el peso van pegados al enunciado y se leían como una sola
+   frase: «¿Qué haces primero?Escenario comercial». */
+.qb-h .qq em{margin-left:8px;color:var(--ink-3)}
 .qb-b{padding:0 14px 14px 70px;font-size:14px}
 .qb-b .sc{display:flex;gap:10px;padding:6px 0;border-bottom:var(--line)}
 .qb-b .sc b{font-family:var(--cond);font-size:16px;width:38px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
 .qb-just{background:var(--blue-l);border-left:3px solid var(--blue);padding:10px 12px;margin-top:12px;font-size:13.5px}
+/* Un reactivo cerrado sigue armado en la página: solo se esconde. Es lo
+   que permite que al imprimir salga completo sin volver a dibujar nada. */
+.qb-b.plegado{display:none}
+
+/* Lo que solo existe en papel. */
+.solo-print{display:none}
+.cabecera-impresa{display:none;justify-content:space-between;gap:20px;align-items:flex-start;
+  border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:12px}
+.cabecera-impresa .ci-tit{font-size:10pt;letter-spacing:.08em;text-transform:uppercase;color:#555}
+.cabecera-impresa .ci-nom{font-family:var(--cond);font-size:19pt;font-weight:700;line-height:1.1}
+.cabecera-impresa .ci-sub{font-size:9.5pt;color:#555}
+.cabecera-impresa .ci-der{text-align:right;font-size:10.5pt}
+.cabecera-impresa .ci-der b{font-family:var(--cond);font-size:17pt}
+.ci-aviso{font-size:9pt;color:#555;margin:0 0 14px}
 
 /* ---------- misc ---------- */
 .sect{padding:26px 0}
@@ -477,6 +494,54 @@ h3{font-family:var(--sans);font-weight:600;font-size:17px;line-height:1.3}
   .panel,.res-hero{break-inside:avoid;border-color:#999}
   .sect{padding:10px 0}
   .page-break{break-before:page}
+
+  /* ---- hoja de respuestas del candidato ----
+     Aquí el contenido lo decide el instrumento, no el diseño: un
+     reactivo puede tener tres opciones o diez, y con un salto de hoja
+     mal puesto el enunciado se queda al pie de una página y sus
+     opciones empiezan en la siguiente, sin contexto. Cada reactivo
+     viaja entero. */
+  .hoja-respuestas .qb-b.plegado{display:block}   /* en papel, todo abierto */
+  .solo-print{display:block}
+  .cabecera-impresa{display:flex}
+  .hoja-respuestas .note{display:none}            /* las notas de pantalla sobran */
+  .hoja-respuestas>.sect-h{display:none}          /* lo dice la cabecera impresa */
+  .hoja-respuestas .ci-aviso{display:block}
+
+  .qb-item{break-inside:avoid;page-break-inside:avoid;margin-bottom:5px}
+  .qb-h{break-after:avoid;page-break-after:avoid;padding:6px 10px;gap:9px}
+  .qb-b{padding:0 10px 8px 48px !important}
+  .anslist{break-before:avoid}
+  .ansrow,.qb-just,.qcase{break-inside:avoid;page-break-inside:avoid}
+
+  /* Mantener cada reactivo entero cuesta espacio: si uno no cabe en lo
+     que queda de hoja, salta entero a la siguiente y deja un hueco. Con
+     la caja apretada caben dos por hoja en vez de uno, que es la
+     diferencia entre cuarenta hojas y treinta. Se aprieta solo en papel;
+     en pantalla no cambia nada. */
+  .hoja-respuestas{font-size:9.5pt}
+  .hoja-respuestas .qb-h .qq{font-size:9.5pt;line-height:1.3}
+  .hoja-respuestas .qb-h .qid{width:34px}
+  .hoja-respuestas .qb-h .num{font-size:12pt !important}
+  .hoja-respuestas .qcase{padding:7px 10px;font-size:9pt;margin-bottom:7px !important;line-height:1.35}
+  .hoja-respuestas .ansrow{padding:3.5px 8px;font-size:9.5pt;line-height:1.32}
+  .hoja-respuestas .ansrow .ansv{width:34px;font-size:11pt}
+  .hoja-respuestas .ansrow .ansv em{font-size:8pt}
+  .hoja-respuestas .qb-just{padding:6px 9px;margin-top:7px;font-size:8.8pt;line-height:1.35}
+  .hoja-respuestas .sect-h h2{font-size:13pt}
+  .hoja-respuestas .sect-h .num{font-size:15pt !important}
+  .hoja-respuestas .sect-h .sub{font-size:8.5pt}
+
+  /* Una dimensión no se queda sola al pie de la hoja, y su primer
+     reactivo se va con ella. */
+  .hoja-respuestas .sect{break-inside:auto;padding:6px 0 0}
+  .hoja-respuestas .sect>.sect-h{break-after:avoid;page-break-after:avoid;margin-bottom:8px}
+
+  /* Los fondos distinguen la opción elegida de la mejor posible y de la
+     que resta. Sin ellos la hoja impresa pierde justo lo que se consulta,
+     así que se piden explícitamente: los navegadores los quitan por
+     omisión para ahorrar tinta. */
+  .ansrow,.qb-just,.qcase,.qb-item{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 
 /* ---------- editor ---------- */
@@ -2432,8 +2497,8 @@ const PRIVACY_SEED = {
 
 /* Sello de compilación: sirve para confirmar qué archivo está cargado
    realmente en el navegador cuando algo "no aparece". */
-const BUILD = 'B20261016-0017';
-const BUILD_NOTAS = 'El usuario desactivado no entra ni recupera contraseña · ojo para ver la contraseña · mensajes de acceso más útiles';
+const BUILD = 'B20261019-0018';
+const BUILD_NOTAS = 'La hoja de respuestas ya no parte ningún reactivo entre páginas · sale completa aunque en pantalla esté plegada · botón Abrir todo';
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -7840,15 +7905,39 @@ function viewAnswers(){
     <div class="navrow"><button class="btn" data-go="results">Volver</button></div></div>`;
   const defs = rec.dimsDef || ins.dims;
   const items = ins.items.filter(i=>i.active!==false);
-  return topbar()+`<div class="shell" style="padding-top:26px;padding-bottom:50px">
+  const lv = levelOf(rec.result.index);
+  return topbar()+`<div class="shell hoja-respuestas" style="padding-top:26px;padding-bottom:50px">
     <div class="sect-h"><h2>Respuestas de ${esc(rec.profile.nombre||'el candidato')}</h2>
       <span class="sub">${esc(rec.version)} · ${fdate(rec.createdAt)}</span></div>
+
+    <!-- Encabezado del documento impreso. En pantalla sobra, porque todo
+         esto ya está en el tablero; en papel, una hoja suelta sin nombre
+         ni fecha no sirve de nada. -->
+    <div class="solo-print cabecera-impresa">
+      <div>
+        <div class="ci-tit">Respuestas de la evaluación</div>
+        <div class="ci-nom">${esc(rec.profile.nombre||'Sin nombre')}</div>
+        <div class="ci-sub">${esc(rec.puesto||'')}</div>
+      </div>
+      <div class="ci-der">
+        <div><b>${rec.result.index}</b>/100 · ${esc(lv.k)}</div>
+        <div class="ci-sub">${esc(rec.version)} · aplicada el ${fdate(rec.createdAt)}</div>
+        <div class="ci-sub">Impreso el ${fdate(new Date().toISOString())}</div>
+      </div>
+    </div>
+    <p class="solo-print ci-aviso">Documento interno de uso exclusivo para el proceso de selección.
+      Contiene los criterios de calificación: no se entrega al candidato.</p>
+
     <p class="note" style="margin:0 0 18px">Cada reactivo muestra lo que eligió el candidato, cuántos puntos otorgó esa opción
     y por qué. Sirve para preparar la entrevista: en vez de preguntar en abstracto, se puede confrontar una decisión concreta.
     ${rec.shuffle?'Las opciones se le presentaron en orden aleatorio; aquí aparecen en el orden del banco.':''}</p>
     <div class="navrow no-print" style="margin:0 0 18px">
       <button class="btn btn-ghost btn-sm" data-go="results">Volver al tablero</button>
-      <button class="btn btn-ghost btn-sm" data-print>Imprimir</button></div>
+      <button class="btn btn-ghost btn-sm" data-print>Imprimir</button>
+      <button class="btn btn-ghost btn-sm" data-anstodo>${
+        items.every(q=>S.answersOpen[q.id]) ? 'Cerrar todo' : 'Abrir todo'}</button></div>
+    <p class="note no-print" style="margin:-10px 0 18px">Al imprimir salen todos los reactivos con su detalle completo,
+      estén abiertos o cerrados en pantalla: así el archivo siempre sale igual y ningún reactivo queda partido entre hojas.</p>
     ${defs.map(d=>{
       const qs = items.filter(q=>q.dim===d.id);
       if(!qs.length) return '';
@@ -7860,17 +7949,20 @@ function viewAnswers(){
         ${qs.map(q=>{
           const sc = rec.result.perQ[q.id];
           const open = S.answersOpen[q.id];
+          /* El detalle se arma siempre, abierto o cerrado. En pantalla se
+             oculta con CSS; al imprimir reaparece. Así el archivo no
+             depende de qué dejó desplegado quien lo mandó a imprimir. */
           return `<div class="qb-item">
             <button class="qb-h" data-ansopen="${q.id}">
               <span class="qid">${esc(q.id)}</span>
               <span class="qq">${esc(q.q)}<em class="tiny">${TYPES[q.type]} · peso ${q.w}${q.crit?' · crítica':''}</em></span>
               <span class="num" style="font-size:19px;color:${scoreColor(sc)}">${sc===null||sc===undefined?'—':sc}</span>
-              <span class="tiny">${open?'−':'+'}</span></button>
-            ${open?`<div class="qb-b" style="padding-left:16px">
+              <span class="tiny no-print">${open?'−':'+'}</span></button>
+            <div class="qb-b ${open?'':'plegado'}" style="padding-left:16px">
               ${q.case?`<div class="qcase" style="margin-bottom:12px">${esc(q.case)}</div>`:''}
               <div class="anslist">${answerDetail(q, rec.answers[q.id], sc)}</div>
               ${q.just?`<div class="qb-just"><b>Por qué se puntúa así.</b> ${esc(q.just)}</div>`:''}
-            </div>`:''}
+            </div>
           </div>`;
         }).join('')}
       </div>`;
@@ -8397,7 +8489,7 @@ async function duplicateInstrument(id){
 }
 
 document.addEventListener('click', async e=>{
-  const t = e.target.closest && e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass],[data-tema],[data-foco],[data-focosalir],[data-focofull],[data-genpass],[data-mipass],[data-mpgen],[data-mpok],[data-mpcancel],[data-menucuenta],[data-udel],[data-udelok],[data-udelno],[data-rpgen],[data-rpok],[data-rpcancel],[data-olvide],[data-recok],[data-reccancel],[data-npok],[data-npgen],[data-ojo]');
+  const t = e.target.closest && e.target.closest('[data-go],[data-pick],[data-lik],[data-multi],[data-rank],[data-rankreset],[data-next],[data-prev],[data-start],[data-restart],[data-open],[data-compare],[data-seed],[data-print],[data-qb],[data-sort],[data-tab],[data-openins],[data-vsort],[data-dupins],[data-useins],[data-archins],[data-unarchins],[data-delins],[data-delinsok],[data-delinscancel],[data-fusionar],[data-fusok],[data-fuscancel],[data-delfam],[data-delfamok],[data-delfamcancel],[data-newins],[data-showtpl],[data-newtpl],[data-savedraft],[data-publish],[data-newitem],[data-edititem],[data-dupitem],[data-delitem],[data-toggle],[data-privon],[data-shuffle],[data-adddim],[data-deldim],[data-normalize],[data-addreq],[data-delreq],[data-addplan],[data-delplan],[data-addcons],[data-delcons],[data-addopt],[data-delopt],[data-optflag],[data-itcrit],[data-itactive],[data-saveitem],[data-cancelitem],[data-signout],[data-mode],[data-testconn],[data-testsave],[data-saveconn],[data-dlconfig],[data-reintentar],[data-signout],[data-copysql],[data-dologin],[data-toggleinv],[data-newinvite],[data-copylink],[data-extinv],[data-reginv],[data-cancelinv],[data-consent],[data-startpick],[data-startinvite],[data-retomar],[data-desdecero],[data-recalc],[data-retrysave],[data-delcands],[data-confirmdel],[data-canceldel],[data-ansopen],[data-asort],[data-unuevo],[data-uact],[data-upass],[data-tema],[data-foco],[data-focosalir],[data-focofull],[data-genpass],[data-mipass],[data-mpgen],[data-mpok],[data-mpcancel],[data-menucuenta],[data-udel],[data-udelok],[data-udelno],[data-rpgen],[data-rpok],[data-rpcancel],[data-olvide],[data-recok],[data-reccancel],[data-npok],[data-npgen],[data-ojo],[data-anstodo]');
   if(!t) return;
   const d = t.dataset, ins = S.draft;
 
@@ -8508,6 +8600,16 @@ document.addEventListener('click', async e=>{
     leerCampos('data-u', S.uForm);
     S.uForm.password = generarPassword(16);
     S.msg = 'Contraseña generada. Cópiala antes de crear al usuario: no vuelve a mostrarse.';
+    return render();
+  }
+  if(d.anstodo!==undefined){
+    /* Abre o cierra todos los reactivos de la evaluación que se está
+       viendo. Solo afecta a la pantalla: en papel salen todos. */
+    const rec = S.rec, ins = rec && S.instruments.find(i=>i.id===rec.instrumentId);
+    if(!ins) return;
+    const qs = ins.items.filter(i=>i.active!==false);
+    const abrir = !qs.every(q=>S.answersOpen[q.id]);
+    qs.forEach(q=>{ if(abrir) S.answersOpen[q.id] = true; else delete S.answersOpen[q.id]; });
     return render();
   }
   if(d.ojo!==undefined){
